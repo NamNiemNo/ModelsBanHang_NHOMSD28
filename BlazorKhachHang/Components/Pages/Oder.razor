@@ -1,0 +1,451 @@
+﻿@page "/Oder"
+@using API.Models.DTO.TraHang
+@using BlazorKhachHang.Service.IService
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.Web
+@inject IHoaDonService service
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+@using API.Models.DTO.BanHang
+<link href="css/Oder.css" rel="stylesheet">
+<style>
+    .order-page {
+        --cream: #f5f0e8;
+        --brown: #3d2c1e;
+        --brown-mid: #6b4c35;
+        --gold: #c49a6c;
+        --warm-gray: #9e8f82;
+        --border-color: #e5ddd0;
+    }
+
+        .order-page .payment-paid {
+            color: #2e7d32;
+        }
+
+        .order-page .payment-unpaid {
+            color: #c0392b;
+        }
+
+        .order-page .note {
+            font-size: 13px;
+            color: #888;
+        }
+
+        .order-page .cancel-popup {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            margin-top: 10px;
+            border-radius: 6px;
+            width: 280px;
+        }
+
+            .order-page .cancel-popup h5 {
+                color: var(--brown);
+                font-size: 16px;
+            }
+
+            .order-page .cancel-popup label {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin-bottom: 8px;
+                cursor: pointer;
+            }
+
+            .order-page .cancel-popup input[type="radio"] {
+                margin: 0;
+                accent-color: var(--brown);
+            }
+
+        .order-page .order-product-img {
+            width: 90px;
+            height: 90px;
+            object-fit: cover;
+            border-radius: 10px;
+            border: 1px solid #eee;
+            background: #f8f8f8;
+        }
+
+        .order-page .btn-danger {
+            background-color: #c0392b;
+            border-color: #c0392b;
+        }
+
+            .order-page .btn-danger:hover {
+                background-color: #a5301f;
+                border-color: #a5301f;
+            }
+
+        .order-page .btn-warning {
+            background-color: var(--gold);
+            border-color: var(--gold);
+            color: #fff;
+        }
+
+            .order-page .btn-warning:hover {
+                background-color: var(--brown-mid);
+                border-color: var(--brown-mid);
+                color: #fff;
+            }
+
+        .order-page .btn-outline-secondary {
+            color: var(--brown);
+            border-color: var(--border-color);
+        }
+
+            .order-page .btn-outline-secondary:hover {
+                background-color: var(--cream);
+                color: var(--brown);
+                border-color: var(--brown);
+            }
+
+        .order-page .other-reason-box textarea {
+            width: 100%;
+            border: 1.5px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px;
+            font-size: 14px;
+            min-height: 70px;
+            resize: vertical;
+        }
+
+            .order-page .other-reason-box textarea:focus {
+                outline: none;
+                border-color: var(--gold);
+                box-shadow: 0 0 0 2px rgba(196,154,108,0.2);
+            }
+</style>
+
+<div class="order-page">
+    <div class="tab-container">
+        @foreach (var t in Tabs)
+        {
+            <div class="tab @(t == ActiveTab ? "active" : "")"
+                 @onclick="@(() => SelectTab(t))">
+                @t
+            </div>
+        }
+    </div>
+
+    @foreach (var order in FilteredOrders)
+    {
+        <div class="order-card" @key="order.HoaDonId">
+            <div class="order-header">
+                <strong>@order.ShopName</strong>
+                <div class="TrangThai @GetStatusClass(order.TrangThai)">
+                    @order.TrangThai
+                </div>
+            </div>
+
+            @foreach (var item in order.Items)
+            {
+                <div class="order-item" @key="item">
+                    <img src="@GetFullImageUrl(item.ImageUrl)"
+                         alt="@item.ProductName"
+                         class="order-product-img"
+                         onerror="this.onerror=null;this.src='/images/no-image.png';" />
+
+                    <div class="order-details">
+                        <h4>@item.ProductName</h4>
+
+                        <div class="text-muted" style="font-size:12px">
+                            Mã SP: <strong>@item.GiayChiTietId</strong>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(item.Size))
+                        {
+                            <div>Size: <strong>@item.Size</strong></div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(item.MauSac))
+                        {
+                            <div>Màu sắc: <strong>@item.MauSac</strong></div>
+                        }
+
+                        <div>Số lượng: @item.Quantity</div>
+                        <div>Giá: @item.UnitPrice.ToString("N0") VNĐ </div>
+                    </div>
+                </div>
+            }
+
+            <div class="order-price" style="text-align:right; font-weight:600">
+                Thành Tiền:
+                <span style="color:#e53935">
+                    @order.TongTien.ToString("N0") VNĐ
+                </span>
+            </div>
+
+            <div class="payment-status @GetTrangThaiThanhToanClass(order)">
+                @GetTrangThaiThanhToanText(order)
+            </div>
+
+            <div class="note">
+                Đánh giá sản phẩm trước
+                <strong>@order.ReviewDeadline.ToString("dd-MM-yyyy")</strong>
+            </div>
+
+            @if (order.TrangThai == TrangThaiDonHang.ChoXacNhan)
+            {
+                <button class="btn btn-sm btn-danger"
+                        @onclick="() => ShowCancel(order.HoaDonId)">
+                    ❌ Hủy đơn
+                </button>
+            }
+
+            @if (CancelOrderId == order.HoaDonId)
+            {
+                <div class="cancel-popup">
+                    <h5>Chọn lý do hủy đơn</h5>
+
+                    <label>
+                        <input type="radio" name="reason"
+                               checked="@(SelectedReason == "Đổi ý không mua nữa")"
+                               @onchange="@(() => OnReasonChanged("Đổi ý không mua nữa"))" />
+                        <span>Đổi ý không mua nữa</span>
+                    </label>
+
+                    <label>
+                        <input type="radio" name="reason"
+                               checked="@(SelectedReason == "Tìm được giá tốt hơn")"
+                               @onchange="@(() => OnReasonChanged("Tìm được giá tốt hơn"))" />
+                        <span>Tìm được giá tốt hơn</span>
+                    </label>
+
+                    <label>
+                        <input type="radio" name="reason"
+                               checked="@(SelectedReason == "Đặt nhầm sản phẩm")"
+                               @onchange="@(() => OnReasonChanged("Đặt nhầm sản phẩm"))" />
+                        <span>Đặt nhầm sản phẩm</span>
+                    </label>
+
+                    <label>
+                        <input type="radio" name="reason"
+                               checked="@(SelectedReason == "Khác")"
+                               @onchange="@(() => OnReasonChanged("Khác"))" />
+                        <span>Khác</span>
+                    </label>
+
+                    @if (SelectedReason == "Khác")
+                    {
+                        <div class="other-reason-box" style="margin-top:10px;">
+                            <textarea @bind="OtherReasonText"
+                                      @bind:event="oninput"
+                                      placeholder="Vui lòng nhập lý do..."></textarea>
+                        </div>
+                    }
+
+                    <div style="margin-top:10px">
+                        <button class="btn btn-danger" @onclick="ConfirmCancel">
+                            Xác nhận hủy
+                        </button>
+
+                        <button class="btn btn-secondary" @onclick="CloseCancel">
+                            Đóng
+                        </button>
+                    </div>
+                </div>
+            }
+
+            <button class="btn btn-outline-secondary btn-sm"
+                    disabled="@(CancelOrderId == order.HoaDonId)"
+                    @onclick="() => XemChiTiet(order)">
+                Xem chi tiết
+            </button>
+
+            @if (order.TrangThai == TrangThaiDonHang.HoanThanh)
+            {
+                <button class="btn btn-warning btn-sm"
+                        @onclick="() => GoToReturn(order)">
+                    🔄 Trả hàng
+                </button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private string BaseApiUrl = "https://localhost:7246";
+    private List<string> Tabs = new()
+    {
+        "Tất cả",
+        TrangThaiDonHang.ChoXacNhan,
+        TrangThaiDonHang.ChoGiaoHang,
+        TrangThaiDonHang.DangGiaoHang,
+        TrangThaiDonHang.HoanThanh,
+        TrangThaiDonHang.DaHuy,
+        TrangThaiDonHang.TraHang
+    };
+
+    private string ActiveTab = "Tất cả";
+
+    private string GetStatusClass(string status) => status switch
+    {
+        TrangThaiDonHang.DangGiaoHang => "shipping",
+        TrangThaiDonHang.ChoGiaoHang => "delivering",
+        TrangThaiDonHang.HoanThanh => "done",
+        TrangThaiDonHang.DaHuy => "cancelled",
+        TrangThaiDonHang.TraHang => "returning",
+        _ => "default-status"
+    };
+
+    private string GetFullImageUrl(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return "/images/no-image.png";
+
+        if (path.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            return path;
+
+        return $"{BaseApiUrl.TrimEnd('/')}/{path.TrimStart('/')}";
+    }
+
+    private List<OrderModel> Orders = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadOrders();
+        }
+    }
+
+    private async Task LoadOrders()
+    {
+        var khachHangIdStr =
+            await JS.InvokeAsync<string>("localStorage.getItem", "khachHangId");
+
+        if (string.IsNullOrEmpty(khachHangIdStr))
+            return;
+
+        var hoaDons = await service.GetDonHangKhachHangAsync(
+            Guid.Parse(khachHangIdStr)
+        );
+
+        Orders = hoaDons.Select(h => new OrderModel
+        {
+            HoaDonId = h.HoaDonId,
+            TrangThai = h.TrangThai,
+            Category = h.TrangThai,
+            TrangThaiThanhToan = h.TrangThaiThanhToan,
+            ReviewDeadline = h.NgayTao.AddDays(7),
+            TongTien = h.TongTien,
+            HinhThucThanhToan = h.HinhThucThanhToan,
+            Items = h.ChiTiet.Select(ct => new OrderItemModel
+            {
+                GiayChiTietId = ct.GiayChiTietId,
+                ProductName = ct.TenGiay,
+                MauSac = ct.MauSac,
+                Size = ct.Size,
+                Quantity = ct.SoLuongSanPham,
+                UnitPrice = ct.DonGia,
+                ImageUrl = ct.Anh ?? "img/no-image.png"
+            }).ToList()
+        }).ToList();
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private List<OrderModel> FilteredOrders =>
+      ActiveTab == "Tất cả"
+          ? Orders
+          : Orders.Where(o =>
+              o.TrangThai?.Trim()
+              .Equals(ActiveTab.Trim(), StringComparison.OrdinalIgnoreCase) == true
+            ).ToList();
+
+    private void SelectTab(string tab)
+    {
+        ActiveTab = tab;
+        StateHasChanged();
+    }
+
+    private string GetTrangThaiThanhToanText(OrderModel order)
+    {
+        if (order.HinhThucThanhToan == "COD")
+        {
+            return order.TrangThaiThanhToan == "Đã thanh toán"
+                ? "Đã thanh toán (COD)"
+                : "Thanh toán khi nhận hàng";
+        }
+
+        return order.TrangThaiThanhToan == "Đã thanh toán"
+            ? "Đã thanh toán"
+            : "Chưa thanh toán";
+    }
+
+    private string GetTrangThaiThanhToanClass(OrderModel order)
+    {
+        return order.TrangThaiThanhToan == "Đã thanh toán"
+            ? "payment-paid"
+            : "payment-unpaid";
+    }
+
+    private void XemChiTiet(OrderModel order)
+    {
+        Nav.NavigateTo($"/donmua/{order.HoaDonId}");
+    }
+
+    private Guid? CancelOrderId = null;
+    private string SelectedReason = "";
+    private string OtherReasonText = "";
+
+    private void ShowCancel(Guid id)
+    {
+        CancelOrderId = id;
+        SelectedReason = "";
+        OtherReasonText = "";
+    }
+
+    private void CloseCancel()
+    {
+        CancelOrderId = null;
+        SelectedReason = "";
+        OtherReasonText = "";
+    }
+
+    private void OnReasonChanged(string reason)
+    {
+        SelectedReason = reason;
+
+        // Đổi lý do khác "Khác" thì xoá nội dung đã gõ trước đó (nếu có)
+        if (reason != "Khác")
+        {
+            OtherReasonText = "";
+        }
+    }
+
+    private async Task ConfirmCancel()
+    {
+        if (CancelOrderId == null || string.IsNullOrEmpty(SelectedReason))
+        {
+            await JS.InvokeVoidAsync("alert", "Vui lòng chọn lý do hủy");
+            return;
+        }
+
+        // Nếu chọn "Khác" bắt buộc phải nhập nội dung cụ thể
+        if (SelectedReason == "Khác" && string.IsNullOrWhiteSpace(OtherReasonText))
+        {
+            await JS.InvokeVoidAsync("alert", "Vui lòng nhập lý do cụ thể");
+            return;
+        }
+
+        // Gộp lý do cuối cùng gửi lên API
+        var finalReason = SelectedReason == "Khác"
+            ? OtherReasonText.Trim()
+            : SelectedReason;
+
+        await service.HuyDonHangAsync(CancelOrderId.Value, finalReason);
+
+        CancelOrderId = null;
+        SelectedReason = "";
+        OtherReasonText = "";
+
+        await LoadOrders();
+    }
+
+    private void GoToReturn(OrderModel order)
+    {
+        Nav.NavigateTo($"/trahang/{order.HoaDonId}");
+    }
+}

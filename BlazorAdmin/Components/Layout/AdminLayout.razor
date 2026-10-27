@@ -1,0 +1,1097 @@
+﻿@using API.Models.DTO
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.JSInterop
+
+@rendermode InteractiveServer
+@inherits LayoutComponentBase
+
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthProvider
+@inject IJSRuntime JSRuntime
+@inject IThongBaoService ThongBaoService
+
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+
+<div class="admin-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="admin-sidebar @(sidebarOpen ? "sidebar-open" : "")">
+        @if (!roleLoaded)
+        {
+            <div class="sidebar-loading">
+                <div class="spinner-border spinner-border-sm"></div>
+                <span>Đang tải menu...</span>
+            </div>
+        }
+        else if (IsAdmin)
+        {
+            <NavAdmin OnNavigate="CloseSidebar" />
+        }
+        else
+        {
+            <NavNhanVien OnNavigate="CloseSidebar" />
+        }
+    </aside>
+
+    @if (sidebarOpen)
+    {
+        <div class="sidebar-backdrop"
+             @onclick="CloseSidebar">
+        </div>
+    }
+
+    <!-- MAIN -->
+    <div class="admin-main">
+
+        <!-- HEADER -->
+        <header class="admin-header">
+            <div class="header-left">
+                <button type="button"
+                        class="menu-button"
+                        title="Mở menu"
+                        @onclick="ToggleSidebar">
+                    <i class="bi bi-list"></i>
+                </button>
+
+                <div class="header-title">
+                    <strong>Hệ thống quản trị</strong>
+                    <small>Quản lý cửa hàng giày</small>
+                </div>
+            </div>
+
+            <div class="header-right">
+
+                <!-- THÔNG BÁO -->
+                <div class="header-dropdown">
+                    <button type="button"
+                            class="header-icon-button"
+                            title="Thông báo"
+                            @onclick="ToggleBellDropdown">
+                        <i class="bi bi-bell"></i>
+
+                        @if (thongBaos.Count > 0)
+                        {
+                            <span class="notification-count">
+                                @(thongBaos.Count > 99
+                                    ? "99+"
+                                    : thongBaos.Count.ToString())
+                            </span>
+                        }
+                    </button>
+
+                    @if (showBellDropdown)
+                    {
+                        <div class="notification-dropdown"
+                             @onclick:stopPropagation="true">
+
+                            <div class="dropdown-header">
+                                <div>
+                                    <h6>Thông báo</h6>
+                                    <small>@thongBaos.Count thông báo mới</small>
+                                </div>
+
+                                <button type="button"
+                                        class="dropdown-close"
+                                        @onclick="CloseDropdowns">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+
+                            <div class="notification-list">
+                                @if (notificationLoading)
+                                {
+                                    <div class="notification-state">
+                                        <div class="spinner-border spinner-border-sm text-warning"></div>
+                                        <span>Đang tải thông báo...</span>
+                                    </div>
+                                }
+                                else if (!string.IsNullOrWhiteSpace(notificationError))
+                                {
+                                    <div class="notification-state error-state">
+                                        <i class="bi bi-exclamation-circle"></i>
+                                        <span>@notificationError</span>
+                                    </div>
+                                }
+                                else if (thongBaos.Count == 0)
+                                {
+                                    <div class="notification-empty">
+                                        <span class="empty-icon">
+                                            <i class="bi bi-bell-slash"></i>
+                                        </span>
+
+                                        <strong>Không có thông báo mới</strong>
+                                        <small>Các thông báo mới sẽ xuất hiện tại đây.</small>
+                                    </div>
+                                }
+                                else
+                                {
+                                    @foreach (var tb in thongBaos)
+                                    {
+                                        <div class="notification-item">
+                                            <span class="notification-icon">
+                                                <i class="bi bi-info-circle-fill"></i>
+                                            </span>
+
+                                            <div class="notification-content">
+                                                <p>@tb.NoiDung</p>
+
+                                                <small>
+                                                    <i class="bi bi-clock"></i>
+                                                    @tb.ThoiGian.ToString("dd/MM/yyyy HH:mm")
+                                                </small>
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <div class="header-separator"></div>
+
+                <!-- TÀI KHOẢN -->
+                <div class="header-dropdown">
+                    <button type="button"
+                            class="user-button"
+                            @onclick="ToggleAvatarDropdown">
+
+                        <span class="user-avatar">
+                            @UserInitial
+                        </span>
+
+                        <span class="user-information">
+                            <strong>
+                                @(string.IsNullOrWhiteSpace(currentUserName)
+                                    ? "Người dùng"
+                                    : currentUserName)
+                            </strong>
+
+                            <small>
+                                @(IsAdmin ? "Quản trị viên" : "Nhân viên")
+                            </small>
+                        </span>
+
+                        <i class="bi bi-chevron-down user-chevron"></i>
+                    </button>
+
+                    @if (showAvatarDropdown)
+                    {
+                        <div class="account-dropdown"
+                             @onclick:stopPropagation="true">
+
+                            <div class="account-summary">
+                                <span class="account-avatar">
+                                    @UserInitial
+                                </span>
+
+                                <div>
+                                    <strong>
+                                        @(string.IsNullOrWhiteSpace(currentUserName)
+                                            ? "Người dùng"
+                                            : currentUserName)
+                                    </strong>
+
+                                    <small>
+                                        @(IsAdmin ? "Admin" : "Nhân viên")
+                                    </small>
+                                </div>
+                            </div>
+
+                            @if (IsAdmin)
+                            {
+                                <button type="button"
+                                        class="account-item"
+                                        @onclick="GotoProfile">
+                                    <span>
+                                        <i class="bi bi-person-circle"></i>
+                                    </span>
+
+                                    <div>
+                                        <strong>Thông tin tài khoản</strong>
+                                        <small>Xem thông tin cá nhân</small>
+                                    </div>
+                                </button>
+                            }
+
+                            <div class="account-divider"></div>
+
+                            <button type="button"
+                                    class="account-item logout-item"
+                                    @onclick="ShowLogoutConfirm">
+                                <span>
+                                    <i class="bi bi-box-arrow-right"></i>
+                                </span>
+
+                                <div>
+                                    <strong>Đăng xuất</strong>
+                                    <small>Thoát khỏi hệ thống</small>
+                                </div>
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+        </header>
+
+        <main class="admin-content" @onclick="CloseDropdowns">
+            @Body
+        </main>
+    </div>
+</div>
+
+@if (showBellDropdown || showAvatarDropdown)
+{
+    <div class="dropdown-backdrop"
+         @onclick="CloseDropdowns">
+    </div>
+}
+
+<!-- XÁC NHẬN ĐĂNG XUẤT -->
+@if (showLogoutConfirm)
+{
+    <div class="logout-overlay"
+         @onclick="HideLogoutConfirm">
+
+        <div class="logout-modal"
+             @onclick:stopPropagation="true">
+
+            <button type="button"
+                    class="modal-close-button"
+                    @onclick="HideLogoutConfirm">
+                <i class="bi bi-x-lg"></i>
+            </button>
+
+            <div class="logout-modal-icon">
+                <i class="bi bi-box-arrow-right"></i>
+            </div>
+
+            <h4>Xác nhận đăng xuất</h4>
+
+            <p>
+                Bạn có chắc chắn muốn đăng xuất khỏi hệ thống không?
+            </p>
+
+            <div class="logout-actions">
+                <button type="button"
+                        class="cancel-logout-button"
+                        disabled="@isLoggingOut"
+                        @onclick="HideLogoutConfirm">
+                    Hủy
+                </button>
+
+                <button type="button"
+                        class="confirm-logout-button"
+                        disabled="@isLoggingOut"
+                        @onclick="Logout">
+
+                    @if (isLoggingOut)
+                    {
+                        <span class="spinner-border spinner-border-sm"></span>
+                        <span>Đang đăng xuất...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Đăng xuất</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool sidebarOpen;
+    private bool showBellDropdown;
+    private bool showAvatarDropdown;
+    private bool showLogoutConfirm;
+    private bool notificationLoading;
+    private bool roleLoaded;
+    private bool isLoggingOut;
+
+    private string currentRole = string.Empty;
+    private string currentUserName = string.Empty;
+    private string notificationError = string.Empty;
+
+    private List<ThongBaoDTO> thongBaos = new();
+
+    private bool IsAdmin =>
+        string.Equals(
+            currentRole,
+            "Admin",
+            StringComparison.OrdinalIgnoreCase);
+
+    private string UserInitial
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(currentUserName))
+                return "U";
+
+            return currentUserName.Trim()[0]
+                .ToString()
+                .ToUpper();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        try
+        {
+            currentRole =
+                await JSRuntime.InvokeAsync<string?>(
+                    "localStorage.getItem",
+                    "currentRole") ?? string.Empty;
+
+            currentUserName =
+                await JSRuntime.InvokeAsync<string?>(
+                    "localStorage.getItem",
+                    "currentUserName") ?? string.Empty;
+
+            roleLoaded = true;
+
+            await LoadNotificationsAsync();
+        }
+        catch
+        {
+            roleLoaded = true;
+            notificationError = "Không thể tải thông tin người dùng.";
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task LoadNotificationsAsync()
+    {
+        notificationLoading = true;
+        notificationError = string.Empty;
+
+        try
+        {
+            thongBaos =
+                await ThongBaoService.GetThongBaoMoiAsync();
+
+            thongBaos = thongBaos
+                .OrderByDescending(x => x.ThoiGian)
+                .ToList();
+        }
+        catch
+        {
+            thongBaos = new();
+            notificationError = "Không thể tải thông báo.";
+        }
+        finally
+        {
+            notificationLoading = false;
+        }
+    }
+
+    private void ToggleSidebar()
+    {
+        sidebarOpen = !sidebarOpen;
+        CloseDropdowns();
+    }
+
+    private void CloseSidebar()
+    {
+        sidebarOpen = false;
+    }
+
+    private async Task ToggleBellDropdown()
+    {
+        showBellDropdown = !showBellDropdown;
+        showAvatarDropdown = false;
+
+        if (showBellDropdown)
+        {
+            await LoadNotificationsAsync();
+        }
+    }
+
+    private void ToggleAvatarDropdown()
+    {
+        showAvatarDropdown = !showAvatarDropdown;
+        showBellDropdown = false;
+    }
+
+    private void CloseDropdowns()
+    {
+        showBellDropdown = false;
+        showAvatarDropdown = false;
+    }
+
+    private void ShowLogoutConfirm()
+    {
+        showLogoutConfirm = true;
+        CloseDropdowns();
+    }
+
+    private void HideLogoutConfirm()
+    {
+        if (!isLoggingOut)
+        {
+            showLogoutConfirm = false;
+        }
+    }
+
+    private async Task Logout()
+    {
+        if (isLoggingOut)
+            return;
+
+        isLoggingOut = true;
+
+        try
+        {
+            await JSRuntime.InvokeVoidAsync(
+                "localStorage.removeItem",
+                "authToken");
+
+            await JSRuntime.InvokeVoidAsync(
+                "localStorage.removeItem",
+                "currentId");
+
+            await JSRuntime.InvokeVoidAsync(
+                "localStorage.removeItem",
+                "currentRole");
+
+            await JSRuntime.InvokeVoidAsync(
+                "localStorage.removeItem",
+                "currentUserName");
+
+            if (AuthProvider is CustomAuthenticationStateProvider customProvider)
+            {
+                customProvider.MarkUserAsLoggedOut();
+            }
+
+            NavigationManager.NavigateTo("/", true);
+        }
+        finally
+        {
+            isLoggingOut = false;
+            showLogoutConfirm = false;
+        }
+    }
+
+    private void GotoProfile()
+    {
+        CloseDropdowns();
+        NavigationManager.NavigateTo("/ThongTinAdmin");
+    }
+}
+
+<style>
+    .admin-layout {
+        --sidebar-width: 270px;
+        --primary: #f97316;
+        --primary-dark: #ea580c;
+        --primary-light: #fff7ed;
+        --border: #e5e7eb;
+        --text: #111827;
+        --muted: #64748b;
+        min-height: 100vh;
+        background: #f5f7fb;
+        color: var(--text);
+    }
+
+    .admin-sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        z-index: 300;
+        width: var(--sidebar-width);
+        overflow: hidden;
+        background: #111827;
+        box-shadow: 8px 0 30px rgba(15, 23, 42, .08);
+        transition: transform .25s ease;
+    }
+
+    .admin-main {
+        min-height: 100vh;
+        margin-left: var(--sidebar-width);
+    }
+
+    .admin-header {
+        position: sticky;
+        top: 0;
+        z-index: 200;
+        height: 72px;
+        padding: 0 25px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--border);
+        background: rgba(255, 255, 255, .96);
+        backdrop-filter: blur(12px);
+    }
+
+    .header-left,
+    .header-right {
+        display: flex;
+        align-items: center;
+    }
+
+    .header-left {
+        gap: 13px;
+    }
+
+    .header-right {
+        gap: 9px;
+    }
+
+    .menu-button {
+        width: 42px;
+        height: 42px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--border);
+        border-radius: 11px;
+        background: #fff;
+        color: #475569;
+        font-size: 23px;
+    }
+
+    .header-title strong,
+    .header-title small {
+        display: block;
+    }
+
+    .header-title strong {
+        font-size: 15px;
+    }
+
+    .header-title small {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 12px;
+    }
+
+    .header-dropdown {
+        position: relative;
+    }
+
+    .header-icon-button {
+        position: relative;
+        width: 43px;
+        height: 43px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: #fff;
+        color: #475569;
+        font-size: 19px;
+        transition: .2s ease;
+    }
+
+        .header-icon-button:hover {
+            border-color: #fdba74;
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+
+    .notification-count {
+        position: absolute;
+        top: -6px;
+        right: -7px;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 5px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #fff;
+        border-radius: 999px;
+        background: #ef4444;
+        color: #fff;
+        font-size: 10px;
+        font-weight: 800;
+    }
+
+    .header-separator {
+        width: 1px;
+        height: 31px;
+        margin: 0 5px;
+        background: var(--border);
+    }
+
+    .user-button {
+        padding: 5px 7px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border: 0;
+        border-radius: 13px;
+        background: transparent;
+        text-align: left;
+        transition: .2s ease;
+    }
+
+        .user-button:hover {
+            background: #f8fafc;
+        }
+
+    .user-avatar,
+    .account-avatar {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #fb923c, #ea580c);
+        color: #fff;
+        font-weight: 800;
+    }
+
+    .user-avatar {
+        width: 39px;
+        height: 39px;
+    }
+
+    .account-avatar {
+        width: 45px;
+        height: 45px;
+    }
+
+    .user-information strong,
+    .user-information small {
+        display: block;
+    }
+
+    .user-information strong {
+        max-width: 130px;
+        overflow: hidden;
+        font-size: 13px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .user-information small {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 11px;
+    }
+
+    .user-chevron {
+        color: #94a3b8;
+        font-size: 11px;
+    }
+
+    .notification-dropdown,
+    .account-dropdown {
+        position: absolute;
+        top: calc(100% + 12px);
+        right: 0;
+        z-index: 500;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: #fff;
+        box-shadow: 0 22px 55px rgba(15, 23, 42, .16);
+        animation: dropdownOpen .18s ease;
+    }
+
+    .notification-dropdown {
+        width: min(430px, calc(100vw - 25px));
+    }
+
+    .account-dropdown {
+        width: 285px;
+        padding: 9px;
+    }
+
+    .dropdown-header {
+        padding: 17px 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--border);
+    }
+
+        .dropdown-header h6 {
+            margin: 0 0 2px;
+            font-weight: 800;
+        }
+
+        .dropdown-header small {
+            color: var(--muted);
+        }
+
+    .dropdown-close {
+        width: 32px;
+        height: 32px;
+        border: 0;
+        border-radius: 8px;
+        background: #f8fafc;
+        color: #64748b;
+    }
+
+    .notification-list {
+        max-height: 430px;
+        overflow-y: auto;
+    }
+
+    .notification-item {
+        padding: 15px 18px;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        border-bottom: 1px solid #f0f2f5;
+        transition: background .2s;
+    }
+
+        .notification-item:hover {
+            background: #fffaf5;
+        }
+
+    .notification-icon {
+        width: 37px;
+        height: 37px;
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 11px;
+        background: var(--primary-light);
+        color: var(--primary);
+    }
+
+    .notification-content {
+        min-width: 0;
+    }
+
+        .notification-content p {
+            margin: 0 0 6px;
+            color: #334155;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .notification-content small {
+            color: #94a3b8;
+            font-size: 11px;
+        }
+
+    .notification-empty,
+    .notification-state {
+        min-height: 210px;
+        padding: 25px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 8px;
+        color: var(--muted);
+        text-align: center;
+    }
+
+        .notification-empty strong {
+            color: #334155;
+        }
+
+        .notification-empty small {
+            font-size: 12px;
+        }
+
+    .empty-icon {
+        width: 52px;
+        height: 52px;
+        margin-bottom: 5px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: #f1f5f9;
+        font-size: 22px;
+    }
+
+    .error-state {
+        color: #dc2626;
+    }
+
+    .account-summary {
+        padding: 10px 9px 15px;
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        border-bottom: 1px solid var(--border);
+    }
+
+        .account-summary strong,
+        .account-summary small {
+            display: block;
+        }
+
+        .account-summary small {
+            margin-top: 2px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+    .account-item {
+        width: 100%;
+        padding: 11px 9px;
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        border: 0;
+        border-radius: 10px;
+        background: transparent;
+        color: #334155;
+        text-align: left;
+    }
+
+        .account-item:hover {
+            background: #f8fafc;
+        }
+
+        .account-item > span {
+            width: 37px;
+            height: 37px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            background: #f1f5f9;
+            color: #475569;
+            font-size: 17px;
+        }
+
+        .account-item strong,
+        .account-item small {
+            display: block;
+        }
+
+        .account-item strong {
+            font-size: 13px;
+        }
+
+        .account-item small {
+            margin-top: 2px;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+    .account-divider {
+        height: 1px;
+        margin: 6px 0;
+        background: var(--border);
+    }
+
+    .logout-item {
+        color: #dc2626;
+    }
+
+        .logout-item > span {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+    .admin-content {
+        min-height: calc(100vh - 72px);
+    }
+
+    .dropdown-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 150;
+        background: transparent;
+    }
+
+    .sidebar-backdrop {
+        display: none;
+    }
+
+    .sidebar-loading {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        color: #cbd5e1;
+        font-size: 13px;
+    }
+
+    .logout-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 3000;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 23, 42, .58);
+        backdrop-filter: blur(4px);
+    }
+
+    .logout-modal {
+        position: relative;
+        width: min(430px, 100%);
+        padding: 30px;
+        border-radius: 20px;
+        background: #fff;
+        text-align: center;
+        box-shadow: 0 30px 80px rgba(15, 23, 42, .26);
+        animation: modalOpen .2s ease;
+    }
+
+    .modal-close-button {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        width: 34px;
+        height: 34px;
+        border: 0;
+        border-radius: 9px;
+        background: #f8fafc;
+        color: #64748b;
+    }
+
+    .logout-modal-icon {
+        width: 66px;
+        height: 66px;
+        margin: 0 auto 17px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 20px;
+        background: #fff7ed;
+        color: #f97316;
+        font-size: 28px;
+    }
+
+    .logout-modal h4 {
+        margin-bottom: 9px;
+        font-weight: 800;
+    }
+
+    .logout-modal p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
+    }
+
+    .logout-actions {
+        margin-top: 25px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 11px;
+    }
+
+    .cancel-logout-button,
+    .confirm-logout-button {
+        min-height: 46px;
+        border-radius: 11px;
+        font-weight: 700;
+    }
+
+    .cancel-logout-button {
+        border: 1px solid var(--border);
+        background: #fff;
+        color: #475569;
+    }
+
+    .confirm-logout-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        border: 0;
+        background: linear-gradient(135deg, #f97316, #ea580c);
+        color: #fff;
+    }
+
+    @@keyframes dropdownOpen {
+        from {
+            opacity: 0;
+            transform: translateY(-7px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @@keyframes modalOpen {
+        from {
+            opacity: 0;
+            transform: scale(.95);
+        }
+
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    @@media (max-width: 992px) {
+        .admin-sidebar {
+            transform: translateX(-100%);
+        }
+
+            .admin-sidebar.sidebar-open {
+                transform: translateX(0);
+            }
+
+        .admin-main {
+            margin-left: 0;
+        }
+
+        .menu-button {
+            display: inline-flex;
+        }
+
+        .sidebar-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 250;
+            display: block;
+            background: rgba(15, 23, 42, .48);
+        }
+    }
+
+    @@media (max-width: 600px) {
+        .admin-header {
+            height: 64px;
+            padding: 0 12px;
+        }
+
+        .header-title {
+            display: none;
+        }
+
+        .user-information,
+        .user-chevron,
+        .header-separator {
+            display: none;
+        }
+
+        .user-button {
+            padding: 2px;
+        }
+
+        .notification-dropdown {
+            position: fixed;
+            top: 70px;
+            right: 10px;
+            left: 10px;
+            width: auto;
+        }
+
+        .account-dropdown {
+            position: fixed;
+            top: 70px;
+            right: 10px;
+        }
+
+        .logout-actions {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>

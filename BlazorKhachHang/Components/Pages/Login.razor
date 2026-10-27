@@ -1,0 +1,203 @@
+﻿@page "/login"
+@layout Layout.EmptyLayout
+@using BlazorKhachHang.Service.IService
+@using Data.Models
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop
+@inject NavigationManager Nav
+@inject ITaiKhoanService TaiKhoanService
+@inject IKhachHangService KhachHangService
+@inject IJSRuntime JS
+
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%);
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    .login-wrapper {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        width: 100%;
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 9999;
+        background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%);
+    }
+
+    .login-card {
+        background: white;
+        padding: 2.5rem;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        width: 100%;
+        max-width: 450px;
+        text-align: center;
+    }
+
+        .login-card h3 {
+            font-weight: 600;
+            margin-bottom: 2rem;
+            color: #333;
+            font-size: 2rem;
+        }
+
+    .form-control {
+        border-radius: 8px;
+        padding: 12px 15px;
+        border: 1px solid #dee2e6;
+        margin-bottom: 1.2rem !important;
+        font-size: 1rem;
+    }
+
+    .btn-submit {
+        background-color: #198754;
+        border: none;
+        padding: 12px;
+        font-weight: bold;
+        border-radius: 8px;
+        color: white;
+        font-size: 1.1rem;
+        transition: all 0.3s ease;
+        margin-top: 1rem;
+    }
+
+        .btn-submit:hover {
+            background-color: #157347;
+            transform: translateY(-2px);
+        }
+
+    .switch-link {
+        margin-top: 1.5rem;
+        display: block;
+        color: #6c757d;
+        text-decoration: none;
+        font-size: 0.95rem;
+    }
+
+        .switch-link:hover {
+            color: #a18cd1;
+            text-decoration: underline;
+        }
+</style>
+
+<div class="login-wrapper">
+    <div class="login-card">
+        <h3>@(!IsLoginFormVisible ? "Đăng Ký" : "Đăng Nhập")</h3>
+
+        <EditForm Model="Input" OnValidSubmit="@(IsLoginFormVisible? OnLogin : OnSignup)">
+            @if (!IsLoginFormVisible)
+            {
+                <InputText class="form-control" placeholder="Họ tên" @bind-Value="Input.Ten" />
+                <InputText class="form-control" placeholder="Số điện thoại" @bind-Value="Input.SoDienThoai" />
+                <InputText class="form-control" placeholder="Email" @bind-Value="Input.Email" />
+            }
+
+            <InputText class="form-control" placeholder="Tên đăng nhập" @bind-Value="Input.UserName" />
+            <input type="password" class="form-control" placeholder="Mật khẩu" @bind="Input.Password" />
+
+            @if (!IsLoginFormVisible)
+            {
+                <input type="password" class="form-control" placeholder="Xác nhận mật khẩu" @bind="Input.RePassword" />
+            }
+
+            <button type="submit" class="btn-submit w-100">
+                @(IsLoginFormVisible ? "Đăng Nhập" : "Đăng Ký")
+            </button>
+        </EditForm>
+
+        <a class="switch-link" style="cursor:pointer" @onclick="@(() => IsLoginFormVisible = !IsLoginFormVisible)">
+            @(IsLoginFormVisible ? "Chưa có tài khoản? Đăng ký ngay" : "Đã có tài khoản? Đăng nhập")
+        </a>
+    </div>
+</div>
+
+@code {
+    bool IsLoginFormVisible = true;
+    LoginRegist Input = new();
+
+    async Task OnLogin()
+    {
+        var result = await TaiKhoanService.GetKhachHang(Input.UserName, Input.Password);
+
+        if (result != null && result.IsSuccess)
+        {
+            await JS.InvokeVoidAsync("localStorage.setItem", "khachHangId", result.Id.ToString());
+            await JS.InvokeVoidAsync("localStorage.setItem", "username", result.Username);
+
+            await Alert("Chào mừng " + result.Username + " đã quay trở lại!");
+            Nav.NavigateTo("/", true);
+        }
+        else
+        {
+            await Alert(result?.Message ?? "Sai thông tin đăng nhập!");
+        }
+    }
+
+    async Task OnSignup()
+    {
+        if (Input.Password != Input.RePassword)
+        {
+            await Alert("Mật khẩu không khớp!");
+            return;
+        }
+
+        var kh = new Data.Models.KhachHang
+        {
+            HoTen = Input.Ten,
+            Email = Input.Email,
+            SoDienThoai = Input.SoDienThoai,
+            TrangThai = true,
+            TaiKhoan = new Data.Models.TaiKhoan
+            {
+                Username = Input.UserName,
+                Password = Input.Password,
+                TaikhoanId = Guid.NewGuid(),
+                Ngaytaotaikhoan = DateTime.UtcNow
+            }
+        };
+
+        await KhachHangService.Create(kh);
+
+        var result = await TaiKhoanService.GetKhachHang(Input.UserName, Input.Password);
+
+        if (result != null && result.IsSuccess)
+        {
+            await JS.InvokeVoidAsync("localStorage.setItem", "khachHangId", result.Id.ToString());
+            await JS.InvokeVoidAsync("localStorage.setItem", "username", result.Username);
+
+            await JS.InvokeVoidAsync("localStorage.setItem", "name", Input.Ten);
+            await JS.InvokeVoidAsync("localStorage.setItem", "email", Input.Email);
+            await JS.InvokeVoidAsync("localStorage.setItem", "phone", Input.SoDienThoai);
+
+            await Alert("Đăng ký thành công!");
+            Nav.NavigateTo("/khachhang", true);
+        }
+        else
+        {
+            await Alert("Đăng ký lỗi hoặc không thể tự động đăng nhập!");
+        }
+    }
+
+    async Task Alert(string msg) => await JS.InvokeVoidAsync("alert", msg);
+
+    public class LoginRegist
+    {
+        public string Ten { get; set; } = "";
+        public string SoDienThoai { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string UserName { get; set; } = "";
+        public string Password { get; set; } = "";
+        public string RePassword { get; set; } = "";
+    }
+}

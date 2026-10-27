@@ -1,0 +1,1195 @@
+﻿@page "/chatlieu"
+@attribute [Authorize(Roles = "Admin")]
+@layout AdminLayout
+@rendermode InteractiveServer
+@inject IChatLieuService ChatLieuService
+
+@using Data.Models
+
+<PageTitle>Quản lý chất liệu</PageTitle>
+
+<div class="material-page">
+
+    <!-- Tiêu đề -->
+    <header class="material-header">
+        <div>
+            <span class="page-eyebrow">QUẢN LÝ SẢN PHẨM</span>
+            <h1>Quản lý chất liệu</h1>
+            <p>Thêm mới, cập nhật và theo dõi trạng thái các chất liệu.</p>
+        </div>
+
+        <button type="button"
+                class="add-material-button"
+                @onclick="ShowModal">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" />
+            </svg>
+
+            Thêm chất liệu
+        </button>
+    </header>
+
+    <!-- Thống kê -->
+    <section class="statistics-grid">
+
+        <article class="statistic-card statistic-total">
+            <div class="statistic-icon">
+                <svg viewBox="0 0 24 24">
+                    <path d="M5 4h14v16H5z" />
+                    <path d="M8 8h8M8 12h8M8 16h5" />
+                </svg>
+            </div>
+
+            <div class="statistic-content">
+                <span>Tổng số chất liệu</span>
+                <strong>@DanhSachChatLieu.Count</strong>
+                <small>Tất cả chất liệu trong hệ thống</small>
+            </div>
+        </article>
+
+        <article class="statistic-card statistic-active">
+            <div class="statistic-icon">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="m8 12 3 3 5-6" />
+                </svg>
+            </div>
+
+            <div class="statistic-content">
+                <span>Đang hoạt động</span>
+                <strong>
+                    @DanhSachChatLieu.Count(x => x.TrangThai)
+                </strong>
+                <small>Chất liệu đang được sử dụng</small>
+            </div>
+        </article>
+
+        <article class="statistic-card statistic-disabled">
+            <div class="statistic-icon">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="m8 8 8 8M16 8l-8 8" />
+                </svg>
+            </div>
+
+            <div class="statistic-content">
+                <span>Ngừng hoạt động</span>
+                <strong>
+                    @DanhSachChatLieu.Count(x => !x.TrangThai)
+                </strong>
+                <small>Chất liệu đã ngừng sử dụng</small>
+            </div>
+        </article>
+    </section>
+
+    <!-- Thông báo lỗi -->
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="page-error-message">
+            <span>@ErrorMessage</span>
+
+            <button type="button" @onclick="LoadDataAsync">
+                Thử lại
+            </button>
+        </div>
+    }
+
+    <!-- Khung danh sách -->
+    <section class="material-panel">
+
+        <!-- Tìm kiếm và bộ lọc -->
+        <div class="material-toolbar">
+
+            <div class="material-search">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="m20 20-4-4" />
+                </svg>
+
+                <input type="text"
+                       value="@SearchText"
+                       @oninput="HandleSearch"
+                       placeholder="Tìm kiếm tên hoặc mô tả chất liệu..." />
+
+                @if (!string.IsNullOrWhiteSpace(SearchText))
+                {
+                    <button type="button"
+                            class="clear-search-button"
+                            title="Xóa tìm kiếm"
+                            @onclick="ClearSearch">
+                        ×
+                    </button>
+                }
+            </div>
+
+            <div class="filter-buttons">
+
+                <button type="button"
+                        class="filter-button @(StatusFilter == "all" ? "active" : "")"
+                        @onclick='() => SetStatusFilter("all")'>
+                    Tất cả
+
+                    <span>@DanhSachChatLieu.Count</span>
+                </button>
+
+                <button type="button"
+                        class="filter-button @(StatusFilter == "active" ? "active" : "")"
+                        @onclick='() => SetStatusFilter("active")'>
+                    Hoạt động
+
+                    <span>
+                        @DanhSachChatLieu.Count(x => x.TrangThai)
+                    </span>
+                </button>
+
+                <button type="button"
+                        class="filter-button @(StatusFilter == "disabled" ? "active" : "")"
+                        @onclick='() => SetStatusFilter("disabled")'>
+                    Ngừng hoạt động
+
+                    <span>
+                        @DanhSachChatLieu.Count(x => !x.TrangThai)
+                    </span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Bảng dữ liệu có thanh cuộn -->
+        <div class="material-table-wrapper">
+            <table class="material-table">
+                <thead>
+                    <tr>
+                        <th class="number-column">STT</th>
+                        <th>Tên chất liệu</th>
+                        <th>Mô tả</th>
+                        <th>Trạng thái</th>
+                        <th class="action-column">Chức năng</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @if (IsLoading)
+                    {
+                        <tr>
+                            <td colspan="5">
+                                <div class="loading-state">
+                                    <span class="loading-spinner"></span>
+                                    <strong>Đang tải dữ liệu...</strong>
+                                    <small>Vui lòng chờ trong giây lát</small>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    else if (!FilteredChatLieus.Any())
+                    {
+                        <tr>
+                            <td colspan="5">
+                                <div class="empty-state">
+                                    <div class="empty-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <path d="M5 4h14v16H5z" />
+                                            <path d="M8 9h8M8 13h5" />
+                                        </svg>
+                                    </div>
+
+                                    <strong>Không tìm thấy chất liệu</strong>
+
+                                    <small>
+                                        Hãy thử từ khóa hoặc bộ lọc khác.
+                                    </small>
+
+                                    <button type="button"
+                                            @onclick="ResetFilter">
+                                        Đặt lại bộ lọc
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var row in FilteredChatLieus
+                       .Select((item, index) => new
+                       {
+                           Item = item,
+                           Number = index + 1
+                       }))
+                        {
+                            <tr>
+                                <td class="table-number">
+                                    @row.Number
+                                </td>
+
+                                <td>
+                                    <div class="material-name-cell">
+                                        <span class="material-avatar">
+                                            @GetFirstLetter(
+                                                     row.Item.TenChatLieu
+                                                     )
+                                        </span>
+
+                                        <div>
+                                            <strong>
+                                                @row.Item.TenChatLieu
+                                            </strong>
+
+                                            <small>
+                                                Chất liệu sản phẩm
+                                            </small>
+                                        </div>
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <div class="material-description"
+                                         title="@row.Item.MoTa">
+
+                                        @(string.IsNullOrWhiteSpace(
+                                            row.Item.MoTa)
+                                            ? "Chưa có mô tả"
+                                            : row.Item.MoTa)
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <span class="material-status @(row.Item.TrangThai ? "status-active" : "status-disabled")">
+
+                                        <span class="status-dot"></span>
+
+                                        @(row.Item.TrangThai
+                                            ? "Đang hoạt động"
+                                            : "Ngừng hoạt động")
+                                    </span>
+                                </td>
+
+                                <td class="text-center">
+                                    <button type="button"
+                                            class="edit-material-button"
+                                            title="Chỉnh sửa chất liệu"
+                                            @onclick="() => EditChatLieu(row.Item)">
+
+                                        <svg viewBox="0 0 24 24">
+                                            <path d="M4 20h4L19 9l-4-4L4 16v4Z" />
+                                            <path d="m13 7 4 4" />
+                                        </svg>
+
+                                        Sửa
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Chân bảng -->
+        <footer class="material-panel-footer">
+            <span>
+                Hiển thị
+                <strong>@FilteredChatLieus.Count()</strong>
+                / @DanhSachChatLieu.Count chất liệu
+            </span>
+
+            <button type="button"
+                    class="reload-button"
+                    disabled="@IsLoading"
+                    @onclick="LoadDataAsync">
+
+                <svg viewBox="0 0 24 24">
+                    <path d="M20 11a8 8 0 0 0-15-3M4 4v5h5" />
+                    <path d="M4 13a8 8 0 0 0 15 3M20 20v-5h-5" />
+                </svg>
+
+                Tải lại
+            </button>
+        </footer>
+    </section>
+
+    <!-- Modal thêm/sửa -->
+    <ChatLieuModal IsOpen="@IsModalOpen"
+                   IsEdit="@IsEdit"
+                   TenChatLieu="@TenChatLieu"
+                   MoTa="@MoTa"
+                   TrangThai="@TrangThai"
+                   ExistingNames="@DanhSachTenChatLieu"
+                   OnClose="CloseModal"
+                   OnSaved="HandleSave" />
+</div>
+
+<style>
+    .material-page,
+    .material-page * {
+        box-sizing: border-box;
+    }
+
+    .material-page {
+        --primary: #f97316;
+        --primary-dark: #ea580c;
+        --primary-light: #fff7ed;
+        --text-dark: #0f172a;
+        --text: #334155;
+        --muted: #64748b;
+        --border: #e8edf3;
+        min-height: 100vh;
+        padding: 28px;
+        background: #f6f8fb;
+        color: var(--text-dark);
+    }
+
+    /* Tiêu đề */
+
+    .material-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 24px;
+    }
+
+    .page-eyebrow {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--primary-dark);
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+    }
+
+    .material-header h1 {
+        margin: 0;
+        color: var(--text-dark);
+        font-size: 30px;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+    }
+
+    .material-header p {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+    }
+
+    .add-material-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 44px;
+        padding: 0 18px;
+        border: none;
+        border-radius: 11px;
+        background: var(--primary);
+        color: #ffffff;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+        box-shadow: 0 6px 15px rgba(249, 115, 22, 0.22);
+        transition: background 0.2s ease, transform 0.2s ease;
+    }
+
+        .add-material-button:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+
+        .add-material-button svg {
+            width: 18px;
+            height: 18px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+        }
+
+    /* Thống kê */
+
+    .statistics-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+
+    .statistic-card {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        min-width: 0;
+        padding: 20px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: #ffffff;
+        box-shadow: 0 6px 24px rgba(15, 23, 42, 0.045);
+    }
+
+    .statistic-icon {
+        display: grid;
+        flex: 0 0 50px;
+        width: 50px;
+        height: 50px;
+        place-items: center;
+        border-radius: 14px;
+        background: currentColor;
+    }
+
+        .statistic-icon svg {
+            width: 24px;
+            height: 24px;
+            fill: none;
+            stroke: #ffffff;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+    .statistic-content {
+        min-width: 0;
+    }
+
+        .statistic-content span,
+        .statistic-content small {
+            display: block;
+        }
+
+        .statistic-content span {
+            margin-bottom: 4px;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .statistic-content strong {
+            display: block;
+            margin-bottom: 3px;
+            color: var(--text-dark);
+            font-size: 25px;
+        }
+
+        .statistic-content small {
+            overflow: hidden;
+            color: #94a3b8;
+            font-size: 10px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+    .statistic-total {
+        color: #6366f1;
+    }
+
+    .statistic-active {
+        color: #10b981;
+    }
+
+    .statistic-disabled {
+        color: #94a3b8;
+    }
+
+    /* Khung bảng */
+
+    .material-panel {
+        display: flex;
+        height: 600px;
+        min-height: 450px;
+        flex-direction: column;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: #ffffff;
+        box-shadow: 0 10px 35px rgba(15, 23, 42, 0.05);
+    }
+
+    /* Thanh tìm kiếm */
+
+    .material-toolbar {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 18px 20px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .material-search {
+        position: relative;
+        width: min(100%, 480px);
+    }
+
+        .material-search > svg {
+            position: absolute;
+            top: 50%;
+            left: 14px;
+            width: 18px;
+            height: 18px;
+            transform: translateY(-50%);
+            fill: none;
+            stroke: #94a3b8;
+            stroke-width: 2;
+            pointer-events: none;
+        }
+
+        .material-search input {
+            width: 100%;
+            height: 44px;
+            padding: 0 43px;
+            border: 1px solid #dce3ec;
+            border-radius: 11px;
+            outline: none;
+            background: #f8fafc;
+            color: var(--text-dark);
+            font-size: 12px;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+            .material-search input:focus {
+                border-color: #fb923c;
+                background: #ffffff;
+                box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.1);
+            }
+
+    .clear-search-button {
+        position: absolute;
+        top: 50%;
+        right: 10px;
+        display: grid;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        transform: translateY(-50%);
+        place-items: center;
+        border: none;
+        border-radius: 8px;
+        background: transparent;
+        color: #94a3b8;
+        font-size: 19px;
+        cursor: pointer;
+    }
+
+        .clear-search-button:hover {
+            background: #eef2f7;
+            color: #475569;
+        }
+
+    /* Bộ lọc */
+
+    .filter-buttons {
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+    }
+
+    .filter-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 38px;
+        padding: 0 11px;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+        background: #ffffff;
+        color: #64748b;
+        font-size: 10px;
+        font-weight: 800;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+        .filter-button span {
+            min-width: 20px;
+            padding: 2px 6px;
+            border-radius: 999px;
+            background: #f1f5f9;
+            font-size: 9px;
+            text-align: center;
+        }
+
+        .filter-button.active {
+            border-color: #fdba74;
+            background: #fff7ed;
+            color: #ea580c;
+        }
+
+            .filter-button.active span {
+                background: #ffedd5;
+            }
+
+    /* Khung cuộn bảng */
+
+    .material-table-wrapper {
+        flex: 1;
+        min-height: 0;
+        overflow-x: auto;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #94a3b8 #f1f5f9;
+    }
+
+        .material-table-wrapper::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        .material-table-wrapper::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        .material-table-wrapper::-webkit-scrollbar-thumb {
+            border: 2px solid #f1f5f9;
+            border-radius: 10px;
+            background: #94a3b8;
+        }
+
+    /* Bảng */
+
+    .material-table {
+        width: 100%;
+        min-width: 850px;
+        border-collapse: separate;
+        border-spacing: 0;
+        color: #334155;
+        font-size: 12px;
+    }
+
+        .material-table th {
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            padding: 14px;
+            border-bottom: 1px solid var(--border);
+            background: #f8fafc;
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-align: left;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .material-table td {
+            padding: 14px;
+            border-bottom: 1px solid #edf1f5;
+            background: #ffffff;
+            vertical-align: middle;
+        }
+
+        .material-table tbody tr:hover td {
+            background: #fffaf5;
+        }
+
+    .number-column {
+        width: 70px;
+        text-align: center !important;
+    }
+
+    .action-column {
+        width: 125px;
+        text-align: center !important;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    .table-number {
+        color: #94a3b8;
+        font-weight: 800;
+        text-align: center;
+    }
+
+    /* Tên chất liệu */
+
+    .material-name-cell {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 180px;
+    }
+
+    .material-avatar {
+        display: grid;
+        flex: 0 0 40px;
+        width: 40px;
+        height: 40px;
+        place-items: center;
+        border-radius: 11px;
+        background: #fff7ed;
+        color: #ea580c;
+        font-size: 15px;
+        font-weight: 900;
+    }
+
+    .material-name-cell strong {
+        display: block;
+        color: #1e293b;
+        font-size: 12px;
+    }
+
+    .material-name-cell small {
+        display: block;
+        margin-top: 3px;
+        color: #94a3b8;
+        font-size: 10px;
+    }
+
+    .material-description {
+        display: -webkit-box;
+        max-width: 520px;
+        overflow: hidden;
+        color: #64748b;
+        line-height: 1.5;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+    }
+
+    /* Trạng thái */
+
+    .material-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 28px;
+        padding: 0 10px;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .status-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: currentColor;
+    }
+
+    .status-active {
+        border-color: #bbf7d0;
+        background: #f0fdf4;
+        color: #15803d;
+    }
+
+    .status-disabled {
+        border-color: #e2e8f0;
+        background: #f8fafc;
+        color: #64748b;
+    }
+
+    /* Nút sửa */
+
+    .edit-material-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        min-height: 33px;
+        padding: 0 11px;
+        border: 1px solid #c7d2fe;
+        border-radius: 8px;
+        background: #eef2ff;
+        color: #4f46e5;
+        font-size: 10px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+        .edit-material-button:hover {
+            border-color: #818cf8;
+            background: #e0e7ff;
+        }
+
+        .edit-material-button svg {
+            width: 14px;
+            height: 14px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+    /* Chân bảng */
+
+    .material-panel-footer {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        min-height: 60px;
+        padding: 12px 20px;
+        border-top: 1px solid var(--border);
+        background: #fbfcfe;
+        color: #64748b;
+        font-size: 11px;
+    }
+
+    .reload-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 34px;
+        padding: 0 11px;
+        border: 1px solid #dce3ec;
+        border-radius: 8px;
+        background: #ffffff;
+        color: #475569;
+        font-size: 10px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+        .reload-button:disabled {
+            opacity: 0.5;
+            cursor: wait;
+        }
+
+        .reload-button svg {
+            width: 14px;
+            height: 14px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+        }
+
+    /* Loading và empty */
+
+    .loading-state,
+    .empty-state {
+        display: flex;
+        min-height: 300px;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .loading-spinner {
+        width: 36px;
+        height: 36px;
+        margin-bottom: 12px;
+        border: 3px solid #ffedd5;
+        border-top-color: #f97316;
+        border-radius: 50%;
+        animation: materialSpin 0.8s linear infinite;
+    }
+
+    .loading-state small,
+    .empty-state small {
+        margin-top: 5px;
+        color: #94a3b8;
+        font-size: 10px;
+    }
+
+    .empty-icon {
+        display: grid;
+        width: 60px;
+        height: 60px;
+        margin-bottom: 12px;
+        place-items: center;
+        border-radius: 18px;
+        background: #fff7ed;
+        color: #f97316;
+    }
+
+        .empty-icon svg {
+            width: 28px;
+            height: 28px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 1.7;
+        }
+
+    .empty-state button {
+        margin-top: 15px;
+        padding: 8px 13px;
+        border: 1px solid #fed7aa;
+        border-radius: 8px;
+        background: #fff7ed;
+        color: #ea580c;
+        font-size: 10px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    /* Lỗi */
+
+    .page-error-message {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+        margin-bottom: 16px;
+        padding: 13px 15px;
+        border: 1px solid #fecaca;
+        border-radius: 11px;
+        background: #fef2f2;
+        color: #b91c1c;
+        font-size: 11px;
+    }
+
+        .page-error-message button {
+            border: none;
+            background: transparent;
+            color: #991b1b;
+            font-weight: 800;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+    @@keyframes materialSpin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @@media (max-width: 900px) {
+        .statistics-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .material-toolbar {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .material-search {
+            width: 100%;
+        }
+    }
+
+    @@media (max-width: 600px) {
+        .material-page {
+            padding: 16px 12px;
+        }
+
+        .material-header {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .add-material-button {
+            align-self: flex-start;
+        }
+
+        .material-panel {
+            height: 570px;
+        }
+
+        .filter-buttons {
+            width: 100%;
+        }
+
+        .material-panel-footer {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+    }
+</style>
+
+@code {
+    private List<ChatLieu> DanhSachChatLieu = new();
+
+    private string SearchText = string.Empty;
+    private string StatusFilter = "all";
+    private string ErrorMessage = string.Empty;
+
+    private bool IsLoading;
+    private bool IsModalOpen;
+    private bool IsEdit;
+
+    private string TenChatLieu = string.Empty;
+    private string MoTa = string.Empty;
+    private bool TrangThai = true;
+
+    private Guid? EditingId;
+
+    /*
+     * Thuộc tính trung gian này giúp sửa lỗi:
+     * Component attributes do not support complex content.
+     */
+    private List<string> DanhSachTenChatLieu =>
+        DanhSachChatLieu
+            .Where(x => !string.IsNullOrWhiteSpace(x.TenChatLieu))
+            .Select(x => x.TenChatLieu!)
+            .ToList();
+
+    private IEnumerable<ChatLieu> FilteredChatLieus
+    {
+        get
+        {
+            IEnumerable<ChatLieu> query = DanhSachChatLieu;
+
+            if (!string.IsNullOrWhiteSpace(SearchText))
+            {
+                var keyword = SearchText.Trim();
+
+                query = query.Where(x =>
+                    (x.TenChatLieu ?? string.Empty)
+                        .Contains(
+                            keyword,
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                    ||
+                    (x.MoTa ?? string.Empty)
+                        .Contains(
+                            keyword,
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                );
+            }
+
+            query = StatusFilter switch
+            {
+                "active" => query.Where(x => x.TrangThai),
+
+                "disabled" => query.Where(x => !x.TrangThai),
+
+                _ => query
+            };
+
+            return query
+                .OrderByDescending(x => x.TrangThai)
+                .ThenBy(x => x.TenChatLieu);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        IsLoading = true;
+        ErrorMessage = string.Empty;
+
+        try
+        {
+            DanhSachChatLieu =
+                await ChatLieuService.GetAllAsync()
+                ?? new List<ChatLieu>();
+        }
+        catch (Exception ex)
+        {
+            DanhSachChatLieu.Clear();
+
+            ErrorMessage =
+                "Không thể tải danh sách chất liệu: "
+                + ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private void HandleSearch(ChangeEventArgs e)
+    {
+        SearchText =
+            e.Value?.ToString()
+            ?? string.Empty;
+    }
+
+    private void ClearSearch()
+    {
+        SearchText = string.Empty;
+    }
+
+    private void SetStatusFilter(string status)
+    {
+        StatusFilter = status;
+    }
+
+    private void ResetFilter()
+    {
+        SearchText = string.Empty;
+        StatusFilter = "all";
+    }
+
+    private void ShowModal()
+    {
+        IsEdit = false;
+        EditingId = null;
+
+        TenChatLieu = string.Empty;
+        MoTa = string.Empty;
+        TrangThai = true;
+
+        IsModalOpen = true;
+    }
+
+    private void EditChatLieu(ChatLieu item)
+    {
+        IsEdit = true;
+        EditingId = item.ChatLieuId;
+
+        TenChatLieu =
+            item.TenChatLieu
+            ?? string.Empty;
+
+        MoTa =
+            item.MoTa
+            ?? string.Empty;
+
+        TrangThai = item.TrangThai;
+
+        IsModalOpen = true;
+    }
+
+    private void CloseModal()
+    {
+        IsModalOpen = false;
+    }
+
+    private async Task HandleSave(
+        (
+            string TenChatLieu,
+            string MoTa,
+            bool TrangThai
+        ) result)
+    {
+        if (IsEdit && EditingId.HasValue)
+        {
+            var updated = new ChatLieu
+                {
+                    ChatLieuId = EditingId.Value,
+                    TenChatLieu = result.TenChatLieu,
+                    MoTa = result.MoTa,
+                    TrangThai = result.TrangThai
+                };
+
+            await ChatLieuService.UpdateAsync(updated);
+        }
+        else
+        {
+            var newItem = new ChatLieu
+                {
+                    TenChatLieu = result.TenChatLieu,
+                    MoTa = result.MoTa,
+                    TrangThai = result.TrangThai
+                };
+
+            await ChatLieuService.CreateAsync(newItem);
+        }
+
+        CloseModal();
+        await LoadDataAsync();
+    }
+
+    private static string GetFirstLetter(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return "?";
+        }
+
+        return name.Trim()[0]
+            .ToString()
+            .ToUpperInvariant();
+    }
+}

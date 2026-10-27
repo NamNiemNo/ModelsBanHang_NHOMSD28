@@ -1,0 +1,64 @@
+﻿@page "/taikhoan/edit/{id:guid}"
+@inject ITaiKhoanService _taiKhoanService
+@inject NavigationManager NavigationManager
+
+@using Data.Models
+@using Microsoft.AspNetCore.Components.Forms
+
+<link rel="stylesheet" href="/css/Form.css" />
+<link rel="stylesheet" href="/css/Profile.css" />
+
+@if (TaiKhoan == null)
+{
+    <div class="text-danger text-center mt-5">❌ Không tìm thấy tài khoản!</div>
+}
+else
+{
+    <div class="mt-5 px-5" style="max-width: 600px; margin: auto;">
+        <h3 class="text-center mb-4">✏️ Chỉnh sửa tài khoản</h3>
+
+        <EditForm Model="TaiKhoan" OnValidSubmit="HandleValidSubmit">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="card shadow-sm p-4">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">👨‍💻 Tên đăng nhập</label>
+                    <InputText @bind-Value="TaiKhoan.Username" class="form-control" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">🔐 Mật khẩu</label>
+                    <InputText @bind-Value="TaiKhoan.Password" type="password" class="form-control" />
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <a href="/ThongTinAdmin" class="btn btn-secondary">
+                        ✖️ Hủy
+                    </a>
+                    <button type="submit" class="btn btn-warning fw-bold">
+                        💾 Lưu thay đổi
+                    </button>
+                </div>
+            </div>
+        </EditForm>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public Guid id { get; set; }
+
+    public TaiKhoan TaiKhoan { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        TaiKhoan = await _taiKhoanService.GetByIdTaiKhoanAsync(id);
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        await _taiKhoanService.UpdateTaiKhoanAsync(TaiKhoan);
+        NavigationManager.NavigateTo("/ThongTinAdmin");
+    }
+}

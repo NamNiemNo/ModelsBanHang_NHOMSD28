@@ -1,0 +1,49 @@
+﻿@page "/taikhoan/chitiet/{id:guid}"
+@inject ITaiKhoanService _taiKhoanService
+@inject NavigationManager NavigationManager
+@using Data.Models
+
+<link rel="stylesheet" href="/css/Profile.css" />
+<link rel="stylesheet" href="/css/Form.css" />
+
+@if (TaiKhoan == null)
+{
+    <div class="text-center text-danger mt-5 fs-5">❌ Không tìm thấy tài khoản!</div>
+}
+else
+{
+    <div class="container mt-5 d-flex flex-column align-items-center position-relative">
+        <a href="/thongke" class="btn btn-secondary position-absolute start-0 top-0 ms-4 mt-3">
+            🔙 Quay về
+        </a>
+
+        <a href="/taikhoan/edit/@TaiKhoan.TaikhoanId" class="btn-edit">
+            ✏️ Chỉnh sửa thông tin
+        </a>
+
+        <div class="profile-header text-center">
+            <img src="https://cdn.discordapp.com/attachments/1383447837370617867/1387275546592804966/smug.png?ex=685cc088&is=685b6f08&hm=61031208be9cf4552c5fe92c05eca9cab9eeb59fb80e6cc347c2234d130e4542"
+                 alt="Avatar" />
+            <h2>@TaiKhoan.Username <span class="badge">✔</span></h2>
+            <div class="text-muted small">@TaiKhoan.TaikhoanId</div>
+        </div>
+
+        <div class="card w-100 mt-4" style="max-width: 600px;">
+            <h4>Thông tin tài khoản</h4>
+            <div class="info-row"><label>Tên đăng nhập:</label><span>@TaiKhoan.Username</span></div>
+            <div class="info-row"><label>Ngày tạo:</label><span>@TaiKhoan.Ngaytaotaikhoan.ToString("dd/MM/yyyy")</span></div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public Guid id { get; set; }
+
+    public TaiKhoan TaiKhoan { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        TaiKhoan = await _taiKhoanService.GetByIdTaiKhoanAsync(id);
+    }
+}

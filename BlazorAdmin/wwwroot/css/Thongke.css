@@ -1,0 +1,1272 @@
+﻿.tk-page {
+    min-height: 100vh;
+    padding: 28px;
+    color: #172033;
+    background: #f5f7fb;
+    font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.tk-page * {
+    box-sizing: border-box;
+}
+
+.tk-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    max-width: 1600px;
+    margin: 0 auto 22px;
+}
+
+.tk-eyebrow {
+    display: block;
+    margin-bottom: 6px;
+    color: #4f46e5;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .12em;
+}
+
+.tk-header h1 {
+    margin: 0;
+    font-size: 32px;
+    letter-spacing: -.04em;
+}
+
+.tk-header p {
+    margin: 8px 0 0;
+    color: #667085;
+    font-size: 14px;
+}
+
+.tk-button {
+    min-height: 42px;
+    padding: 0 16px;
+    color: #344054;
+    border: 1px solid #dfe4ec;
+    border-radius: 11px;
+    background: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.tk-button:hover {
+    border-color: #aeb7c6;
+}
+
+.tk-button.primary {
+    color: #fff;
+    border-color: #4f46e5;
+    background: #4f46e5;
+}
+
+.tk-button:disabled {
+    cursor: not-allowed;
+    opacity: .55;
+}
+
+.tk-filter {
+    max-width: 1600px;
+    margin: 0 auto 20px;
+    padding: 16px;
+    border: 1px solid #e4e8ef;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 5px 20px rgba(16, 24, 40, .04);
+}
+
+.tk-filter-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    flex-wrap: wrap;
+}
+
+.tk-filter-title {
+    display: grid;
+    gap: 3px;
+}
+
+.tk-filter-title span {
+    color: #98a2b3;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .08em;
+}
+
+.tk-filter-title strong {
+    font-size: 14px;
+}
+
+.tk-filter-buttons {
+    display: flex;
+    gap: 5px;
+    padding: 4px;
+    overflow-x: auto;
+    border: 1px solid #e4e8ef;
+    border-radius: 11px;
+    background: #f7f8fa;
+}
+
+.tk-filter-button {
+    min-width: 70px;
+    height: 34px;
+    padding: 0 12px;
+    color: #667085;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.tk-filter-button.active {
+    color: #4338ca;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(16, 24, 40, .10);
+}
+
+.tk-custom-filter {
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid #edf0f4;
+}
+
+.tk-custom-filter label {
+    display: grid;
+    gap: 5px;
+    color: #667085;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.tk-custom-filter input {
+    height: 39px;
+    padding: 0 10px;
+    color: #344054;
+    border: 1px solid #d8dee8;
+    border-radius: 9px;
+    outline: none;
+    background: #fff;
+}
+
+.tk-alert {
+    max-width: 1600px;
+    margin: 0 auto 20px;
+    padding: 14px 16px;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+    border-radius: 12px;
+    background: #fff7f7;
+    font-size: 13px;
+}
+
+.tk-loading {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 50px;
+    color: #667085;
+    border: 1px solid #e4e8ef;
+    border-radius: 16px;
+    background: #fff;
+    text-align: center;
+}
+
+.tk-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(245px, 1fr));
+    gap: 16px;
+    max-width: 1600px;
+    margin: 0 auto 20px;
+}
+
+.tk-summary-card,
+.tk-panel,
+.tk-table-panel,
+.tk-chart-panel {
+    border: 1px solid #e4e8ef;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 5px 20px rgba(16, 24, 40, .045);
+}
+
+.tk-summary-card {
+    position: relative;
+    overflow: hidden;
+    padding: 20px;
+}
+
+.tk-summary-card::after {
+    position: absolute;
+    top: -28px;
+    right: -28px;
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    background: #eef2ff;
+    content: "";
+}
+
+.tk-summary-card.violet::after {
+    background: #f3e8ff;
+}
+
+.tk-summary-card.orange::after {
+    background: #fff2df;
+}
+
+.tk-summary-card.green::after {
+    background: #dcfce7;
+}
+
+.tk-card-title {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.tk-card-title span {
+    color: #667085;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.tk-card-title small {
+    color: #98a2b3;
+    font-size: 10px;
+}
+
+.tk-revenue {
+    margin: 22px 0 18px;
+    font-size: 28px;
+    font-weight: 850;
+    letter-spacing: -.04em;
+}
+
+.tk-revenue small {
+    font-size: 14px;
+}
+
+.tk-card-detail {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding-top: 14px;
+    border-top: 1px solid #edf0f4;
+}
+
+.tk-card-detail div {
+    display: grid;
+    gap: 4px;
+}
+
+.tk-card-detail span {
+    overflow: hidden;
+    color: #98a2b3;
+    font-size: 9px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tk-card-detail strong {
+    color: #344054;
+    font-size: 14px;
+}
+
+.tk-overview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 16px;
+    max-width: 1600px;
+    margin: 0 auto 20px;
+}
+
+.tk-panel {
+    min-width: 0;
+    padding: 20px;
+}
+
+.tk-panel-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 15px;
+    margin-bottom: 18px;
+}
+
+.tk-panel-header span {
+    display: block;
+    margin-bottom: 4px;
+    color: #4f46e5;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .10em;
+}
+
+.tk-panel-header h2 {
+    margin: 0;
+    font-size: 17px;
+}
+
+.tk-panel-header strong {
+    padding: 6px 9px;
+    color: #667085;
+    border: 1px solid #e4e8ef;
+    border-radius: 999px;
+    background: #fafbfc;
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+.tk-selected-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+}
+
+.tk-selected-item {
+    display: grid;
+    min-height: 96px;
+    align-content: center;
+    gap: 6px;
+    padding: 14px;
+    border: 1px solid #eaedf3;
+    border-radius: 12px;
+    background: #fafbfc;
+}
+
+.tk-selected-item span {
+    color: #667085;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.tk-selected-item strong {
+    font-size: 21px;
+    letter-spacing: -.03em;
+}
+
+.tk-selected-item.revenue {
+    border-color: #dfe1ff;
+    background: #f5f5ff;
+}
+
+.tk-selected-item.revenue strong {
+    color: #4338ca;
+}
+
+.tk-selected-item.danger strong {
+    color: #dc2626;
+}
+
+.tk-status-list {
+    display: grid;
+    gap: 10px;
+}
+
+.tk-status-row {
+    display: grid;
+    grid-template-columns: minmax(105px, 145px) 1fr 70px;
+    align-items: center;
+    gap: 10px;
+}
+
+.tk-status-name {
+    overflow: hidden;
+    color: #475467;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tk-status-track {
+    height: 8px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #eef1f5;
+}
+
+.tk-status-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: #4f46e5;
+}
+
+.tk-status-fill.red {
+    background: #ef4444;
+}
+
+.tk-status-fill.yellow {
+    background: #f59e0b;
+}
+
+.tk-status-fill.violet {
+    background: #8b5cf6;
+}
+
+.tk-status-fill.blue {
+    background: #3b82f6;
+}
+
+.tk-status-fill.cyan {
+    background: #06b6d4;
+}
+
+.tk-status-fill.teal {
+    background: #14b8a6;
+}
+
+.tk-status-fill.gray {
+    background: #94a3b8;
+}
+
+.tk-status-fill.green {
+    background: #22c55e;
+}
+
+.tk-status-fill.orange {
+    background: #f97316;
+}
+
+.tk-status-value {
+    color: #667085;
+    font-size: 10px;
+    font-weight: 700;
+    text-align: right;
+}
+
+.tk-chart-panel {
+    max-width: 1600px;
+    margin: 0 auto 20px;
+    overflow: hidden;
+}
+
+.tk-chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 18px 20px;
+    border-bottom: 1px solid #e8ecf2;
+}
+
+.tk-chart-header span {
+    display: block;
+    margin-bottom: 4px;
+    color: #4f46e5;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .10em;
+}
+
+.tk-chart-header h2 {
+    margin: 0;
+    font-size: 17px;
+}
+
+.tk-chart-filters {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid #e4e8ef;
+    border-radius: 10px;
+    background: #f7f8fa;
+}
+
+.tk-chart-filter {
+    min-width: 68px;
+    height: 32px;
+    padding: 0 10px;
+    color: #667085;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    font-size: 10px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.tk-chart-filter.active {
+    color: #fff;
+    background: #4f46e5;
+    box-shadow: 0 3px 9px rgba(79, 70, 229, .22);
+}
+
+.tk-chart-layout {
+    display: grid;
+    grid-template-columns: minmax(420px, 1.35fr) minmax(280px, .65fr);
+    gap: 20px;
+    padding: 20px;
+}
+
+.tk-chart-canvas-wrap {
+    position: relative;
+    min-width: 0;
+    min-height: 360px;
+    padding: 12px;
+    overflow-x: auto;
+    border: 1px solid #edf0f4;
+    border-radius: 13px;
+    background: #fcfcfd;
+}
+
+.tk-chart-canvas-wrap canvas {
+    display: block;
+    width: 100%;
+    height: 336px;
+}
+
+.tk-chart-error {
+    margin-top: 10px;
+    padding: 10px 12px;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+    border-radius: 9px;
+    background: #fff7f7;
+    font-size: 11px;
+}
+
+.tk-ranking {
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid #edf0f4;
+    border-radius: 13px;
+    background: #fff;
+}
+
+.tk-ranking-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 13px 14px;
+    border-bottom: 1px solid #edf0f4;
+    background: #fafbfc;
+}
+
+.tk-ranking-title strong {
+    font-size: 12px;
+}
+
+.tk-ranking-title small {
+    color: #98a2b3;
+    font-size: 9px;
+}
+
+.tk-ranking-list {
+    display: grid;
+}
+
+.tk-ranking-item {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 13px;
+    border-bottom: 1px solid #f0f2f5;
+}
+
+.tk-ranking-item:last-child {
+    border-bottom: 0;
+}
+
+.tk-rank-number {
+    display: grid;
+    width: 27px;
+    height: 27px;
+    place-items: center;
+    color: #667085;
+    border-radius: 8px;
+    background: #f2f4f7;
+    font-size: 10px;
+    font-weight: 850;
+}
+
+.tk-ranking-item:first-child .tk-rank-number {
+    color: #92400e;
+    background: #fef3c7;
+}
+
+.tk-ranking-product {
+    display: grid;
+    min-width: 0;
+    gap: 3px;
+}
+
+.tk-ranking-product strong {
+    overflow: hidden;
+    color: #344054;
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tk-ranking-product small {
+    color: #98a2b3;
+    font-size: 9px;
+}
+
+.tk-ranking-value {
+    color: #4338ca;
+    font-size: 11px;
+    font-weight: 850;
+    white-space: nowrap;
+}
+
+.tk-ranking-empty {
+    padding: 40px 15px;
+    color: #98a2b3;
+    font-size: 11px;
+    text-align: center;
+}
+
+.tk-tables {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+    gap: 16px;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+.tk-table-panel {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.tk-table-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px;
+    border-bottom: 1px solid #e8ecf2;
+}
+
+.tk-table-header span {
+    display: block;
+    margin-bottom: 4px;
+    color: #4f46e5;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .10em;
+}
+
+.tk-table-header h2 {
+    margin: 0;
+    font-size: 17px;
+}
+
+.tk-count {
+    padding: 6px 9px;
+    color: #4338ca;
+    border-radius: 999px;
+    background: #eef2ff;
+    font-size: 10px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.tk-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.tk-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.tk-table th,
+.tk-table td {
+    padding: 11px 14px;
+    border-bottom: 1px solid #edf0f4;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.tk-table th {
+    color: #7b8495;
+    background: #fafbfc;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.tk-table td {
+    color: #475467;
+    font-size: 11px;
+}
+
+.tk-product {
+    display: flex;
+    min-width: 190px;
+    align-items: center;
+    gap: 10px;
+}
+
+.tk-product img {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    border: 1px solid #e5e9ef;
+    border-radius: 10px;
+    object-fit: cover;
+    background: #f5f7fa;
+}
+
+.tk-product div {
+    display: grid;
+    gap: 3px;
+}
+
+.tk-product strong {
+    max-width: 190px;
+    overflow: hidden;
+    color: #273142;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tk-product small {
+    color: #98a2b3;
+    font-size: 9px;
+}
+
+.tk-badge {
+    display: inline-flex;
+    min-height: 23px;
+    align-items: center;
+    padding: 0 7px;
+    color: #667085;
+    border: 1px solid #e5e9ef;
+    border-radius: 999px;
+    background: #fafbfc;
+    font-size: 9px;
+    white-space: nowrap;
+}
+
+.tk-quantity {
+    display: inline-grid;
+    min-width: 32px;
+    height: 25px;
+    place-items: center;
+    padding: 0 7px;
+    color: #4338ca;
+    border-radius: 8px;
+    background: #eef2ff;
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.tk-quantity.low {
+    color: #b42318;
+    background: #feeceb;
+}
+
+.tk-money {
+    color: #344054;
+    font-size: 10px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.tk-right {
+    text-align: right !important;
+}
+
+.tk-empty {
+    padding: 30px !important;
+    color: #98a2b3 !important;
+    text-align: center !important;
+}
+
+.tk-table-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 11px 14px;
+    background: #fcfcfd;
+}
+
+.tk-table-footer label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #667085;
+    font-size: 10px;
+}
+
+.tk-table-footer select {
+    height: 31px;
+    padding: 0 7px;
+    border: 1px solid #d8dee8;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.tk-pages {
+    display: flex;
+    gap: 4px;
+}
+
+.tk-pages button {
+    display: grid;
+    width: 29px;
+    height: 29px;
+    place-items: center;
+    color: #667085;
+    border: 1px solid #e1e5ec;
+    border-radius: 8px;
+    background: #fff;
+    font-size: 10px;
+    cursor: pointer;
+}
+
+.tk-pages button.active {
+    color: #fff;
+    border-color: #4f46e5;
+    background: #4f46e5;
+}
+
+.tk-pages button:disabled {
+    cursor: not-allowed;
+    opacity: .45;
+}
+
+@media (max-width: 900px) {
+    .tk-chart-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .tk-tables {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 600px) {
+    .tk-page {
+        padding: 14px;
+    }
+
+    .tk-header {
+        flex-direction: column;
+    }
+
+    .tk-chart-layout {
+        padding: 12px;
+    }
+
+    .tk-status-row {
+        grid-template-columns: 105px 1fr 62px;
+    }
+}
+/* =========================================================
+   BIỂU ĐỒ SẢN PHẨM BÁN CHẠY
+   ========================================================= */
+
+.tk-chart-panel {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    background: radial-gradient( circle at 100% 0, rgba(99, 102, 241, .08), transparent 320px ), #fff;
+    box-shadow: 0 14px 38px rgba(15, 23, 42, .07);
+}
+
+    .tk-chart-panel::before {
+        position: absolute;
+        z-index: 2;
+        top: 0;
+        right: 0;
+        left: 0;
+        height: 3px;
+        background: linear-gradient( 90deg, #4f46e5 0%, #7c3aed 42%, #06b6d4 100% );
+        content: "";
+    }
+
+.tk-chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+    min-height: 82px;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e9edf5;
+    background: rgba(255, 255, 255, .76);
+    backdrop-filter: blur(10px);
+}
+
+    .tk-chart-header span {
+        display: block;
+        margin-bottom: 5px;
+        color: #4f46e5;
+        font-size: 10px;
+        font-weight: 850;
+        letter-spacing: .12em;
+    }
+
+    .tk-chart-header h2 {
+        margin: 0;
+        color: #182230;
+        font-size: 19px;
+        font-weight: 780;
+        letter-spacing: -.025em;
+    }
+
+.tk-chart-filters {
+    display: flex;
+    gap: 5px;
+    padding: 5px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #f8fafc;
+    box-shadow: inset 0 1px 2px rgba(15, 23, 42, .04);
+}
+
+.tk-chart-filter {
+    min-width: 72px;
+    height: 35px;
+    padding: 0 13px;
+    color: #64748b;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 850;
+    letter-spacing: .035em;
+    cursor: pointer;
+    transition: color .18s ease, background .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+    .tk-chart-filter:hover:not(.active) {
+        color: #3730a3;
+        background: #eef2ff;
+    }
+
+    .tk-chart-filter:focus-visible {
+        outline: 3px solid rgba(99, 102, 241, .2);
+        outline-offset: 2px;
+    }
+
+    .tk-chart-filter.active {
+        color: #fff;
+        background: linear-gradient( 135deg, #4f46e5, #7c3aed );
+        box-shadow: 0 6px 16px rgba(79, 70, 229, .25);
+        transform: translateY(-1px);
+    }
+
+.tk-chart-layout {
+    display: grid;
+    grid-template-columns: minmax(520px, 1.45fr) minmax(300px, .55fr);
+    align-items: stretch;
+    gap: 18px;
+    padding: 22px;
+    background: linear-gradient( 180deg, rgba(248, 250, 252, .52), rgba(255, 255, 255, .9) );
+}
+
+.tk-chart-canvas-wrap {
+    position: relative;
+    min-width: 0;
+    min-height: 390px;
+    padding: 16px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border: 1px solid #e6eaf1;
+    border-radius: 16px;
+    background: radial-gradient( circle at 10% 0, rgba(99, 102, 241, .055), transparent 220px ), #fff;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, .045);
+    scrollbar-color: #c7d2fe transparent;
+    scrollbar-width: thin;
+}
+
+    .tk-chart-canvas-wrap::-webkit-scrollbar {
+        height: 7px;
+    }
+
+    .tk-chart-canvas-wrap::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .tk-chart-canvas-wrap::-webkit-scrollbar-thumb {
+        border-radius: 999px;
+        background: #c7d2fe;
+    }
+
+    .tk-chart-canvas-wrap canvas {
+        display: block;
+        max-width: none;
+        touch-action: pan-x;
+    }
+
+/* Tooltip được JS tạo khi rê chuột vào cột */
+
+.tk-chart-tooltip {
+    position: absolute;
+    z-index: 20;
+    display: grid;
+    min-width: 150px;
+    max-width: 245px;
+    gap: 5px;
+    padding: 10px 12px;
+    pointer-events: none;
+    opacity: 0;
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 11px;
+    background: rgba(15, 23, 42, .95);
+    box-shadow: 0 12px 30px rgba(15, 23, 42, .25);
+    transform: translateY(4px) scale(.98);
+    transition: opacity .14s ease, transform .14s ease;
+    backdrop-filter: blur(8px);
+}
+
+    .tk-chart-tooltip.show {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+
+    .tk-chart-tooltip strong {
+        overflow: hidden;
+        font-size: 11px;
+        font-weight: 750;
+        line-height: 1.4;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .tk-chart-tooltip span {
+        color: #c7d2fe;
+        font-size: 10px;
+        font-weight: 650;
+    }
+
+.tk-chart-error {
+    margin-top: 12px;
+    padding: 11px 13px;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+    border-radius: 10px;
+    background: #fff7f7;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+/* Bảng xếp hạng bên phải */
+
+.tk-ranking {
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid #e6eaf1;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, .045);
+}
+
+.tk-ranking-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 58px;
+    padding: 14px 16px;
+    border-bottom: 1px solid #e9edf5;
+    background: linear-gradient( 135deg, #f8fafc, #f5f3ff );
+}
+
+    .tk-ranking-title strong {
+        color: #1e293b;
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .tk-ranking-title small {
+        padding: 5px 8px;
+        color: #6366f1;
+        border: 1px solid #e0e7ff;
+        border-radius: 999px;
+        background: #fff;
+        font-size: 9px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+.tk-ranking-list {
+    display: grid;
+    padding: 7px;
+}
+
+.tk-ranking-item {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 11px;
+    min-height: 55px;
+    padding: 9px 10px;
+    border: 1px solid transparent;
+    border-radius: 11px;
+    transition: border-color .18s ease, background .18s ease, transform .18s ease;
+}
+
+    .tk-ranking-item:hover {
+        border-color: #e0e7ff;
+        background: #f8faff;
+        transform: translateX(2px);
+    }
+
+.tk-rank-number {
+    display: grid;
+    width: 30px;
+    height: 30px;
+    place-items: center;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+    border-radius: 9px;
+    background: #f8fafc;
+    font-size: 10px;
+    font-weight: 900;
+}
+
+.tk-ranking-item:first-child .tk-rank-number,
+.tk-ranking-item:nth-child(2) .tk-rank-number,
+.tk-ranking-item:nth-child(3) .tk-rank-number {
+    color: #fff;
+    border-color: transparent;
+}
+
+.tk-ranking-item:first-child .tk-rank-number {
+    background: linear-gradient( 135deg, #4f46e5, #7c3aed );
+    box-shadow: 0 5px 12px rgba(79, 70, 229, .25);
+}
+
+.tk-ranking-item:nth-child(2) .tk-rank-number {
+    background: linear-gradient( 135deg, #0891b2, #06b6d4 );
+    box-shadow: 0 5px 12px rgba(8, 145, 178, .2);
+}
+
+.tk-ranking-item:nth-child(3) .tk-rank-number {
+    background: linear-gradient( 135deg, #059669, #10b981 );
+    box-shadow: 0 5px 12px rgba(5, 150, 105, .2);
+}
+
+.tk-ranking-product {
+    display: grid;
+    min-width: 0;
+    gap: 4px;
+}
+
+    .tk-ranking-product strong {
+        overflow: hidden;
+        color: #334155;
+        font-size: 10.5px;
+        font-weight: 750;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .tk-ranking-product small {
+        overflow: hidden;
+        color: #94a3b8;
+        font-size: 9px;
+        font-weight: 550;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+.tk-ranking-value {
+    padding: 6px 8px;
+    color: #4338ca;
+    border-radius: 8px;
+    background: #eef2ff;
+    font-size: 10px;
+    font-weight: 850;
+    white-space: nowrap;
+}
+
+.tk-ranking-empty {
+    display: grid;
+    min-height: 260px;
+    padding: 42px 18px;
+    place-items: center;
+    color: #94a3b8;
+    font-size: 11px;
+    line-height: 1.6;
+    text-align: center;
+}
+
+/* Tablet */
+
+@media (max-width: 1050px) {
+    .tk-chart-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .tk-ranking-list {
+        grid-template-columns: repeat( 2, minmax(0, 1fr) );
+        gap: 4px;
+    }
+}
+
+/* Mobile */
+
+@media (max-width: 650px) {
+    .tk-chart-header {
+        align-items: stretch;
+        padding: 18px 16px;
+    }
+
+    .tk-chart-filters {
+        width: 100%;
+    }
+
+    .tk-chart-filter {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .tk-chart-layout {
+        gap: 12px;
+        padding: 12px;
+    }
+
+    .tk-chart-canvas-wrap {
+        min-height: 350px;
+        padding: 10px;
+    }
+
+    .tk-ranking-list {
+        grid-template-columns: 1fr;
+    }
+
+    .tk-ranking-item:hover {
+        transform: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tk-chart-filter,
+    .tk-ranking-item,
+    .tk-chart-tooltip {
+        transition: none;
+    }
+}

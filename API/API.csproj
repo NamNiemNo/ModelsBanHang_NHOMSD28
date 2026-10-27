@@ -1,0 +1,53 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>6ef3417d-6e65-489d-b6c4-4c8d107bb7b5</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Views\NewFolder\**" />
+    <Content Remove="Views\NewFolder\**" />
+    <EmbeddedResource Remove="Views\NewFolder\**" />
+    <None Remove="Views\NewFolder\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.29" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.16" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.16">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.16" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.16">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.7" />
+    <PackageReference Include="RestSharp" Version="114.0.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="8.1.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Controllers\DeGiayController.cs" />
+    <None Include="wwwroot\Uploads\Images\1e0b74d6-c931-480f-956b-0c89fad72dda.jpg" />
+    <None Include="wwwroot\Uploads\Images\20250704022042_3baa0bcf-9b2f-4ee1-a31b-58376818097f.jpg" />
+    <None Include="wwwroot\Uploads\Images\20250711152818_9f4538bb-df2e-4c02-88cb-72d3ac41416c.jpg" />
+    <None Include="wwwroot\Uploads\Images\20250711153642_a430871d-1b84-4c36-8e32-6a2acfafc7db.jpg" />
+    <None Include="wwwroot\Uploads\Images\20250711154203_a8365a64-6e37-4010-961a-905a2ad46146.jpg" />
+    <None Include="wwwroot\Uploads\Images\20250711154213_db7fc17e-ecb5-4184-9fd4-580d5e064db3.jpg" />
+    <None Include="wwwroot\Uploads\Images\20250711154450_4bcf38cb-2901-49a9-9d07-55a10b72a510.jpg" />
+    <None Include="wwwroot\Uploads\Images\20250711155155_5c86c6c9-63ef-496a-b145-2b24a3267bb7.jpg" />
+    <None Include="wwwroot\Uploads\Images\5fe7a223-16c3-4670-baed-acc03fe21f04.jpg" />
+    <None Include="wwwroot\Uploads\Images\7f46164d-0b2d-4afa-8a6a-095bb86c234f.jpg" />
+    <None Include="wwwroot\Uploads\Images\a0e0586d-3ccd-4410-96c1-d3c44bcd1650.jpg" />
+    <None Include="wwwroot\Uploads\Images\b13dcdc3-2248-4466-ada3-48f78aea6ab0.jpg" />
+    <None Include="wwwroot\Uploads\Images\e905def6-6ed6-4546-b055-645e4be675d9.jpg" />
+    <None Include="wwwroot\Uploads\Images\ea730c58-8b26-44db-a5c6-42afd2f01b28.jpg" />
+  </ItemGroup>
+
+</Project>

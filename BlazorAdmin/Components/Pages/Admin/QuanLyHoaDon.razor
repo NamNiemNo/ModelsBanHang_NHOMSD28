@@ -1,0 +1,291 @@
+﻿@page "/admin/hoadonchitiet/{id:guid}"
+@attribute [Authorize(Roles = "Admin,NhanVien")]
+@layout AdminLayout
+@inject IHoaDonService HoaDonService
+@inject IHoaDonChiTietService HoaDonChiTietService
+@inject NavigationManager NavigationManager
+
+@using Data.Models
+
+<link href="/css/HoaDonChiTiet.css" rel="stylesheet" />
+<style>
+    .order-detail-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .order-item-card {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding: 16px;
+        border: 1px solid #eee;
+        border-radius: 14px;
+        background: #fff;
+        transition: 0.2s;
+    }
+
+        .order-item-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+    .product-image img {
+        width: 110px;
+        height: 110px;
+        object-fit: cover;
+        border-radius: 12px;
+        border: 1px solid #eee;
+    }
+
+    .product-info {
+        flex: 1;
+    }
+
+    .product-name {
+        font-size: 18px;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+
+    .product-variant {
+        color: #666;
+        margin-bottom: 8px;
+    }
+
+    .product-price {
+        color: #e53935;
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+
+    .product-quantity {
+        color: #444;
+    }
+
+    .product-total {
+        min-width: 140px;
+        text-align: right;
+        font-size: 20px;
+        font-weight: bold;
+        color: #d0011b;
+    }
+</style>
+<h3 class="mb-4">Chi tiết hóa đơn</h3>
+
+@if (hoaDon == null)
+{
+    <div class="alert alert-warning">
+        Không tìm thấy hóa đơn
+    </div>
+}
+else
+{
+    <div class="card p-3 mb-4 shadow-sm">
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Mã đơn:</strong> @hoaDon.HoaDonId</p>
+                <p><strong>Khách hàng:</strong> @(hoaDon.khachHang?.HoTen ?? "Khách lẻ")</p>
+                <p><strong>Ngày tạo:</strong> @hoaDon.NgayTao.ToString("dd/MM/yyyy HH:mm")</p>
+            </div>
+
+
+
+        </div>
+    </div>
+
+    <div class="order-detail-wrapper">
+
+        @if (chiTietHoaDons.Any())
+        {
+            @foreach (var item in chiTietHoaDons)
+            {
+                <div class="order-item-card">
+
+                    <!-- Ảnh -->
+                    <div class="product-image">
+                        <img src="@GetImage(item)"
+                             alt="@($"Ảnh {item.GiayChiTiet?.Giay?.TenGiay}")"
+                             loading="lazy"
+                             onerror="this.onerror=null; this.src='/images/no-image.png';" />
+                    </div>>
+
+                    <!-- Nội dung -->
+                    <div class="product-info">
+
+                        <div class="product-name">
+                            @item.GiayChiTiet?.Giay?.TenGiay
+                        </div>
+
+                        <div class="product-variant">
+                            Size:
+                            <strong>
+                                @item.GiayChiTiet?.KichCo?.TenKichCo
+                            </strong>
+                        </div>
+                        <div class="product-variant">
+
+                            Màu:
+                            <strong>
+                                @item.GiayChiTiet?.MauSac?.TenMau
+                            </strong>
+                        </div>
+                        <div class="product-price">
+                            Giá:
+                            <span>
+                                @item.DonGia?.ToString("N0")VNĐ
+                            </span>
+                        </div>
+
+                        <div class="product-quantity">
+                            Số lượng:
+                            <strong>@item.SoLuongSanPham</strong>
+                        </div>
+
+                        <div class="product-total">
+                            Thành tiền:
+                            @item.Gia.ToString("N0")VNĐ
+                        </div>
+
+                    </div>
+
+                </div>
+            }
+        }
+        else
+        {
+            <div class="text-center p-4">
+                Không có sản phẩm
+            </div>
+        }
+
+    </div>
+
+    <div class="card p-3 mt-4 shadow-sm">
+
+        <div class="d-flex justify-content-between mb-2">
+            <span>Tiền hàng:</span>
+
+            <strong>
+                @TongTienHang.ToString("N0") VNĐ
+            </strong>
+        </div>
+
+        @* Chỉ hiện phí ship nếu > 0 *@
+        @if (PhiShip > 0)
+        {
+            <div class="d-flex justify-content-between mb-2">
+                <span>Phí vận chuyển:</span>
+
+                <strong>
+                    + @PhiShip.ToString("N0") VNĐ
+                </strong>
+            </div>
+        }
+
+        @* Chỉ hiện voucher nếu có giảm *@
+        @if (GiamGiaVoucher > 0)
+        {
+            <div class="d-flex justify-content-between mb-2 text-success">
+                <span>Voucher giảm giá:</span>
+
+                <strong>
+                    - @GiamGiaVoucher.ToString("N0") VNĐ
+                </strong>
+            </div>
+        }
+
+        <hr />
+
+        <div class="d-flex justify-content-between">
+            <h5>Tổng thanh toán:</h5>
+
+            <h5 class="product-total">
+                @TongThanhToan.ToString("N0") VNĐ
+            </h5>
+        </div>
+
+    </div>
+
+    <button class="btn btn-secondary mt-3"
+            @onclick="QuayLai">
+        Quay lại
+    </button>
+}
+
+@code {
+
+    [Parameter]
+    public Guid id { get; set; }
+
+    private HoaDon? hoaDon;
+
+    private List<HoaDonChiTiet> chiTietHoaDons = new();
+
+    private decimal TongTien =>
+     (decimal?)(hoaDon?.TongTienSauKhiGiam)
+     ?? chiTietHoaDons.Sum(x => x.Gia);
+
+    protected override async Task OnInitializedAsync()
+    {
+        hoaDon = await HoaDonService.GetById(id);
+
+        var allChiTiet = await HoaDonChiTietService.GetAllAsync();
+
+        chiTietHoaDons = allChiTiet
+            .Where(x => x.HoaDonId == id)
+            .ToList();
+    }
+
+    private void QuayLai()
+    {
+        NavigationManager.NavigateTo("/admin/hoadon");
+    }
+    private const string ApiBaseUrl = "https://localhost:7246";
+
+    private string GetImage(HoaDonChiTiet item)
+    {
+        // AddGiay upload ảnh bằng IAnhService,
+        // đường dẫn thật được lưu trong bảng Anh
+        var imagePath = item.GiayChiTiet?.Anhs?
+            .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.DuongDan))
+            ?.DuongDan;
+
+        if (string.IsNullOrWhiteSpace(imagePath))
+            return "/images/no-image.png";
+
+        imagePath = imagePath.Trim().Replace("\\", "/");
+
+        // Nếu đã là URL đầy đủ
+        if (imagePath.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            imagePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
+            imagePath.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+        {
+            return imagePath;
+        }
+
+        // Loại bỏ wwwroot vì URL trình duyệt không chứa phần này
+        imagePath = imagePath.TrimStart('/');
+
+        if (imagePath.StartsWith(
+            "wwwroot/",
+            StringComparison.OrdinalIgnoreCase))
+        {
+            imagePath = imagePath["wwwroot/".Length..];
+        }
+
+        return $"{ApiBaseUrl}/{imagePath}";
+    }
+    private decimal TongTienHang =>
+    chiTietHoaDons.Sum(x => x.Gia);
+
+    private decimal PhiShip =>
+        (decimal)(hoaDon?.PhiShip ?? 0);
+
+    private decimal TongThanhToan =>
+        (decimal)(hoaDon?.TongTienSauKhiGiam ?? 0);
+
+    // tiền voucher = tiền hàng + ship - tổng thanh toán
+    private decimal GiamGiaVoucher =>
+        (TongTienHang + PhiShip) - TongThanhToan;
+}

@@ -1,0 +1,48 @@
+﻿@page "/payment-callback"
+@inject NavigationManager Nav
+@inject HttpClient Http
+
+<h3>Kết quả thanh toán</h3>
+
+@if (resultCode == 0)
+{
+    <div class="alert alert-success">
+        <h4>✅ Đặt hàng thành công</h4>
+        <p>Đơn hàng của bạn đã được thanh toán thành công.</p>
+    </div>
+}
+else
+{
+    <div class="alert alert-danger">
+        <h4>❌ Đặt hàng thất bại</h4>
+        <p>Thanh toán không thành công. Vui lòng thử lại.</p>
+    </div>
+}
+
+@code {
+    [SupplyParameterFromQuery] public string? orderId { get; set; }
+    [SupplyParameterFromQuery] public int? resultCode { get; set; }
+    [SupplyParameterFromQuery] public string? extraData { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrEmpty(extraData))
+        {
+            if (resultCode == 0)
+            {
+                await Http.PostAsync(
+                    $"api/Payment/ConfirmPayment/{extraData}",
+                    null);
+            }
+            else
+            {
+                await Http.PostAsync(
+                    $"api/Payment/CancelPayment/{extraData}",
+                    null);
+            }
+        }
+
+        await Task.Delay(1500);
+        Nav.NavigateTo("/Oder", true);
+    }
+}

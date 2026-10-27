@@ -1,0 +1,44 @@
+﻿@using BlazorKhachHang.Components.Pages.TaiKhoan
+
+@* Component: DoiMatKhauTab.razor *@
+
+<h5 class="mb-4">Đổi mật khẩu</h5>
+<EditForm OnValidSubmit="HandleSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label class="form-label">Mật khẩu hiện tại</label>
+        <InputText type="password" class="form-control" @bind-Value="CurrentPassword" required />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Mật khẩu mới</label>
+        <InputText type="password" class="form-control" @bind-Value="NewPassword" required />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Nhập lại mật khẩu mới</label>
+        <InputText type="password" class="form-control" @bind-Value="ConfirmPassword" required />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Xác nhận</button>
+</EditForm>
+
+@code {
+    private string CurrentPassword = string.Empty;
+    private string NewPassword = string.Empty;
+    private string ConfirmPassword = string.Empty;
+
+    private void HandleSubmit()
+    {
+        if (NewPassword != ConfirmPassword)
+        {
+            // Hiển thị lỗi hoặc xử lý tại đây
+            Console.WriteLine("Mật khẩu không khớp");
+            return;
+        }
+
+        // Xử lý đổi mật khẩu tại đây (ví dụ: gọi API)
+        Console.WriteLine("Đổi mật khẩu thành công");
+    }
+}
+

@@ -1,0 +1,48 @@
+﻿@using API.Models.DTO
+
+@code {
+    [Parameter] public KieuDangDTO? Item { get; set; }
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public EventCallback OnDelete { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+}
+
+@if (IsVisible && Item != null)
+{
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-danger shadow">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">Xác nhận xoá</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="OnCancelClicked"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Bạn có chắc muốn xoá kiểu dáng <strong>@Item.TenKieuDang</strong> không?</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="OnCancelClicked">Huỷ</button>
+                    <button class="btn btn-danger" @onclick="OnDeleteClicked">Xoá</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private async Task OnDeleteClicked()
+    {
+        if (OnDelete.HasDelegate)
+        {
+            await OnDelete.InvokeAsync();
+        }
+    }
+
+    private async Task OnCancelClicked()
+    {
+        if (OnCancel.HasDelegate)
+        {
+            await OnCancel.InvokeAsync();
+        }
+    }
+}

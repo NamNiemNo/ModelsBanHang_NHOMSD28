@@ -1,0 +1,684 @@
+﻿@using API.Models.DTO
+@using Microsoft.AspNetCore.Components.Forms
+@using System.Text.RegularExpressions
+
+@if (IsVisible && editContext != null)
+{
+    <div class="category-modal-overlay"
+         @onclick="CloseModal">
+
+        <div class="category-modal"
+             @onclick:stopPropagation="true">
+
+            <div class="modal-header">
+
+                <div class="modal-title-section">
+                    <div class="modal-title-icon">
+                        @(IsEdit ? "✎" : "＋")
+                    </div>
+
+                    <div>
+                        <span>
+                            @(IsEdit ? "CHỈNH SỬA" : "THÊM MỚI")
+                        </span>
+
+                        <h3>
+                            @(IsEdit
+                                ? "Cập nhật thể loại giày"
+                                : "Thêm thể loại giày")
+                        </h3>
+
+                        <p>
+                            @(IsEdit
+                                ? "Thay đổi thông tin của thể loại"
+                                : "Nhập thông tin để tạo thể loại mới")
+                        </p>
+                    </div>
+                </div>
+
+                <button type="button"
+                        class="close-button"
+                        disabled="@IsSubmitting"
+                        @onclick="CloseModal">
+                    ×
+                </button>
+
+            </div>
+
+            <EditForm EditContext="@editContext"
+                      OnValidSubmit="@ValidateAndSubmit"
+                      FormName="TheLoaiGiayForm">
+
+                <DataAnnotationsValidator />
+
+                <div class="modal-body">
+
+                    <div class="form-group">
+                        <label>
+                            Tên thể loại
+                            <span>*</span>
+                        </label>
+
+                        <div class="input-with-icon">
+                            <span>📚</span>
+
+                            <InputText class="@GetInputClass(nameof(FormData.TenTheLoai))"
+                                       @bind-Value="FormData.TenTheLoai"
+                                       placeholder="Ví dụ: Giày thể thao" />
+                        </div>
+
+                        <ValidationMessage For="@(() => FormData.TenTheLoai)" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Mô tả</label>
+
+                        <InputTextArea class="@GetInputClass(nameof(FormData.MoTa), true)"
+                                       @bind-Value="FormData.MoTa"
+                                       placeholder="Nhập mô tả cho thể loại..."
+                                       maxlength="500" />
+
+                        <div class="description-count">
+                            @((FormData.MoTa ?? string.Empty).Length)/500 ký tự
+                        </div>
+
+                        <ValidationMessage For="@(() => FormData.MoTa)" />
+                    </div>
+
+                    <div class="status-section">
+
+                        <div class="status-content">
+                            <div class="status-icon">
+                                @(FormData.TrangThai ? "✓" : "⏸")
+                            </div>
+
+                            <div>
+                                <strong>
+                                    @(FormData.TrangThai
+                                        ? "Đang hoạt động"
+                                        : "Ngừng hoạt động")
+                                </strong>
+
+                                <small>
+                                    @(FormData.TrangThai
+                                        ? "Thể loại được sử dụng khi tạo sản phẩm"
+                                        : "Thể loại tạm thời không được sử dụng")
+                                </small>
+                            </div>
+                        </div>
+
+                        <label class="custom-switch">
+                            <InputCheckbox @bind-Value="FormData.TrangThai" />
+                            <span class="switch-slider"></span>
+                        </label>
+
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+                    {
+                        <div class="server-error">
+                            <span>!</span>
+                            <div>@ErrorMessage</div>
+                        </div>
+                    }
+
+                </div>
+
+                <div class="modal-footer">
+
+                    <button type="button"
+                            class="cancel-button"
+                            disabled="@IsSubmitting"
+                            @onclick="CloseModal">
+                        Hủy
+                    </button>
+
+                    <button type="submit"
+                            class="save-button"
+                            disabled="@IsSubmitting">
+
+                        @if (IsSubmitting)
+                        {
+                            <span class="button-spinner"></span>
+                            <span>Đang lưu...</span>
+                        }
+                        else
+                        {
+                            <span>✓</span>
+                            <span>
+                                @(IsEdit ? "Lưu thay đổi" : "Thêm thể loại")
+                            </span>
+                        }
+
+                    </button>
+
+                </div>
+
+            </EditForm>
+
+        </div>
+
+    </div>
+}
+
+@code {
+    [Parameter]
+    public TheLoaiGiayDTO FormData { get; set; } = new();
+
+    [Parameter]
+    public List<TheLoaiGiayDTO> ExistingItems { get; set; } = new();
+
+    [Parameter]
+    public EventCallback OnSubmit { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    [Parameter]
+    public bool IsVisible { get; set; }
+
+    [Parameter]
+    public bool IsEdit { get; set; }
+
+    [Parameter]
+    public bool IsSubmitting { get; set; }
+
+    [Parameter]
+    public string ErrorMessage { get; set; } = string.Empty;
+
+    private EditContext? editContext;
+    private ValidationMessageStore? messageStore;
+
+    private TheLoaiGiayDTO? currentModelReference;
+
+    protected override void OnParametersSet()
+    {
+        if (!IsVisible)
+            return;
+
+        if (editContext == null
+            || !ReferenceEquals(currentModelReference, FormData))
+        {
+            currentModelReference = FormData;
+
+            editContext = new EditContext(FormData);
+            messageStore =
+                new ValidationMessageStore(editContext);
+        }
+    }
+
+    private async Task ValidateAndSubmit()
+    {
+        if (editContext == null || messageStore == null)
+            return;
+
+        messageStore.Clear();
+
+        FormData.TenTheLoai =
+            FormData.TenTheLoai?.Trim() ?? string.Empty;
+
+        FormData.MoTa =
+            FormData.MoTa?.Trim() ?? string.Empty;
+
+        var nameField = new FieldIdentifier(
+            FormData,
+            nameof(FormData.TenTheLoai));
+
+        var descriptionField = new FieldIdentifier(
+            FormData,
+            nameof(FormData.MoTa));
+
+        if (string.IsNullOrWhiteSpace(FormData.TenTheLoai))
+        {
+            messageStore.Add(
+                nameField,
+                "Tên thể loại không được để trống.");
+        }
+        else
+        {
+            if (FormData.TenTheLoai.Length < 2)
+            {
+                messageStore.Add(
+                    nameField,
+                    "Tên thể loại phải có ít nhất 2 ký tự.");
+            }
+
+            if (FormData.TenTheLoai.Length > 100)
+            {
+                messageStore.Add(
+                    nameField,
+                    "Tên thể loại không vượt quá 100 ký tự.");
+            }
+
+            if (!Regex.IsMatch(
+                FormData.TenTheLoai,
+                @"^[\p{L}\p{N}\s\-]+$"))
+            {
+                messageStore.Add(
+                    nameField,
+                    "Tên chỉ chứa chữ, số, khoảng trắng và dấu gạch ngang.");
+            }
+
+            var duplicated = ExistingItems.Any(x =>
+                x.TheLoaiGiayId != FormData.TheLoaiGiayId
+                && string.Equals(
+                    x.TenTheLoai?.Trim(),
+                    FormData.TenTheLoai,
+                    StringComparison.OrdinalIgnoreCase));
+
+            if (duplicated)
+            {
+                messageStore.Add(
+                    nameField,
+                    "Tên thể loại đã tồn tại.");
+            }
+        }
+
+        if (FormData.MoTa.Length > 500)
+        {
+            messageStore.Add(
+                descriptionField,
+                "Mô tả không vượt quá 500 ký tự.");
+        }
+
+        editContext.NotifyValidationStateChanged();
+
+        if (editContext.GetValidationMessages().Any())
+            return;
+
+        await OnSubmit.InvokeAsync();
+    }
+
+    private string GetInputClass(
+        string fieldName,
+        bool isTextarea = false)
+    {
+        if (editContext == null)
+        {
+            return isTextarea
+                ? "form-control-custom textarea-control"
+                : "form-control-custom";
+        }
+
+        var fieldIdentifier =
+            new FieldIdentifier(FormData, fieldName);
+
+        var hasError = editContext
+            .GetValidationMessages(fieldIdentifier)
+            .Any();
+
+        var baseClass = isTextarea
+            ? "form-control-custom textarea-control"
+            : "form-control-custom";
+
+        return hasError
+            ? baseClass + " invalid"
+            : baseClass;
+    }
+
+    private async Task CloseModal()
+    {
+        if (IsSubmitting)
+            return;
+
+        await OnClose.InvokeAsync();
+    }
+}
+
+<style>
+    .category-modal-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 3000;
+        display: grid;
+        place-items: center;
+        padding: 18px;
+        background: rgba(15, 23, 42, .58);
+        backdrop-filter: blur(3px);
+    }
+
+    .category-modal {
+        width: min(540px, 100%);
+        overflow: hidden;
+        border-radius: 18px;
+        background: white;
+        box-shadow: 0 25px 65px rgba(15, 23, 42, .28);
+        animation: category-modal-show .2s ease-out;
+    }
+
+    .modal-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 15px;
+        padding: 21px 23px;
+        border-bottom: 1px solid #e7ebf1;
+    }
+
+    .modal-title-section {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+    }
+
+    .modal-title-icon {
+        width: 43px;
+        height: 43px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border-radius: 12px;
+        background: #fff7ed;
+        color: #ea580c;
+        font-size: 18px;
+        font-weight: 800;
+    }
+
+    .modal-title-section span {
+        color: #ea580c;
+        font-size: 8px;
+        font-weight: 800;
+        letter-spacing: .7px;
+    }
+
+    .modal-title-section h3 {
+        margin: 2px 0;
+        color: #172033;
+        font-size: 18px;
+        font-weight: 800;
+    }
+
+    .modal-title-section p {
+        margin: 0;
+        color: #718096;
+        font-size: 10px;
+    }
+
+    .close-button {
+        width: 34px;
+        height: 34px;
+        border: 0;
+        border-radius: 9px;
+        background: #f1f5f9;
+        color: #64748b;
+        font-size: 19px;
+        cursor: pointer;
+    }
+
+    .modal-body {
+        padding: 22px 23px;
+    }
+
+    .form-group {
+        margin-bottom: 17px;
+    }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 7px;
+            color: #334155;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+            .form-group label span {
+                color: #dc2626;
+            }
+
+    .form-control-custom {
+        width: 100%;
+        min-height: 43px;
+        padding: 0 12px;
+        border: 1px solid #dce3ec;
+        border-radius: 10px;
+        outline: none;
+        background: white;
+        color: #172033;
+        font-size: 12px;
+        transition: .2s;
+    }
+
+        .form-control-custom:focus {
+            border-color: #f97316;
+            box-shadow: 0 0 0 4px rgba(249, 115, 22, .1);
+        }
+
+        .form-control-custom.invalid {
+            border-color: #dc2626;
+            box-shadow: 0 0 0 3px rgba(220, 38, 38, .08);
+        }
+
+    .textarea-control {
+        min-height: 105px;
+        padding-top: 10px;
+        resize: vertical;
+    }
+
+    .input-with-icon {
+        position: relative;
+    }
+
+        .input-with-icon > span {
+            position: absolute;
+            top: 50%;
+            left: 12px;
+            z-index: 1;
+            transform: translateY(-50%);
+        }
+
+        .input-with-icon .form-control-custom {
+            padding-left: 40px;
+        }
+
+    .validation-message {
+        display: block;
+        margin-top: 5px;
+        color: #dc2626;
+        font-size: 10px;
+    }
+
+    .description-count {
+        margin-top: 5px;
+        color: #94a3b8;
+        font-size: 9px;
+        text-align: right;
+    }
+
+    .status-section {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+        padding: 13px;
+        border-radius: 11px;
+        background: #f8fafc;
+    }
+
+    .status-content {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+    }
+
+    .status-icon {
+        width: 36px;
+        height: 36px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border-radius: 10px;
+        background: #ecfdf5;
+        color: #059669;
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    .status-content strong,
+    .status-content small {
+        display: block;
+    }
+
+    .status-content strong {
+        color: #334155;
+        font-size: 11px;
+    }
+
+    .status-content small {
+        margin-top: 2px;
+        color: #718096;
+        font-size: 9px;
+    }
+
+    .custom-switch {
+        position: relative;
+        width: 44px;
+        height: 24px;
+        margin: 0;
+        flex-shrink: 0;
+    }
+
+        .custom-switch input {
+            width: 0;
+            height: 0;
+            opacity: 0;
+        }
+
+    .switch-slider {
+        position: absolute;
+        inset: 0;
+        border-radius: 30px;
+        background: #cbd5e1;
+        cursor: pointer;
+        transition: .25s;
+    }
+
+        .switch-slider::before {
+            position: absolute;
+            bottom: 3px;
+            left: 3px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: white;
+            content: "";
+            transition: .25s;
+        }
+
+    .custom-switch input:checked + .switch-slider {
+        background: #22c55e;
+    }
+
+        .custom-switch input:checked + .switch-slider::before {
+            transform: translateX(20px);
+        }
+
+    .server-error {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 16px;
+        padding: 11px;
+        border: 1px solid #fecaca;
+        border-radius: 9px;
+        background: #fff1f2;
+        color: #b91c1c;
+        font-size: 10px;
+    }
+
+        .server-error span {
+            width: 21px;
+            height: 21px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border-radius: 50%;
+            background: #dc2626;
+            color: white;
+            font-weight: 800;
+        }
+
+    .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 9px;
+        padding: 15px 23px;
+        border-top: 1px solid #e7ebf1;
+    }
+
+    .cancel-button,
+    .save-button {
+        min-height: 41px;
+        padding: 0 15px;
+        border-radius: 9px;
+        font-size: 10px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .cancel-button {
+        border: 1px solid #dce3ec;
+        background: white;
+        color: #64748b;
+    }
+
+    .save-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        border: 0;
+        background: linear-gradient(135deg, #fb923c, #ea580c);
+        color: white;
+    }
+
+        .cancel-button:disabled,
+        .save-button:disabled,
+        .close-button:disabled {
+            cursor: not-allowed;
+            opacity: .65;
+        }
+
+    .button-spinner {
+        width: 13px;
+        height: 13px;
+        display: inline-block;
+        border: 2px solid rgba(255, 255, 255, .55);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: category-button-spin .7s linear infinite;
+    }
+
+    @@keyframes category-modal-show {
+        from {
+            opacity: 0;
+            transform: translateY(12px) scale(.97);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    @@keyframes category-button-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @@media (max-width: 520px) {
+        .category-modal {
+            max-height: 92vh;
+            overflow-y: auto;
+        }
+
+        .modal-footer {
+            flex-direction: column-reverse;
+        }
+
+        .cancel-button,
+        .save-button {
+            width: 100%;
+        }
+    }
+</style>

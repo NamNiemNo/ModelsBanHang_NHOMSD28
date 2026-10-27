@@ -1,0 +1,1515 @@
+﻿@page "/TraHang/{hoaDonId:guid}"
+@rendermode InteractiveServer
+
+@using API.Models
+
+@inject IReturnService ReturnService
+@inject NavigationManager NavigationManager
+
+<div class="return-detail-page">
+
+    <!-- HEADER -->
+    <div class="page-header">
+
+        <div class="header-left">
+            <button class="back-button"
+                    @onclick="NavigateBack">
+                ←
+            </button>
+
+            <div class="header-icon">✓</div>
+
+            <div>
+                <span class="breadcrumb">Trả hàng / Phê duyệt</span>
+                <h2>Phê duyệt yêu cầu trả hàng</h2>
+                <p>Kiểm tra, duyệt hoặc từ chối yêu cầu của khách hàng</p>
+            </div>
+        </div>
+
+    </div>
+
+    @if (IsLoading)
+    {
+        <div class="loading-card">
+            <div class="loading-spinner"></div>
+            <strong>Đang tải yêu cầu trả hàng...</strong>
+        </div>
+    }
+    else
+    {
+        <!-- THÔNG TIN HÓA ĐƠN -->
+        <div class="invoice-info-card">
+
+            <div class="invoice-main-info">
+                <div class="invoice-icon">#</div>
+
+                <div>
+                    <span>Mã hóa đơn</span>
+                    <strong>@hoaDonId.ToString().ToUpperInvariant()</strong>
+                    <small>Khách hàng: @TenKhachHang</small>
+                </div>
+            </div>
+
+            <span class="invoice-status @GetInvoiceStatusClass(TrangThaiHD)">
+                <i></i>
+                @FormatInvoiceStatus(TrangThaiHD)
+            </span>
+
+        </div>
+
+        <!-- THỐNG KÊ -->
+        <div class="stat-grid">
+
+            <div class="stat-card">
+                <div class="stat-icon total">▦</div>
+                <div>
+                    <span>Tổng yêu cầu</span>
+                    <strong>@ListYeuCau.Count</strong>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon pending">◷</div>
+                <div>
+                    <span>Chờ duyệt</span>
+                    <strong>
+                        @ListYeuCau.Count(x => x.TrangThai == 1)
+                    </strong>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon approved">✓</div>
+                <div>
+                    <span>Đã duyệt</span>
+                    <strong>
+                        @ListYeuCau.Count(x => x.TrangThai == 2)
+                    </strong>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon rejected">×</div>
+                <div>
+                    <span>Đã từ chối</span>
+                    <strong>
+                        @ListYeuCau.Count(x => x.TrangThai == 3)
+                    </strong>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon refund">₫</div>
+                <div>
+                    <span>Giá trị hoàn dự kiến</span>
+                    <strong>
+                        @ListYeuCau
+                        .Where(x => x.TrangThai != 3)
+                        .Sum(x => x.SoLuong * x.GiaTaiThoiDiemTra)
+                        .ToString("N0") ₫
+                    </strong>
+                </div>
+            </div>
+
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(PageError))
+        {
+            <div class="page-error">
+                <span>!</span>
+                <div>@PageError</div>
+                <button @onclick="() => PageError = string.Empty">×</button>
+            </div>
+        }
+
+        <!-- DANH SÁCH -->
+        <div class="request-panel">
+
+            <div class="panel-heading">
+                <div>
+                    <h4>Danh sách yêu cầu</h4>
+                    <p>Các sản phẩm khách hàng yêu cầu trả lại</p>
+                </div>
+
+                <span>@ListYeuCau.Count yêu cầu</span>
+            </div>
+
+            <div class="table-wrapper">
+
+                <table class="request-table">
+                    <thead>
+                        <tr>
+                            <th>Ngày yêu cầu</th>
+                            <th>Sản phẩm</th>
+                            <th class="center">Số lượng</th>
+                            <th>Giá hoàn</th>
+                            <th>Lý do trả hàng</th>
+                            <th>Trạng thái</th>
+                            <th class="col-action">Hành động</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @if (!ListYeuCau.Any())
+                        {
+                            <tr>
+                                <td colspan="7">
+                                    <div class="empty-state">
+                                        <div>📭</div>
+                                        <strong>Chưa có yêu cầu trả hàng</strong>
+                                        <span>
+                                            Hóa đơn này chưa có sản phẩm yêu cầu trả
+                                        </span>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var request in ListYeuCau)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="date-value">
+                                            <strong>
+                                                @request.NgayYeuCau.ToString("dd/MM/yyyy")
+                                            </strong>
+                                            <small>
+                                                @request.NgayYeuCau.ToString("HH:mm")
+                                            </small>
+                                        </div>
+                                    </td>
+
+                                    <td>
+                                        <div class="product-info">
+                                            <div class="product-avatar">
+                                                @GetProductInitial(request)
+                                            </div>
+
+                                            <div>
+                                                <strong>
+                                                    @GetProductName(request)
+                                                </strong>
+
+                                                <small title="@request.GiayChiTietId">
+                                                    @ShortId(request.GiayChiTietId)
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </td>
+
+                                    <td class="center">
+                                        <span class="quantity-badge">
+                                            @request.SoLuong
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        <strong class="refund-value">
+                                            @((request.SoLuong
+                                                * request.GiaTaiThoiDiemTra)
+                                                .ToString("N0")) ₫
+                                        </strong>
+                                    </td>
+
+                                    <td>
+                                        <div class="reason-value"
+                                             title="@request.GhiChu">
+                                            @(string.IsNullOrWhiteSpace(request.GhiChu)
+                                                ? "Không có ghi chú"
+                                                : request.GhiChu)
+                                        </div>
+
+                                        @if (request.TrangThai == 3
+                                       && !string.IsNullOrWhiteSpace(request.LyDoTuChoi))
+                                        {
+                                            <small class="reject-reason">
+                                                Từ chối: @request.LyDoTuChoi
+                                            </small>
+                                        }
+                                    </td>
+
+                                    <td>
+                                        <span class="request-status @GetRequestStatusClass(request.TrangThai)">
+                                            <i></i>
+                                            @GetRequestStatusText(request.TrangThai)
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        @if (request.TrangThai == 1)
+                                        {
+                                            <div class="action-group">
+
+                                                <button class="approve-button"
+                                                        @onclick="() => OpenApproveModal(request)">
+                                                    ✓ Duyệt
+                                                </button>
+
+                                                <button class="reject-button"
+                                                        @onclick="() => OpenRejectModal(request)">
+                                                    × Từ chối
+                                                </button>
+
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span class="processed-text">
+                                                Đã xử lý
+                                            </span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+
+            </div>
+
+        </div>
+    }
+
+    <!-- MODAL DUYỆT -->
+    @if (ShowApproveModal && SelectedRequest != null)
+    {
+        <div class="modal-overlay"
+             @onclick="CloseApproveModal">
+
+            <div class="confirm-modal"
+                 @onclick:stopPropagation="true">
+
+                <div class="confirm-icon approve">✓</div>
+
+                <h3>Xác nhận duyệt trả hàng?</h3>
+
+                <p>
+                    Sản phẩm
+                    <strong>@GetProductName(SelectedRequest)</strong>
+                    sẽ được nhập lại kho và thực hiện hoàn tiền.
+                </p>
+
+                <div class="refund-summary">
+                    <span>Giá trị hoàn</span>
+
+                    <strong>
+                        @((SelectedRequest.SoLuong
+                            * SelectedRequest.GiaTaiThoiDiemTra)
+                            .ToString("N0")) ₫
+                    </strong>
+                </div>
+
+                <div class="modal-actions">
+
+                    <button class="cancel-modal"
+                            disabled="@IsProcessing"
+                            @onclick="CloseApproveModal">
+                        Hủy
+                    </button>
+
+                    <button class="confirm-approve"
+                            disabled="@IsProcessing"
+                            @onclick="Approve">
+
+                        @if (IsProcessing)
+                        {
+                            <span class="mini-spinner"></span>
+                            <span>Đang xử lý...</span>
+                        }
+                        else
+                        {
+                            <span>✓</span>
+                            <span>Xác nhận duyệt</span>
+                        }
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+    }
+
+    <!-- MODAL TỪ CHỐI -->
+    @if (ShowRejectModal && SelectedRequest != null)
+    {
+        <div class="modal-overlay"
+             @onclick="CloseRejectModal">
+
+            <div class="confirm-modal"
+                 @onclick:stopPropagation="true">
+
+                <div class="confirm-icon reject">×</div>
+
+                <h3>Từ chối yêu cầu?</h3>
+
+                <p>
+                    Nhập lý do từ chối yêu cầu trả sản phẩm
+                    <strong>@GetProductName(SelectedRequest)</strong>.
+                </p>
+
+                <div class="reason-input">
+                    <label>
+                        Lý do từ chối
+                        <span>*</span>
+                    </label>
+
+                    <textarea @bind="RejectReason"
+                              @bind:event="oninput"
+                              maxlength="500"
+                              placeholder="Nhập lý do từ chối...">
+                        </textarea>
+
+                    <small>@RejectReason.Length/500 ký tự</small>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(ModalError))
+                {
+                    <div class="modal-error">
+                        <span>!</span>
+                        <div>@ModalError</div>
+                    </div>
+                }
+
+                <div class="modal-actions">
+
+                    <button class="cancel-modal"
+                            disabled="@IsProcessing"
+                            @onclick="CloseRejectModal">
+                        Hủy
+                    </button>
+
+                    <button class="confirm-reject"
+                            disabled="@IsProcessing"
+                            @onclick="Reject">
+
+                        @if (IsProcessing)
+                        {
+                            <span class="mini-spinner"></span>
+                            <span>Đang xử lý...</span>
+                        }
+                        else
+                        {
+                            <span>×</span>
+                            <span>Xác nhận từ chối</span>
+                        }
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+    }
+
+    <!-- TOAST -->
+    @if (!string.IsNullOrWhiteSpace(ToastMessage))
+    {
+        <div class="custom-toast @(ToastSuccess ? "success" : "error")">
+            <span class="toast-icon">
+                @(ToastSuccess ? "✓" : "!")
+            </span>
+
+            <div>
+                <strong>
+                    @(ToastSuccess ? "Thành công" : "Có lỗi xảy ra")
+                </strong>
+                <small>@ToastMessage</small>
+            </div>
+
+            <button @onclick="CloseToast">×</button>
+        </div>
+    }
+
+</div>
+
+@code {
+    [Parameter]
+    public Guid hoaDonId { get; set; }
+
+    private List<TraHang> ListYeuCau = new();
+
+    private bool IsLoading = true;
+    private bool IsProcessing;
+
+    private string TenKhachHang = string.Empty;
+    private string TrangThaiHD = string.Empty;
+
+    private string PageError = string.Empty;
+    private string ModalError = string.Empty;
+
+    private TraHang? SelectedRequest;
+
+    private bool ShowApproveModal;
+    private bool ShowRejectModal;
+
+    private string RejectReason = string.Empty;
+
+    private string ToastMessage = string.Empty;
+    private bool ToastSuccess;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            IsLoading = true;
+            PageError = string.Empty;
+
+            ListYeuCau =
+                await ReturnService.GetYeuCauByHoaDonAsync(hoaDonId)
+                ?? new List<TraHang>();
+
+            var invoice =
+                await ReturnService.GetHoaDonByIdAsync(hoaDonId);
+
+            if (invoice != null)
+            {
+                TenKhachHang =
+                    invoice.khachHang?.HoTen
+                    ?? "Khách vãng lai";
+
+                TrangThaiHD =
+                    invoice.TrangThai ?? "Không xác định";
+            }
+            else
+            {
+                PageError = "Không tìm thấy thông tin hóa đơn.";
+            }
+        }
+        catch (Exception ex)
+        {
+            PageError =
+                "Không thể tải yêu cầu trả hàng: " + ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private void OpenApproveModal(TraHang request)
+    {
+        SelectedRequest = request;
+        ModalError = string.Empty;
+        ShowApproveModal = true;
+    }
+
+    private void CloseApproveModal()
+    {
+        if (IsProcessing)
+            return;
+
+        SelectedRequest = null;
+        ShowApproveModal = false;
+    }
+
+    private async Task Approve()
+    {
+        if (SelectedRequest == null || IsProcessing)
+            return;
+
+        try
+        {
+            IsProcessing = true;
+
+            // Chỉ await để dùng được với Task hoặc Task<bool>.
+            await ReturnService.XacNhanTraHangAsync(
+                SelectedRequest.Id);
+
+            ShowApproveModal = false;
+            SelectedRequest = null;
+
+            await LoadData();
+
+            ShowToast(
+                "Đã duyệt yêu cầu và nhập lại sản phẩm vào kho.",
+                true);
+        }
+        catch (Exception ex)
+        {
+            ModalError =
+                "Không thể duyệt yêu cầu: " + ex.Message;
+
+            ShowToast(ModalError, false);
+        }
+        finally
+        {
+            IsProcessing = false;
+        }
+    }
+
+    private void OpenRejectModal(TraHang request)
+    {
+        SelectedRequest = request;
+        RejectReason = string.Empty;
+        ModalError = string.Empty;
+        ShowRejectModal = true;
+    }
+
+    private void CloseRejectModal()
+    {
+        if (IsProcessing)
+            return;
+
+        SelectedRequest = null;
+        RejectReason = string.Empty;
+        ModalError = string.Empty;
+        ShowRejectModal = false;
+    }
+
+    private async Task Reject()
+    {
+        if (SelectedRequest == null || IsProcessing)
+            return;
+
+        RejectReason = RejectReason?.Trim() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(RejectReason))
+        {
+            ModalError = "Vui lòng nhập lý do từ chối.";
+            return;
+        }
+
+        if (RejectReason.Length < 5)
+        {
+            ModalError =
+                "Lý do từ chối phải có ít nhất 5 ký tự.";
+            return;
+        }
+
+        try
+        {
+            IsProcessing = true;
+            ModalError = string.Empty;
+
+            await ReturnService.TuChoiTraHangAsync(
+                SelectedRequest.Id,
+                RejectReason);
+
+            ShowRejectModal = false;
+            SelectedRequest = null;
+            RejectReason = string.Empty;
+
+            await LoadData();
+
+            ShowToast(
+                "Đã từ chối yêu cầu trả hàng.",
+                true);
+        }
+        catch (Exception ex)
+        {
+            ModalError =
+                "Không thể từ chối yêu cầu: " + ex.Message;
+        }
+        finally
+        {
+            IsProcessing = false;
+        }
+    }
+
+    private static string GetProductName(TraHang request)
+    {
+        return request.GiayChiTiet?.Giay?.TenGiay
+               ?? "Sản phẩm";
+    }
+
+    private static string GetProductInitial(TraHang request)
+    {
+        var name = GetProductName(request);
+
+        var words = name.Trim()
+            .Split(
+                ' ',
+                StringSplitOptions.RemoveEmptyEntries);
+
+        if (words.Length == 0)
+            return "SP";
+
+        if (words.Length == 1)
+        {
+            return words[0][0]
+                .ToString()
+                .ToUpperInvariant();
+        }
+
+        return string.Concat(
+            words.First()[0],
+            words.Last()[0])
+            .ToUpperInvariant();
+    }
+
+    private static string ShortId(Guid id)
+    {
+        return "#" + id
+            .ToString()[..8]
+            .ToUpperInvariant();
+    }
+
+    private static string GetRequestStatusText(int status)
+    {
+        return status switch
+        {
+            1 => "Chờ duyệt",
+            2 => "Đã duyệt",
+            3 => "Đã từ chối",
+            _ => "Không xác định"
+        };
+    }
+
+    private static string GetRequestStatusClass(int status)
+    {
+        return status switch
+        {
+            1 => "pending",
+            2 => "approved",
+            3 => "rejected",
+            _ => "unknown"
+        };
+    }
+
+    private static string FormatInvoiceStatus(string? status)
+    {
+        return status switch
+        {
+            "DaTraHet" => "Đã trả hết",
+            "HoanThanh" => "Hoàn thành",
+            _ => status ?? "Không xác định"
+        };
+    }
+
+    private static string GetInvoiceStatusClass(string? status)
+    {
+        return status switch
+        {
+            "DaTraHet" => "returned",
+            "HoanThanh" => "completed",
+            _ => "pending"
+        };
+    }
+
+    private void NavigateBack()
+    {
+        NavigationManager.NavigateTo("/TraHang");
+    }
+
+    private void ShowToast(string message, bool success)
+    {
+        ToastMessage = message;
+        ToastSuccess = success;
+    }
+
+    private void CloseToast()
+    {
+        ToastMessage = string.Empty;
+    }
+}
+
+<style>
+    .return-detail-page {
+        --primary: #f97316;
+        --primary-dark: #ea580c;
+        --primary-light: #fff7ed;
+        --text: #172033;
+        --muted: #718096;
+        --border: #e7ebf1;
+        min-height: 100vh;
+        padding: 28px;
+        background: #f6f8fc;
+        color: var(--text);
+    }
+
+    .page-header {
+        margin-bottom: 20px;
+    }
+
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .back-button {
+        width: 43px;
+        height: 43px;
+        border: 1px solid var(--border);
+        border-radius: 11px;
+        background: white;
+        color: #64748b;
+        font-size: 20px;
+        cursor: pointer;
+    }
+
+    .header-icon {
+        width: 47px;
+        height: 47px;
+        display: grid;
+        place-items: center;
+        border-radius: 13px;
+        background: linear-gradient(135deg, #fb923c, #ea580c);
+        color: white;
+        font-size: 20px;
+        font-weight: 800;
+        box-shadow: 0 7px 18px rgba(249, 115, 22, .23);
+    }
+
+    .breadcrumb {
+        color: var(--primary-dark);
+        font-size: 9px;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .page-header h2 {
+        margin: 2px 0 3px;
+        font-size: 24px;
+        font-weight: 800;
+    }
+
+    .page-header p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 11px;
+    }
+
+    .invoice-info-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 19px;
+        margin-bottom: 17px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: white;
+        box-shadow: 0 6px 20px rgba(15, 23, 42, .04);
+    }
+
+    .invoice-main-info {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        min-width: 0;
+    }
+
+    .invoice-icon {
+        width: 44px;
+        height: 44px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border-radius: 12px;
+        background: #eef2ff;
+        color: #4f46e5;
+        font-weight: 800;
+    }
+
+    .invoice-main-info span,
+    .invoice-main-info strong,
+    .invoice-main-info small {
+        display: block;
+    }
+
+    .invoice-main-info span {
+        margin-bottom: 3px;
+        color: var(--muted);
+        font-size: 9px;
+    }
+
+    .invoice-main-info strong {
+        overflow-wrap: anywhere;
+        color: #334155;
+        font-size: 12px;
+    }
+
+    .invoice-main-info small {
+        margin-top: 4px;
+        color: #94a3b8;
+        font-size: 9px;
+    }
+
+    .invoice-status,
+    .request-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 10px;
+        border-radius: 20px;
+        font-size: 9px;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+        .invoice-status i,
+        .request-status i {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .invoice-status.completed,
+        .request-status.approved {
+            background: #ecfdf5;
+            color: #15803d;
+        }
+
+        .invoice-status.returned {
+            background: #faf5ff;
+            color: #9333ea;
+        }
+
+        .invoice-status.pending,
+        .request-status.pending {
+            background: #fffbeb;
+            color: #b45309;
+        }
+
+        .request-status.rejected {
+            background: #fff1f2;
+            color: #dc2626;
+        }
+
+        .request-status.unknown {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+
+    .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 13px;
+        margin-bottom: 17px;
+    }
+
+    .stat-card {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        min-height: 91px;
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: white;
+    }
+
+    .stat-icon {
+        width: 42px;
+        height: 42px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border-radius: 11px;
+        font-weight: 800;
+    }
+
+        .stat-icon.total {
+            background: #eff6ff;
+            color: #2563eb;
+        }
+
+        .stat-icon.pending {
+            background: #fffbeb;
+            color: #b45309;
+        }
+
+        .stat-icon.approved {
+            background: #ecfdf5;
+            color: #059669;
+        }
+
+        .stat-icon.rejected {
+            background: #fff1f2;
+            color: #dc2626;
+        }
+
+        .stat-icon.refund {
+            background: var(--primary-light);
+            color: var(--primary-dark);
+        }
+
+    .stat-card span,
+    .stat-card strong {
+        display: block;
+    }
+
+    .stat-card span {
+        margin-bottom: 4px;
+        color: var(--muted);
+        font-size: 9px;
+    }
+
+    .stat-card strong {
+        font-size: 17px;
+    }
+
+    .request-panel {
+        display: flex;
+        flex-direction: column;
+        height: 590px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: white;
+        box-shadow: 0 7px 24px rgba(15, 23, 42, .045);
+    }
+
+    .panel-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+        flex-shrink: 0;
+        padding: 17px 19px;
+        border-bottom: 1px solid var(--border);
+    }
+
+        .panel-heading h4 {
+            margin: 0 0 3px;
+            font-size: 15px;
+            font-weight: 800;
+        }
+
+        .panel-heading p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 9px;
+        }
+
+        .panel-heading > span {
+            padding: 6px 9px;
+            border-radius: 20px;
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            font-size: 9px;
+            font-weight: 800;
+        }
+
+    .table-wrapper {
+        flex: 1;
+        min-height: 0;
+        overflow-x: auto;
+        overflow-y: auto;
+    }
+
+    .request-table {
+        width: 100%;
+        min-width: 1150px;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+        .request-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 4;
+            padding: 13px 14px;
+            border-bottom: 1px solid var(--border);
+            background: #f8fafc;
+            color: #64748b;
+            font-size: 9px;
+            font-weight: 800;
+            text-align: left;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .request-table tbody td {
+            padding: 13px 14px;
+            border-bottom: 1px solid #edf1f6;
+            color: #334155;
+            font-size: 11px;
+            vertical-align: middle;
+        }
+
+        .request-table tbody tr:hover {
+            background: #fffaf5;
+        }
+
+    .center {
+        text-align: center !important;
+    }
+
+    .col-action {
+        width: 180px;
+        text-align: center !important;
+    }
+
+    .date-value strong,
+    .date-value small,
+    .product-info strong,
+    .product-info small {
+        display: block;
+    }
+
+    .date-value small,
+    .product-info small {
+        margin-top: 3px;
+        color: #94a3b8;
+        font-size: 8px;
+    }
+
+    .product-info {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        min-width: 180px;
+    }
+
+    .product-avatar {
+        width: 40px;
+        height: 40px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border-radius: 11px;
+        background: var(--primary-light);
+        color: var(--primary-dark);
+        font-size: 10px;
+        font-weight: 800;
+    }
+
+    .quantity-badge {
+        display: inline-grid;
+        min-width: 34px;
+        height: 29px;
+        place-items: center;
+        padding: 0 7px;
+        border-radius: 20px;
+        background: #f1f5f9;
+        color: #475569;
+        font-size: 10px;
+        font-weight: 800;
+    }
+
+    .refund-value {
+        color: var(--primary-dark);
+        white-space: nowrap;
+    }
+
+    .reason-value {
+        max-width: 250px;
+        overflow: hidden;
+        color: #64748b;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .reject-reason {
+        display: block;
+        max-width: 250px;
+        margin-top: 4px;
+        color: #dc2626;
+        font-size: 8px;
+    }
+
+    .action-group {
+        display: flex;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .approve-button,
+    .reject-button {
+        min-height: 32px;
+        padding: 0 9px;
+        border-radius: 8px;
+        font-size: 9px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .approve-button {
+        border: 1px solid #bbf7d0;
+        background: #f0fdf4;
+        color: #15803d;
+    }
+
+    .reject-button {
+        border: 1px solid #fecaca;
+        background: #fff1f2;
+        color: #dc2626;
+    }
+
+    .processed-text {
+        color: #94a3b8;
+        font-size: 9px;
+    }
+
+    .empty-state {
+        min-height: 300px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        color: #94a3b8;
+    }
+
+        .empty-state > div {
+            font-size: 34px;
+        }
+
+        .empty-state strong {
+            color: #475569;
+        }
+
+    .loading-card {
+        min-height: 420px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: white;
+    }
+
+    .loading-spinner,
+    .mini-spinner {
+        display: inline-block;
+        border-style: solid;
+        border-radius: 50%;
+        animation: return-detail-spin .7s linear infinite;
+    }
+
+    .loading-spinner {
+        width: 35px;
+        height: 35px;
+        border-width: 3px;
+        border-color: #fed7aa;
+        border-top-color: var(--primary);
+    }
+
+    .mini-spinner {
+        width: 13px;
+        height: 13px;
+        border-width: 2px;
+        border-color: currentColor;
+        border-top-color: transparent;
+    }
+
+    .page-error,
+    .modal-error {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        border: 1px solid #fecaca;
+        border-radius: 9px;
+        background: #fff1f2;
+        color: #b91c1c;
+        font-size: 10px;
+    }
+
+    .page-error {
+        margin-bottom: 15px;
+    }
+
+    .modal-error {
+        margin-top: 13px;
+        text-align: left;
+    }
+
+        .page-error > span,
+        .modal-error > span {
+            width: 21px;
+            height: 21px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border-radius: 50%;
+            background: #dc2626;
+            color: white;
+            font-weight: 800;
+        }
+
+        .page-error div,
+        .modal-error div {
+            flex: 1;
+        }
+
+    .page-error button {
+        border: 0;
+        background: transparent;
+        color: #b91c1c;
+        font-size: 18px;
+    }
+
+    .modal-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 3000;
+        display: grid;
+        place-items: center;
+        padding: 18px;
+        background: rgba(15, 23, 42, .58);
+        backdrop-filter: blur(3px);
+    }
+
+    .confirm-modal {
+        width: min(430px, 100%);
+        padding: 26px;
+        border-radius: 17px;
+        background: white;
+        text-align: center;
+        box-shadow: 0 25px 65px rgba(15, 23, 42, .28);
+    }
+
+    .confirm-icon {
+        width: 55px;
+        height: 55px;
+        display: grid;
+        place-items: center;
+        margin: auto;
+        border-radius: 50%;
+        font-size: 23px;
+        font-weight: 800;
+    }
+
+        .confirm-icon.approve {
+            background: #ecfdf5;
+            color: #059669;
+        }
+
+        .confirm-icon.reject {
+            background: #fff1f2;
+            color: #dc2626;
+        }
+
+    .confirm-modal h3 {
+        margin: 14px 0 7px;
+        font-size: 18px;
+        font-weight: 800;
+    }
+
+    .confirm-modal p {
+        margin: 0;
+        color: #64748b;
+        font-size: 11px;
+        line-height: 1.6;
+    }
+
+        .confirm-modal p strong {
+            color: #172033;
+        }
+
+    .refund-summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+        margin-top: 15px;
+        padding: 12px;
+        border-radius: 10px;
+        background: var(--primary-light);
+    }
+
+        .refund-summary span {
+            color: #c0783e;
+            font-size: 10px;
+        }
+
+        .refund-summary strong {
+            color: var(--primary-dark);
+            font-size: 14px;
+        }
+
+    .reason-input {
+        margin-top: 15px;
+        text-align: left;
+    }
+
+        .reason-input label {
+            display: block;
+            margin-bottom: 6px;
+            color: #334155;
+            font-size: 10px;
+            font-weight: 800;
+        }
+
+            .reason-input label span {
+                color: #dc2626;
+            }
+
+        .reason-input textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 10px;
+            border: 1px solid #dce3ec;
+            border-radius: 9px;
+            outline: none;
+            font-size: 11px;
+            resize: vertical;
+        }
+
+            .reason-input textarea:focus {
+                border-color: var(--primary);
+                box-shadow: 0 0 0 4px rgba(249, 115, 22, .1);
+            }
+
+        .reason-input small {
+            display: block;
+            margin-top: 4px;
+            color: #94a3b8;
+            font-size: 8px;
+            text-align: right;
+        }
+
+    .modal-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 9px;
+        margin-top: 20px;
+    }
+
+        .modal-actions button {
+            min-height: 41px;
+            border-radius: 9px;
+            font-size: 10px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+    .cancel-modal {
+        border: 1px solid #dce3ec;
+        background: white;
+        color: #64748b;
+    }
+
+    .confirm-approve,
+    .confirm-reject {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        border: 0;
+        color: white;
+    }
+
+    .confirm-approve {
+        background: #059669;
+    }
+
+    .confirm-reject {
+        background: #dc2626;
+    }
+
+    .modal-actions button:disabled {
+        cursor: not-allowed;
+        opacity: .65;
+    }
+
+    .custom-toast {
+        position: fixed;
+        right: 25px;
+        bottom: 25px;
+        z-index: 4000;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 315px;
+        max-width: 430px;
+        padding: 14px;
+        border-radius: 12px;
+        color: white;
+        box-shadow: 0 14px 35px rgba(15, 23, 42, .22);
+    }
+
+        .custom-toast.success {
+            background: #059669;
+        }
+
+        .custom-toast.error {
+            background: #dc2626;
+        }
+
+    .toast-icon {
+        width: 30px;
+        height: 30px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, .18);
+        font-weight: 800;
+    }
+
+    .custom-toast div {
+        flex: 1;
+    }
+
+    .custom-toast strong,
+    .custom-toast small {
+        display: block;
+    }
+
+    .custom-toast small {
+        margin-top: 2px;
+        opacity: .9;
+    }
+
+    .custom-toast button {
+        border: 0;
+        background: transparent;
+        color: white;
+        font-size: 19px;
+        cursor: pointer;
+    }
+
+    @@keyframes return-detail-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @@media (max-width: 1100px) {
+        .stat-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    @@media (max-width: 700px) {
+        .return-detail-page {
+            padding: 16px;
+        }
+
+        .invoice-info-card {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .stat-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .request-panel {
+            height: 650px;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .stat-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .modal-actions {
+            grid-template-columns: 1fr;
+        }
+
+        .custom-toast {
+            right: 15px;
+            bottom: 15px;
+            left: 15px;
+            min-width: 0;
+        }
+    }
+</style>

@@ -1,0 +1,14 @@
+﻿@using BlazorKhachHang.Components.Pages
+
+<Router AppAssembly="typeof(Program).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData"
+                   DefaultLayout="typeof(Layout.Layoutgeneral)" />
+
+        <FocusOnNavigate RouteData="routeData"
+                         Selector="h1" />
+    </Found>
+</Router>
+
+<!-- Tên phải trùng với BoxChatAI.razor -->
+<BoxChatAI />

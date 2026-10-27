@@ -1,0 +1,665 @@
+﻿@page "/"
+@using System.ComponentModel.DataAnnotations
+@using API.Models.DTO
+@using BlazorAdmin.Service.IService
+@using Microsoft.AspNetCore.Components.Authorization
+
+@inject ITaiKhoanService taiKhoanService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject CustomAuthenticationStateProvider AuthProvider
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+<PageTitle>Đăng nhập hệ thống - NIVO Store</PageTitle>
+
+<div class="neo-login-container">
+    <!-- Các khối hình nền chuyển động nghệ thuật -->
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+
+    <div class="glass-card">
+        <!-- Cột trái: Brand Showcase độc đáo -->
+        <div class="brand-side">
+            <div class="brand-header">
+                <div class="logo-box">
+                    <img src="img/Logo.png" alt="Logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+                    <span class="logo-fallback"><i class="bi bi-bag-check-fill"></i></span>
+                </div>
+                <div class="brand-title">
+                    <h2>NIVO Store</h2>
+                    <span>Admin Central</span>
+                </div>
+            </div>
+
+            <div class="brand-hero-text">
+                <span class="badge-tag">HỆ THỐNG THẾ HỆ MỚI</span>
+                <h1>Quản trị thông minh, <br><span>bứt phá doanh thu.</span></h1>
+                <p>Nền tảng vận hành tập trung toàn diện: Theo dõi đơn hàng, kho bãi và nhân sự chỉ trong một cái liếc nhìn.</p>
+            </div>
+
+            <div class="brand-footer-info">
+                <div class="status-indicator">
+                    <span class="pulse-dot"></span>
+                    <span>Hệ thống hoạt động ổn định (99.9%)</span>
+                </div>
+                <small>© @DateTime.Now.Year NIVO Ecosystem.</small>
+            </div>
+        </div>
+
+        <!-- Cột phải: Form Đăng Nhập Tối Giản, Mượt Mà -->
+        <div class="form-side">
+            <div class="form-wrapper">
+                <div class="mobile-brand-header">
+                    <div class="logo-box small">
+                        <img src="img/Logo.png" alt="Logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+                        <span class="logo-fallback"><i class="bi bi-bag-check-fill"></i></span>
+                    </div>
+                    <strong>NIVO Store</strong>
+                </div>
+
+                <div class="form-header">
+                    <h3>Xin chào bạn trở lại! 👋</h3>
+                    <p>Vui lòng nhập thông tin xác thực để truy cập.</p>
+                </div>
+
+                <EditForm Model="Input" OnValidSubmit="LoginUserAsync" FormName="login">
+                    <DataAnnotationsValidator />
+
+                    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+                    {
+                        <div class="alert-box">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                            <span>@ErrorMessage</span>
+                            <button type="button" @onclick="CloseErrorMessage"><i class="bi bi-x"></i></button>
+                        </div>
+                    }
+
+                    <div class="input-group-modern">
+                        <label>Tên tài khoản</label>
+                        <div class="field-wrap">
+                            <i class="bi bi-person-badge"></i>
+                            <InputText class="modern-input" @bind-Value="Input.UserName" autocomplete="username" placeholder="Nhập username..." />
+                        </div>
+                        <ValidationMessage For="@(() => Input.UserName)" class="error-text" />
+                    </div>
+
+                    <div class="input-group-modern">
+                        <label>Mật khẩu</label>
+                        <div class="field-wrap">
+                            <i class="bi bi-shield-lock"></i>
+                            <InputText type="@PasswordInputType" class="modern-input" @bind-Value="Input.Password" autocomplete="current-password" placeholder="••••••••" />
+                            <button type="button" class="eye-btn" @onclick="TogglePasswordVisibility">
+                                <i class="bi @(IsPasswordVisible ? "bi-eye-slash" : "bi-eye")"></i>
+                            </button>
+                        </div>
+                        <ValidationMessage For="@(() => Input.Password)" class="error-text" />
+                    </div>
+
+                    <div class="form-options">
+                        <label class="custom-checkbox">
+                            <InputCheckbox @bind-Value="Input.RememberMe" />
+                            <span>Ghi nhớ phiên đăng nhập</span>
+                        </label>
+                    </div>
+
+                    <button type="submit" class="submit-btn" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span class="spinner-border spinner-border-sm"></span>
+                            <span>Đang xác thực...</span>
+                        }
+                        else
+                        {
+                            <span>Đăng nhập hệ thống</span>
+                            <i class="bi bi-arrow-right-short"></i>
+                        }
+                    </button>
+                </EditForm>
+
+                <div class="security-badge">
+                    <i class="bi bi-lock-fill"></i> Kết nối được mã hóa chuẩn SSL 256-bit
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+    private string ErrorMessage { get; set; } = string.Empty;
+    private bool IsPasswordVisible { get; set; }
+    private bool isSubmitting;
+
+    private string PasswordInputType => IsPasswordVisible ? "text" : "password";
+
+    private void TogglePasswordVisibility() => IsPasswordVisible = !IsPasswordVisible;
+    private void CloseErrorMessage() => ErrorMessage = string.Empty;
+
+    private async Task LoginUserAsync()
+    {
+        if (isSubmitting) return;
+        ErrorMessage = string.Empty;
+        isSubmitting = true;
+
+        try
+        {
+            Input.UserName = (Input.UserName ?? string.Empty).Trim();
+            var response = await taiKhoanService.GetByIdChucVuAsync(Input.UserName, Input.Password);
+
+            if (!response.IsSuccess)
+            {
+                ErrorMessage = string.IsNullOrWhiteSpace(response.Message) ? "Tên tài khoản hoặc mật khẩu không chính xác." : response.Message;
+                return;
+            }
+
+            var role = response.Role?.Trim();
+            if (string.IsNullOrWhiteSpace(role)) { ErrorMessage = "Tài khoản chưa được phân quyền."; return; }
+            if (string.IsNullOrWhiteSpace(response.Token)) { ErrorMessage = "API không trả về token đăng nhập."; return; }
+
+            AuthProvider.MarkUserAsAuthenticated(response.Username, role);
+
+            await JS.InvokeVoidAsync("localStorage.setItem", "currentId", response.Id.ToString());
+            await JS.InvokeVoidAsync("localStorage.setItem", "currentRole", role);
+            await JS.InvokeVoidAsync("localStorage.setItem", "currentUserName", response.Username);
+
+            if (string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase))
+            {
+                Navigation.NavigateTo("/thongke", replace: true);
+                return;
+            }
+            if (string.Equals(role, "NhanVien", StringComparison.OrdinalIgnoreCase))
+            {
+                Navigation.NavigateTo("/BanHang", replace: true);
+                return;
+            }
+            ErrorMessage = $"Quyền '{role}' không được phép truy cập trang quản trị.";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Đăng nhập thất bại: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private sealed class InputModel
+    {
+        [Required(ErrorMessage = "Vui lòng nhập tên tài khoản")]
+        public string UserName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Vui lòng nhập mật khẩu")]
+        public string Password { get; set; } = string.Empty;
+
+        public bool RememberMe { get; set; }
+    }
+}
+
+<style>
+    /* Tổng thể giao diện và hiệu ứng không gian */
+    .neo-login-container {
+        position: relative;
+        min-height: 100vh;
+        background: #090d16;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        padding: 20px;
+    }
+
+    /* Các đốm sáng trang trí chuyển động (Ambient Glows) */
+    .blob {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(80px);
+        z-index: 1;
+        opacity: 0.45;
+        animation: floatBlob 12s infinite alternate ease-in-out;
+    }
+
+    .blob-1 {
+        width: 400px;
+        height: 400px;
+        background: #f97316;
+        top: -100px;
+        left: -100px;
+    }
+
+    .blob-2 {
+        width: 450px;
+        height: 450px;
+        background: #3b82f6;
+        bottom: -120px;
+        right: -100px;
+        animation-delay: -4s;
+    }
+
+    .blob-3 {
+        width: 300px;
+        height: 300px;
+        background: #8b5cf6;
+        top: 40%;
+        left: 30%;
+        animation-delay: -8s;
+        opacity: 0.2;
+    }
+
+    @@keyframes floatBlob {
+        0% {
+            transform: translate(0, 0) scale(1);
+        }
+
+        100% {
+            transform: translate(30px, 40px) scale(1.1);
+        }
+    }
+
+    /* Khung kính chính (Glassmorphism Card) */
+    .glass-card {
+        position: relative;
+        z-index: 2;
+        width: 1050px;
+        max-width: 100%;
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        background: rgba(17, 24, 39, 0.75);
+        backdrop-filter: blur(25px);
+        -webkit-backdrop-filter: blur(25px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 28px;
+        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        overflow: hidden;
+    }
+
+    /* Cột trái: Trưng bày thương hiệu */
+    .brand-side {
+        padding: 50px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        background: linear-gradient(135deg, rgba(249, 115, 22, 0.12) 0%, rgba(15, 23, 42, 0) 60%);
+        border-right: 1px solid rgba(255, 255, 255, 0.05);
+        color: #fff;
+    }
+
+    .brand-header {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .logo-box {
+        width: 52px;
+        height: 52px;
+        background: #ffffff;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4px;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    }
+
+        .logo-box.small {
+            width: 42px;
+            height: 42px;
+        }
+
+        .logo-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 10px;
+        }
+
+    .logo-fallback {
+        display: none;
+        font-size: 22px;
+        color: #f97316;
+    }
+
+    .brand-title h2 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.3px;
+    }
+
+    .brand-title span {
+        font-size: 11px;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .brand-hero-text {
+        margin: auto 0;
+        padding: 30px 0;
+    }
+
+    .badge-tag {
+        display: inline-block;
+        padding: 6px 12px;
+        background: rgba(249, 115, 22, 0.15);
+        color: #fb923c;
+        border: 1px solid rgba(249, 115, 22, 0.3);
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        margin-bottom: 20px;
+    }
+
+    .brand-hero-text h1 {
+        font-size: clamp(28px, 3.2vw, 40px);
+        line-height: 1.2;
+        font-weight: 800;
+        margin: 0 0 16px;
+        color: #f8fafc;
+    }
+
+        .brand-hero-text h1 span {
+            background: linear-gradient(135deg, #fb923c, #f43f5e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+    .brand-hero-text p {
+        color: #94a3b8;
+        font-size: 13.5px;
+        line-height: 1.6;
+        margin: 0;
+        max-width: 380px;
+    }
+
+    .brand-footer-info {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: #cbd5e1;
+    }
+
+    .pulse-dot {
+        width: 8px;
+        height: 8px;
+        background: #10b981;
+        border-radius: 50%;
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+        animation: pulse 2s infinite;
+    }
+
+    @@keyframes pulse {
+        0% {
+            transform: scale(0.95);
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+        }
+
+        70% {
+            transform: scale(1);
+            box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+        }
+
+        100% {
+            transform: scale(0.95);
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+        }
+    }
+
+    .brand-footer-info small {
+        color: #64748b;
+        font-size: 11px;
+    }
+
+    /* Cột phải: Form nhập liệu */
+    .form-side {
+        padding: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 23, 42, 0.4);
+    }
+
+    .form-wrapper {
+        width: 100%;
+        max-width: 360px;
+    }
+
+    .mobile-brand-header {
+        display: none;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 25px;
+        color: #fff;
+    }
+
+    .form-header {
+        margin-bottom: 24px;
+    }
+
+        .form-header h3 {
+            margin: 0 0 6px;
+            color: #fff;
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .form-header p {
+            margin: 0;
+            color: #94a3b8;
+            font-size: 13px;
+        }
+
+    /* Thông báo lỗi dạng Glass Alert */
+    .alert-box {
+        margin-bottom: 20px;
+        padding: 12px 14px;
+        background: rgba(239, 68, 68, 0.15);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 12px;
+        color: #fca5a5;
+        font-size: 12.5px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+        .alert-box span {
+            flex: 1;
+        }
+
+        .alert-box button {
+            background: none;
+            border: none;
+            color: inherit;
+            cursor: pointer;
+            font-size: 16px;
+            opacity: 0.7;
+        }
+
+            .alert-box button:hover {
+                opacity: 1;
+            }
+
+    /* Input hiện đại */
+    .input-group-modern {
+        margin-bottom: 18px;
+    }
+
+        .input-group-modern label {
+            display: block;
+            margin-bottom: 6px;
+            color: #cbd5e1;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+    .field-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+        .field-wrap i {
+            position: absolute;
+            left: 14px;
+            color: #64748b;
+            font-size: 16px;
+            transition: color 0.2s;
+            pointer-events: none;
+        }
+
+    .modern-input {
+        width: 100%;
+        height: 48px;
+        padding: 0 14px 0 44px;
+        background: rgba(30, 41, 59, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        color: #fff;
+        font-size: 14px;
+        outline: none;
+        transition: all 0.25s ease;
+    }
+
+        .modern-input::placeholder {
+            color: #64748b;
+        }
+
+        .modern-input:focus {
+            border-color: #f97316;
+            background: rgba(30, 41, 59, 0.9);
+            box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.15);
+        }
+
+            .modern-input:focus ~ i {
+                color: #f97316;
+            }
+
+    .eye-btn {
+        position: absolute;
+        right: 12px;
+        background: none;
+        border: none;
+        color: #64748b;
+        cursor: pointer;
+        font-size: 16px;
+        padding: 4px;
+    }
+
+        .eye-btn:hover {
+            color: #f97316;
+        }
+
+    .error-text {
+        display: block;
+        margin-top: 5px;
+        color: #f87171;
+        font-size: 11.5px;
+    }
+
+    .form-options {
+        margin: 6px 0 20px;
+        display: flex;
+        align-items: center;
+    }
+
+    .custom-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #94a3b8;
+        font-size: 12.5px;
+        cursor: pointer;
+        user-select: none;
+    }
+
+        .custom-checkbox input {
+            accent-color: #f97316;
+            width: 15px;
+            height: 15px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+    /* Nút đăng nhập cao cấp */
+    .submit-btn {
+        width: 100%;
+        height: 48px;
+        background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+        border: none;
+        border-radius: 12px;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        cursor: pointer;
+        box-shadow: 0 10px 25px -5px rgba(234, 88, 12, 0.4);
+        transition: all 0.25s ease;
+    }
+
+        .submit-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 30px -5px rgba(234, 88, 12, 0.6);
+            background: linear-gradient(135deg, #fb923c 0%, #f97316 100%);
+        }
+
+        .submit-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+    .security-badge {
+        margin-top: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        color: #64748b;
+        font-size: 11px;
+    }
+
+        .security-badge i {
+            color: #10b981;
+        }
+
+    /* Responsive cho thiết bị di động / máy tính bảng */
+    @@media (max-width: 900px) {
+        .glass-card {
+            grid-template-columns: 1fr;
+            max-width: 480px;
+        }
+
+        .brand-side {
+            display: none;
+        }
+
+        .form-side {
+            padding: 40px 30px;
+            background: transparent;
+        }
+
+        .mobile-brand-header {
+            display: flex;
+        }
+    }
+</style>

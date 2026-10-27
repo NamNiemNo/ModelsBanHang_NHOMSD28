@@ -1,0 +1,1460 @@
+﻿@using API.Models.DTO
+@using Data.Models
+@inject IGiayChiTietService GiayChiTietService
+@inject IGiayService GiayService
+@inject IJSRuntime JS
+
+@if (Visible)
+{
+    <button type="button"
+            class="ps-backdrop"
+            aria-label="Đóng cửa sổ chọn sản phẩm"
+            @onclick="Close">
+    </button>
+
+    <section class="ps-modal"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="product-modal-title">
+
+        <header class="ps-header">
+            <div class="ps-heading">
+                <span class="ps-heading-icon"
+                      aria-hidden="true">
+                    ◇
+                </span>
+
+                <div>
+                    <span class="ps-eyebrow">
+                        SẢN PHẨM TẠI QUẦY
+                    </span>
+
+                    <h3 id="product-modal-title">
+                        Thêm sản phẩm vào đơn
+                    </h3>
+
+                    <p>
+                        Chọn màu sắc, kích cỡ và số lượng trước khi thêm.
+                    </p>
+                </div>
+            </div>
+
+            <button type="button"
+                    class="ps-close-icon"
+                    title="Đóng"
+                    aria-label="Đóng"
+                    @onclick="Close">
+                ×
+            </button>
+        </header>
+
+        <div class="ps-toolbar">
+            <label class="ps-search">
+                <span aria-hidden="true">⌕</span>
+
+                <input type="search"
+                       placeholder="Tìm theo tên, mã, màu hoặc kích cỡ..."
+                       autocomplete="off"
+                       @bind="SearchKeyword"
+                       @bind:event="oninput" />
+
+                @if (!string.IsNullOrWhiteSpace(SearchKeyword))
+                {
+                    <button type="button"
+                            title="Xóa tìm kiếm"
+                            aria-label="Xóa nội dung tìm kiếm"
+                            @onclick="ClearSearch">
+                        ×
+                    </button>
+                }
+            </label>
+
+            <div class="ps-toolbar-stats">
+                <span>
+                    <strong>@FilteredProducts.Count</strong>
+                    sản phẩm
+                </span>
+
+                <span class="ps-selected-count">
+                    <strong>@SelectedProducts.Count</strong>
+                    đã chọn
+                </span>
+            </div>
+        </div>
+
+        <div class="ps-body">
+            @if (isLoading)
+            {
+                <div class="ps-state">
+                    <span class="ps-spinner"></span>
+
+                    <strong>Đang tải sản phẩm...</strong>
+
+                    <p>
+                        Đang đồng bộ giá bán và số lượng tồn kho.
+                    </p>
+                </div>
+            }
+            else if (!string.IsNullOrWhiteSpace(errorMessage))
+            {
+                <div class="ps-state ps-error-state">
+                    <span class="ps-state-icon"
+                          aria-hidden="true">
+                        !
+                    </span>
+
+                    <strong>
+                        Không tải được sản phẩm
+                    </strong>
+
+                    <p>@errorMessage</p>
+
+                    <button type="button"
+                            class="ps-retry-button"
+                            @onclick="LoadProductsAsync">
+                        Thử lại
+                    </button>
+                </div>
+            }
+            else if (FilteredProducts.Count == 0)
+            {
+                <div class="ps-state">
+                    <span class="ps-state-icon"
+                          aria-hidden="true">
+                        ⌕
+                    </span>
+
+                    <strong>
+                        Không tìm thấy sản phẩm
+                    </strong>
+
+                    <p>
+                        Hãy thử từ khóa khác hoặc kiểm tra trạng thái
+                        kinh doanh và tồn kho.
+                    </p>
+                </div>
+            }
+            else
+            {
+                <div class="ps-product-list">
+                    @foreach (var product in FilteredProducts)
+                    {
+                        var variant = product.SelectedVariant;
+
+                        var isSelected =
+                        SelectedProducts.Contains(
+                        variant.GiayChiTietId);
+
+                        <article class="ps-product-card @(isSelected ? "is-selected" : "")"
+                                 @key="product.GiayId">
+
+                            <div class="ps-image-wrap">
+                                <img src="@GetImageUrl(variant.AnhGiay)"
+                                     alt="@GetProductName(product)"
+                                     loading="lazy"
+                                     onerror="this.onerror=null;this.src='/images/no-image.png';" />
+
+                                <span class="ps-stock-badge @(variant.SoLuongCon <= 5 ? "is-low" : "")">
+                                    Còn @variant.SoLuongCon
+                                </span>
+                            </div>
+
+                            <div class="ps-product-main">
+                                <div class="ps-product-title-row">
+                                    <div>
+                                        <h4>
+                                            @GetProductName(product)
+                                        </h4>
+
+                                        <span class="ps-product-code">
+                                            Mã:
+                                            @GetShortId(
+                                                     variant.GiayChiTietId)
+                                        </span>
+                                    </div>
+
+                                    @if (isSelected)
+                                    {
+                                        <span class="ps-selected-badge">
+                                            Đã chọn
+                                        </span>
+                                    }
+                                </div>
+
+                                <div class="ps-price-row">
+                                    @if (variant.GiaGoc > variant.Gia)
+                                    {
+                                        <span class="ps-old-price">
+                                            @FormatMoney(variant.GiaGoc)
+                                        </span>
+                                    }
+
+                                    <strong class="ps-new-price">
+                                        @FormatMoney(variant.Gia)
+                                    </strong>
+                                </div>
+
+                                <div class="ps-variant-grid">
+                                    <label>
+                                        <span>Màu sắc</span>
+
+                                        <select value="@product.SelectedColor"
+                                                @onchange="eventArgs => ChangeColor(product, eventArgs.Value?.ToString())">
+
+                                            @foreach (
+                                           var color in product.Variants
+                                           .Select(item => item.TenMau)
+                                           .Where(color =>
+                                           !string.IsNullOrWhiteSpace(color))
+                                           .Distinct()
+                                           .OrderBy(color => color))
+                                            {
+                                                <option value="@color">
+                                                    @color
+                                                </option>
+                                            }
+                                        </select>
+                                    </label>
+
+                                    <label>
+                                        <span>Kích cỡ</span>
+
+                                        <select value="@product.SelectedSize"
+                                                @onchange="eventArgs => ChangeSize(product, eventArgs.Value?.ToString())">
+
+                                            @foreach (
+                                           var size in GetAvailableSizes(product))
+                                            {
+                                                <option value="@size">
+                                                    Size @size
+                                                </option>
+                                            }
+                                        </select>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="ps-purchase-panel">
+                                <span class="ps-panel-label">
+                                    Số lượng
+                                </span>
+
+                                <div class="ps-quantity">
+                                    <button type="button"
+                                            aria-label="Giảm số lượng"
+                                            @onclick="() => ChangeQty(variant, -1)">
+                                        −
+                                    </button>
+
+                                    <input type="number"
+                                           min="1"
+                                           max="@variant.SoLuongCon"
+                                           value="@variant.SoLuongDat"
+                                           aria-label="Số lượng sản phẩm"
+                                           @onchange="eventArgs => ValidateQtyInput(variant, eventArgs.Value?.ToString())" />
+
+                                    <button type="button"
+                                            aria-label="Tăng số lượng"
+                                            @onclick="() => ChangeQty(variant, 1)">
+                                        +
+                                    </button>
+                                </div>
+
+                                <div class="ps-line-total">
+                                    <span>Thành tiền</span>
+
+                                    <strong>
+                                        @FormatMoney(
+                                                 variant.Gia
+                                                 * variant.SoLuongDat)
+                                    </strong>
+                                </div>
+
+                                <label class="ps-select-control">
+                                    <input type="checkbox"
+                                           checked="@isSelected"
+                                           @onchange="eventArgs => ToggleSelect(variant, eventArgs.Value is true)" />
+
+                                    <span>
+                                        @(isSelected
+                                            ? "Đã chọn sản phẩm"
+                                            : "Chọn sản phẩm")
+                                    </span>
+                                </label>
+                            </div>
+                        </article>
+                    }
+                </div>
+            }
+        </div>
+
+        <footer class="ps-footer">
+            <div class="ps-footer-summary">
+                <span>Sản phẩm đã chọn</span>
+                ản <strong>@SelectedProducts.Count</strong>
+            </div>
+
+            <button type="button"
+                    class="ps-cancel-button"
+                    @onclick="Close">
+                Hủy
+            </button>
+
+            <button type="button"
+                    class="ps-add-button"
+                    disabled="@(SelectedProducts.Count == 0 || isAdding)"
+                    @onclick="AddSelectedProducts">
+
+                @(isAdding
+                    ? "ĐANG THÊM..."
+                    : $"THÊM {SelectedProducts.Count} SẢN PHẨM")
+            </button>
+        </footer>
+    </section>
+}
+
+@code {
+    [Parameter]
+    public bool Visible { get; set; }
+
+    [Parameter]
+    public EventCallback<GiayChiTietDTO> OnAddProduct { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private const string BaseApiUrl =
+        "https://localhost:7246";
+
+    private readonly HashSet<Guid> SelectedProducts = new();
+
+    private List<ProductGroup> Products = new();
+
+    private string SearchKeyword = "";
+    private string errorMessage = "";
+
+    private bool isLoading;
+    private bool isAdding;
+    private bool wasVisible;
+
+    private List<ProductGroup> FilteredProducts =>
+        Products
+            .Where(MatchesSearch)
+            .OrderBy(product => product.TenGiay ?? "")
+            .ToList();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Visible && !wasVisible)
+        {
+            SearchKeyword = "";
+            SelectedProducts.Clear();
+
+            await LoadProductsAsync();
+        }
+
+        wasVisible = Visible;
+    }
+
+    private async Task LoadProductsAsync()
+    {
+        isLoading = true;
+        errorMessage = "";
+
+        try
+        {
+            var variants =
+                await GiayChiTietService.GetAllAsync()
+                ?? new List<GiayChiTietDTO>();
+
+            var shoes =
+                await GiayService.GetAllAsync();
+
+            var activeShoeIds = shoes
+                .Where(shoe => shoe.TrangThai)
+                .Select(shoe => shoe.GiayId)
+                .ToHashSet();
+
+            var availableVariants = variants
+                .Where(variant =>
+                    activeShoeIds.Contains(variant.GiayId)
+                    && variant.TrangThai
+                    && variant.SoLuongCon > 0)
+                .ToList();
+
+            foreach (var variant in availableVariants)
+            {
+                variant.SoLuongDat = Math.Clamp(
+                    variant.SoLuongDat <= 0
+                        ? 1
+                        : variant.SoLuongDat,
+                    1,
+                    variant.SoLuongCon);
+            }
+
+            Products = availableVariants
+                .GroupBy(variant => variant.GiayId)
+                .Select(CreateProductGroup)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Products = new List<ProductGroup>();
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private static ProductGroup CreateProductGroup(
+        IGrouping<Guid, GiayChiTietDTO> group)
+    {
+        var variants = group
+            .OrderBy(variant => variant.TenMau ?? "")
+            .ThenBy(variant => variant.size)
+            .ToList();
+
+        var firstVariant = variants[0];
+
+        return new ProductGroup
+            {
+                GiayId = group.Key,
+
+                TenGiay =
+                    firstVariant.TenGiay
+                    ?? "Sản phẩm chưa có tên",
+
+                Variants = variants,
+
+                SelectedVariant = firstVariant,
+
+                SelectedSize = firstVariant.size,
+
+                SelectedColor =
+                    firstVariant.TenMau
+                    ?? ""
+            };
+    }
+
+    private bool MatchesSearch(
+        ProductGroup product)
+    {
+        if (string.IsNullOrWhiteSpace(SearchKeyword))
+        {
+            return true;
+        }
+
+        var keyword = SearchKeyword.Trim();
+
+        return (product.TenGiay ?? "")
+                   .Contains(
+                       keyword,
+                       StringComparison.OrdinalIgnoreCase)
+
+               || product.GiayId
+                   .ToString()
+                   .Contains(
+                       keyword,
+                       StringComparison.OrdinalIgnoreCase)
+
+               || product.Variants.Any(variant =>
+                   variant.GiayChiTietId
+                       .ToString()
+                       .Contains(
+                           keyword,
+                           StringComparison.OrdinalIgnoreCase)
+
+                   || variant.size
+                       .ToString()
+                       .Contains(keyword)
+
+                   || (variant.TenMau ?? "")
+                       .Contains(
+                           keyword,
+                           StringComparison.OrdinalIgnoreCase));
+    }
+
+    private IEnumerable<int> GetAvailableSizes(
+        ProductGroup product)
+    {
+        return product.Variants
+            .Where(variant =>
+                string.Equals(
+                    variant.TenMau,
+                    product.SelectedColor,
+                    StringComparison.OrdinalIgnoreCase))
+            .Select(variant => variant.size)
+            .Distinct()
+            .OrderBy(size => size);
+    }
+
+    private void ChangeColor(
+        ProductGroup product,
+        string? color)
+    {
+        if (string.IsNullOrWhiteSpace(color))
+        {
+            return;
+        }
+
+        var nextVariant = product.Variants
+            .Where(variant =>
+                string.Equals(
+                    variant.TenMau,
+                    color,
+                    StringComparison.OrdinalIgnoreCase))
+            .OrderBy(variant => variant.size)
+            .FirstOrDefault();
+
+        if (nextVariant == null)
+        {
+            return;
+        }
+
+        product.SelectedColor = color;
+        product.SelectedSize = nextVariant.size;
+
+        ChangeSelectedVariant(
+            product,
+            nextVariant);
+    }
+
+    private void ChangeSize(
+        ProductGroup product,
+        string? value)
+    {
+        if (!int.TryParse(value, out var size))
+        {
+            return;
+        }
+
+        var nextVariant =
+            product.Variants.FirstOrDefault(
+                variant =>
+                    variant.size == size
+                    && string.Equals(
+                        variant.TenMau,
+                        product.SelectedColor,
+                        StringComparison.OrdinalIgnoreCase));
+
+        if (nextVariant == null)
+        {
+            return;
+        }
+
+        product.SelectedSize = size;
+
+        ChangeSelectedVariant(
+            product,
+            nextVariant);
+    }
+
+    private void ChangeSelectedVariant(
+        ProductGroup product,
+        GiayChiTietDTO nextVariant)
+    {
+        var oldVariantId =
+            product.SelectedVariant.GiayChiTietId;
+
+        var wasSelected =
+            SelectedProducts.Remove(oldVariantId);
+
+        product.SelectedVariant = nextVariant;
+
+        if (nextVariant.SoLuongDat <= 0)
+        {
+            nextVariant.SoLuongDat = 1;
+        }
+
+        if (wasSelected)
+        {
+            SelectedProducts.Add(
+                nextVariant.GiayChiTietId);
+        }
+    }
+
+    private async Task ChangeQty(
+        GiayChiTietDTO variant,
+        int delta)
+    {
+        var nextQuantity =
+            variant.SoLuongDat + delta;
+
+        if (nextQuantity > variant.SoLuongCon)
+        {
+            variant.SoLuongDat =
+                variant.SoLuongCon;
+
+            await ShowToast(
+                "info",
+                $"Sản phẩm chỉ còn " +
+                $"{variant.SoLuongCon} trong kho");
+
+            return;
+        }
+
+        variant.SoLuongDat =
+            Math.Max(1, nextQuantity);
+    }
+
+    private async Task ValidateQtyInput(
+        GiayChiTietDTO variant,
+        string? value)
+    {
+        if (!int.TryParse(value, out var quantity))
+        {
+            variant.SoLuongDat = 1;
+
+            await ShowToast(
+                "warning",
+                "Số lượng không hợp lệ");
+
+            return;
+        }
+
+        if (quantity < 1)
+        {
+            variant.SoLuongDat = 1;
+
+            await ShowToast(
+                "warning",
+                "Số lượng tối thiểu là 1");
+
+            return;
+        }
+
+        if (quantity > variant.SoLuongCon)
+        {
+            variant.SoLuongDat =
+                variant.SoLuongCon;
+
+            await ShowToast(
+                "info",
+                $"Sản phẩm chỉ còn " +
+                $"{variant.SoLuongCon} trong kho");
+
+            return;
+        }
+
+        variant.SoLuongDat = quantity;
+    }
+
+    private void ToggleSelect(
+        GiayChiTietDTO variant,
+        bool isChecked)
+    {
+        if (isChecked)
+        {
+            SelectedProducts.Add(
+                variant.GiayChiTietId);
+        }
+        else
+        {
+            SelectedProducts.Remove(
+                variant.GiayChiTietId);
+        }
+    }
+
+    private async Task AddSelectedProducts()
+    {
+        if (SelectedProducts.Count == 0 ||
+            isAdding)
+        {
+            return;
+        }
+
+        isAdding = true;
+
+        try
+        {
+            var selectedVariants = Products
+                .Select(product =>
+                    product.SelectedVariant)
+                .Where(variant =>
+                    SelectedProducts.Contains(
+                        variant.GiayChiTietId))
+                .ToList();
+
+            foreach (var variant in selectedVariants)
+            {
+                await OnAddProduct.InvokeAsync(
+                    CloneForOrder(variant));
+            }
+
+            SelectedProducts.Clear();
+
+            await OnClose.InvokeAsync();
+        }
+        finally
+        {
+            isAdding = false;
+        }
+    }
+
+    private static GiayChiTietDTO CloneForOrder(
+        GiayChiTietDTO variant)
+    {
+        return new GiayChiTietDTO
+            {
+                GiayChiTietId =
+                    variant.GiayChiTietId,
+
+                GiayId = variant.GiayId,
+
+                Gia = variant.Gia,
+
+                GiaGoc = variant.GiaGoc,
+
+                size = variant.size,
+
+                MauSacId = variant.MauSacId,
+
+                SoLuongCon = variant.SoLuongCon,
+
+                SoLuongDat = Math.Clamp(
+                    variant.SoLuongDat,
+                    1,
+                    variant.SoLuongCon),
+
+                TrangThai = variant.TrangThai,
+
+                AnhGiay = variant.AnhGiay,
+
+                TenGiay = variant.TenGiay
+            };
+    }
+
+    private Task Close()
+    {
+        return OnClose.InvokeAsync();
+    }
+
+    private void ClearSearch()
+    {
+        SearchKeyword = "";
+    }
+
+    private async Task ShowToast(
+        string icon,
+        string title)
+    {
+        await JS.InvokeVoidAsync(
+            "Swal.fire",
+            new
+            {
+                toast = true,
+                position = "top-end",
+                icon,
+                title,
+                showConfirmButton = false,
+                timer = 2500,
+                timerProgressBar = true
+            });
+    }
+
+    private static string GetProductName(
+        ProductGroup product)
+    {
+        return string.IsNullOrWhiteSpace(
+            product.TenGiay)
+                ? "Sản phẩm chưa có tên"
+                : product.TenGiay;
+    }
+
+    private static string GetShortId(Guid id)
+    {
+        return id
+            .ToString("N")
+            .Substring(0, 8)
+            .ToUpperInvariant();
+    }
+
+    private static string FormatMoney(
+        float amount)
+    {
+        return string.Format(
+            "{0:N0} ₫",
+            amount);
+    }
+
+    private static string GetImageUrl(
+        string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return "/images/no-image.png";
+        }
+
+        if (path.StartsWith(
+            "http",
+            StringComparison.OrdinalIgnoreCase))
+        {
+            return path;
+        }
+
+        if (!path.StartsWith("/"))
+        {
+            path = "/" + path;
+        }
+
+        return BaseApiUrl.TrimEnd('/') + path;
+    }
+
+    public sealed class ProductGroup
+    {
+        public Guid GiayId { get; set; }
+
+        public string TenGiay { get; set; } = "";
+
+        public List<GiayChiTietDTO> Variants { get; set; } =
+            new();
+
+        public GiayChiTietDTO SelectedVariant { get; set; } =
+            null!;
+
+        public int SelectedSize { get; set; }
+
+        public string SelectedColor { get; set; } = "";
+    }
+}
+<style>
+    .ps-backdrop {
+        position: fixed;
+        z-index: 2200;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        padding: 0;
+        border: 0;
+        background: rgba(2, 6, 23, .76);
+        cursor: default;
+        backdrop-filter: blur(6px);
+    }
+
+    .ps-modal {
+        position: fixed;
+        z-index: 2210;
+        top: 50%;
+        left: 50%;
+        display: flex;
+        overflow: hidden;
+        width: min(calc(100vw - 30px), 1240px);
+        height: min(91vh, 880px);
+        flex-direction: column;
+        border: 1px solid #cbd5e1;
+        border-radius: 21px;
+        background: #f1f5f9;
+        box-shadow: 0 34px 100px rgba(2, 6, 23, .48);
+        transform: translate(-50%, -50%);
+    }
+
+    .ps-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 20px 22px;
+        color: #fff;
+        background: radial-gradient( circle at 93% 0, rgba(129, 140, 248, .34), transparent 260px ), linear-gradient( 135deg, #0f172a, #312e81 70%, #4338ca );
+    }
+
+    .ps-heading {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        gap: 13px;
+    }
+
+    .ps-heading-icon {
+        display: grid;
+        width: 44px;
+        height: 44px;
+        flex: 0 0 44px;
+        place-items: center;
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, .2);
+        border-radius: 13px;
+        background: rgba(255, 255, 255, .11);
+        font-size: 24px;
+    }
+
+    .ps-eyebrow {
+        display: block;
+        margin-bottom: 3px;
+        color: #c7d2fe;
+        font-size: 9px;
+        font-weight: 850;
+        letter-spacing: .13em;
+    }
+
+    .ps-header h3 {
+        margin: 0;
+        color: #fff;
+        font-size: 20px;
+        font-weight: 820;
+    }
+
+    .ps-header p {
+        margin: 5px 0 0;
+        color: #dbe4ff;
+        font-size: 10px;
+    }
+
+    .ps-close-icon {
+        display: grid;
+        width: 35px;
+        height: 35px;
+        padding: 0;
+        place-items: center;
+        color: #e0e7ff;
+        border: 1px solid rgba(255, 255, 255, .16);
+        border-radius: 10px;
+        background: rgba(15, 23, 42, .3);
+        font-size: 21px;
+        cursor: pointer;
+    }
+
+        .ps-close-icon:hover {
+            color: #fff;
+            background: #dc2626;
+        }
+
+    .ps-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 12px 16px;
+        border-bottom: 1px solid #d8e0eb;
+        background: #fff;
+    }
+
+    .ps-search {
+        display: flex;
+        min-width: 250px;
+        max-width: 580px;
+        flex: 1;
+        align-items: center;
+        gap: 8px;
+        height: 42px;
+        padding: 0 11px;
+        color: #64748b;
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        background: #f8fafc;
+    }
+
+        .ps-search:focus-within {
+            border-color: #6366f1;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, .14);
+        }
+
+        .ps-search input {
+            min-width: 0;
+            flex: 1;
+            color: #172033;
+            border: 0;
+            outline: 0;
+            background: transparent;
+            font-size: 11px;
+            font-weight: 650;
+        }
+
+        .ps-search button {
+            display: grid;
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            place-items: center;
+            color: #64748b;
+            border: 0;
+            border-radius: 7px;
+            background: #e2e8f0;
+            cursor: pointer;
+        }
+
+    .ps-toolbar-stats {
+        display: flex;
+        gap: 7px;
+    }
+
+        .ps-toolbar-stats > span {
+            padding: 6px 9px;
+            color: #475569;
+            border: 1px solid #d8e0eb;
+            border-radius: 999px;
+            background: #f8fafc;
+            font-size: 9px;
+        }
+
+        .ps-toolbar-stats strong {
+            color: #312e81;
+        }
+
+        .ps-toolbar-stats .ps-selected-count {
+            color: #047857;
+            border-color: #a7f3d0;
+            background: #ecfdf5;
+        }
+
+    .ps-body {
+        min-height: 0;
+        flex: 1;
+        padding: 14px;
+        overflow-y: auto;
+    }
+
+    .ps-product-list {
+        display: grid;
+        gap: 10px;
+    }
+
+    .ps-product-card {
+        display: grid;
+        grid-template-columns: 122px minmax(0, 1fr) 260px;
+        gap: 15px;
+        padding: 13px;
+        border: 1px solid #d7dee9;
+        border-radius: 15px;
+        background: #fff;
+        box-shadow: 0 5px 15px rgba(15, 23, 42, .055);
+        transition: .17s ease;
+    }
+
+        .ps-product-card:hover {
+            border-color: #a5b4fc;
+            box-shadow: 0 11px 25px rgba(49, 46, 129, .1);
+            transform: translateY(-1px);
+        }
+
+        .ps-product-card.is-selected {
+            border-color: #6366f1;
+            background: linear-gradient( 135deg, #fff, #f7f7ff );
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, .11);
+        }
+
+    .ps-image-wrap {
+        position: relative;
+        overflow: hidden;
+        min-height: 122px;
+        border: 1px solid #dce3ed;
+        border-radius: 12px;
+        background: #f1f5f9;
+    }
+
+        .ps-image-wrap img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+    .ps-stock-badge {
+        position: absolute;
+        right: 7px;
+        bottom: 7px;
+        padding: 5px 7px;
+        color: #047857;
+        border: 1px solid #a7f3d0;
+        border-radius: 999px;
+        background: #ecfdf5;
+        font-size: 8.5px;
+        font-weight: 850;
+    }
+
+        .ps-stock-badge.is-low {
+            color: #b45309;
+            border-color: #fde68a;
+            background: #fffbeb;
+        }
+
+    .ps-product-main {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .ps-product-title-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+        .ps-product-title-row h4 {
+            overflow: hidden;
+            margin: 0;
+            color: #172033;
+            font-size: 13px;
+            font-weight: 820;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+    .ps-product-code {
+        display: block;
+        margin-top: 3px;
+        color: #94a3b8;
+        font-size: 8.5px;
+    }
+
+    .ps-selected-badge {
+        padding: 5px 8px;
+        color: #4338ca;
+        border: 1px solid #c7d2fe;
+        border-radius: 999px;
+        background: #eef2ff;
+        font-size: 8px;
+        font-weight: 850;
+    }
+
+    .ps-price-row {
+        display: flex;
+        align-items: baseline;
+        8px;
+        font-weight: 850;
+    }
+
+    .ps-price-row {
+        display gap: 8px;
+    }
+
+    .ps-old-price {
+        color: #94a3b8;
+        font-size: 9px;
+        text-decoration: line-through;
+    }
+
+    .ps-new-price {
+        color: #c2410c;
+        font-size: 16px;
+        font-weight: 850;
+    }
+
+    .ps-variant-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(120px, 1fr));
+        gap: 9px;
+    }
+
+        .ps-variant-grid label {
+            display: grid;
+            gap: 4px;
+        }
+
+            .ps-variant-grid label > span,
+            .ps-panel-label {
+                color: #64748b;
+                font-size: 8.5px;
+                font-weight: 800;
+            }
+
+        .ps-variant-grid select {
+            width: 100%;
+            height: 35px;
+            padding: 0 9px;
+            color: #334155;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: #f8fafc;
+            font-size: 9.5px;
+            font-weight: 700;
+            outline: 0;
+        }
+
+    .ps-purchase-panel {
+        display: grid;
+        align-content: center;
+        gap: 9px;
+        padding: 12px;
+        border: 1px solid #dce3ed;
+        border-radius: 12px;
+        background: #f8fafc;
+    }
+
+    .ps-quantity {
+        display: grid;
+        grid-template-columns: 35px minmax(48px, 1fr) 35px;
+        overflow: hidden;
+        height: 35px;
+        border: 1px solid #cbd5e1;
+        border-radius: 9px;
+        background: #fff;
+    }
+
+        .ps-quantity button {
+            padding: 0;
+            color: #334155;
+            border: 0;
+            background: #e8edf4;
+            font-size: 16px;
+            font-weight: 850;
+            cursor: pointer;
+        }
+
+            .ps-quantity button:hover {
+                color: #fff;
+                background: #4338ca;
+            }
+
+        .ps-quantity input {
+            min-width: 0;
+            width: 100%;
+            color: #172033;
+            border: 0;
+            outline: 0;
+            background: #fff;
+            font-size: 11px;
+            font-weight: 850;
+            text-align: center;
+        }
+
+    .ps-line-total {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding-top: 8px;
+        border-top: 1px solid #dce3ed;
+    }
+
+        .ps-line-total span {
+            color: #64748b;
+            font-size: 8.5px;
+        }
+
+        .ps-line-total strong {
+            color: #047857;
+            font-size: 12px;
+            font-weight: 850;
+        }
+
+    .ps-select-control {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 34px;
+        padding: 7px 9px;
+        color: #475569;
+        border: 1px solid #d8e0eb;
+        border-radius: 8px;
+        background: #fff;
+        font-size: 9px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+        .ps-select-control input {
+            width: 16px;
+            height: 16px;
+            accent-color: #4f46e5;
+        }
+
+    .ps-state {
+        display: grid;
+        min-height: 360px;
+        padding: 36px;
+        place-items: center;
+        align-content: center;
+        gap: 8px;
+        color: #64748b;
+        border: 1px dashed #b8c2d0;
+        border-radius: 15px;
+        background: #fff;
+        text-align: center;
+    }
+
+        .ps-state strong {
+            color: #334155;
+            font-size: 12px;
+        }
+
+        .ps-state p {
+            margin: 0;
+            font-size: 10px;
+        }
+
+    .ps-state-icon {
+        display: grid;
+        width: 48px;
+        height: 48px;
+        place-items: center;
+        color: #4f46e5;
+        border-radius: 15px;
+        background: #eef2ff;
+        font-size: 23px;
+        font-weight: 850;
+    }
+
+    .ps-spinner {
+        width: 31px;
+        height: 31px;
+        border: 3px solid #e0e7ff;
+        border-top-color: #4f46e5;
+        border-radius: 50%;
+        animation: ps-spin .7s linear infinite;
+    }
+
+    .ps-error-state {
+        color: #b91c1c;
+        border-color: #fecaca;
+        background: #fff7f7;
+    }
+
+    .ps-retry-button {
+        min-height: 35px;
+        padding: 0 14px;
+        color: #fff;
+        border: 0;
+        border-radius: 9px;
+        background: linear-gradient( 135deg, #4f46e5, #312e81 );
+        font-size: 9.5px;
+        font-weight: 800;
+    }
+
+    .ps-footer {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 13px 16px;
+        border-top: 1px solid #d8e0eb;
+        background: #fff;
+        box-shadow: 0 -7px 20px rgba(15, 23, 42, .055);
+    }
+
+    .ps-footer-summary {
+        display: grid;
+        margin-right: auto;
+        gap: 2px;
+    }
+
+        .ps-footer-summary span {
+            color: #64748b;
+            font-size: 8.5px;
+        }
+
+        .ps-footer-summary strong {
+            color: #312e81;
+            font-size: 15px;
+        }
+
+    .ps-cancel-button,
+    .ps-add-button {
+        min-height: 40px;
+        padding: 0 16px;
+        border-radius: 10px;
+        font-size: 10px;
+        font-weight: 850;
+        cursor: pointer;
+    }
+
+    .ps-cancel-button {
+        color: #334155;
+        border: 1px solid #cbd5e1;
+        background: #fff;
+    }
+
+    .ps-add-button {
+        min-width: 170px;
+        color: #fff;
+        border: 0;
+        background: linear-gradient( 135deg, #f97316, #c2410c );
+        box-shadow: 0 8px 18px rgba(234, 88, 12, .23);
+    }
+
+        .ps-add-button:disabled {
+            cursor: not-allowed;
+            opacity: .48;
+            box-shadow: none;
+        }
+
+    keyframes ps-spin {
+        to
+
+    {
+        transform: rotate(360deg);
+    }
+
+    }
+
+    media (max-width: 960px) {
+        .ps-product-card
+
+    {
+        grid-template-columns: 105px minmax(0, 1fr);
+    }
+
+    .ps-purchase-panel {
+        grid-column: 1 / -1;
+        grid-template-columns: minmax(180px, .8fr) 1fr 1fr;
+        align-items: center;
+    }
+
+    .ps-panel-label {
+        display: none;
+    }
+
+    }
+
+    media (max-width: 640px) {
+        .ps-modal
+
+    {
+        top: auto;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 94vh;
+        border-radius: 20px 20px 0 0;
+        transform: none;
+    }
+
+    .ps-header {
+        padding: 17px 15px;
+    }
+
+        .ps-header p {
+            display: none;
+        }
+
+    .ps-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .ps-search {
+        min-width: 0;
+        max-width: none;
+    }
+
+    .ps-product-card {
+        grid-template-columns: 90px minmax(0, 1fr);
+    }
+
+    .ps-variant-grid,
+    .ps-purchase-panel {
+        grid-template-columns: 1fr;
+    }
+
+    .ps-footer-summary {
+        display: none;
+    }
+
+    .ps-footer {
+        display: grid;
+        grid-template-columns: .65fr 1.35fr;
+    }
+
+    .ps-cancel-button,
+    .ps-add-button {
+        min-width: 0;
+        width: 100%;
+        padding: 0 10px;
+    }
+
+    }
+</style>

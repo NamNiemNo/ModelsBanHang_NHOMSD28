@@ -1,0 +1,173 @@
+﻿@using Data.Models
+
+@if (Visible)
+{
+    <button type="button"
+            class="bh-modal-backdrop"
+            aria-label="Đóng cửa sổ chọn địa chỉ"
+            @onclick="Close">
+    </button>
+
+    <section class="bh-modal bh-address-modal"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="address-modal-title">
+
+        <header class="bh-modal-header">
+            <div class="bh-modal-heading">
+                <span class="bh-modal-icon" aria-hidden="true">
+                    ⌂
+                </span>
+
+                <div>
+                    <span class="bh-modal-eyebrow">
+                        GIAO HÀNG
+                    </span>
+
+                    <h3 id="address-modal-title">
+                        Chọn địa chỉ nhận hàng
+                    </h3>
+
+                    <p>
+                        Địa chỉ được chọn sẽ dùng để tính phí và giao đơn.
+                    </p>
+                </div>
+            </div>
+
+            <button type="button"
+                    class="bh-modal-close"
+                    title="Đóng"
+                    aria-label="Đóng"
+                    @onclick="Close">
+                ×
+            </button>
+        </header>
+
+        <div class="bh-modal-toolbar">
+            <strong>Địa chỉ đã lưu</strong>
+
+            <span class="bh-count-badge">
+                @SafeAddresses.Count địa chỉ
+            </span>
+        </div>
+
+        <div class="bh-modal-body">
+            @if (SafeAddresses.Count == 0)
+            {
+                <div class="bh-empty-state">
+                    <span class="bh-empty-icon" aria-hidden="true">
+                        ⌖
+                    </span>
+
+                    <strong>
+                        Chưa có địa chỉ giao hàng
+                    </strong>
+
+                    <p>
+                        Khách hàng này chưa lưu địa chỉ.
+                        Bạn có thể nhập địa chỉ trực tiếp ở trang bán hàng.
+                    </p>
+                </div>
+            }
+            else
+            {
+                <div class="bh-address-list">
+                    @foreach (var address in SortedAddresses)
+                    {
+                        <button type="button"
+                                class="bh-address-card @(address.TrangThai ? "is-default" : "")"
+                                @key="address"
+                                @onclick="() => SelectAddress(address)">
+
+                            <span class="bh-address-marker"
+                                  aria-hidden="true">
+                                @(address.TrangThai ? "⌂" : "⌖")
+                            </span>
+
+                            <span class="bh-address-content">
+                                <span class="bh-address-title">
+                                    @GetAddressTitle(address)
+                                </span>
+
+                                <span class="bh-address-detail">
+                                    @GetAddressDetail(address)
+                                </span>
+                            </span>
+
+                            @if (address.TrangThai)
+                            {
+                                <span class="bh-default-badge">
+                                    Mặc định
+                                </span>
+                            }
+
+                            <span class="bh-card-arrow"
+                                  aria-hidden="true">
+                                ›
+                            </span>
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+
+        <footer class="bh-modal-footer">
+            <button type="button"
+                    class="bh-secondary-button"
+                    @onclick="Close">
+                Đóng cửa sổ
+            </button>
+        </footer>
+    </section>
+}
+
+@code {
+    [Parameter]
+    public bool Visible { get; set; }
+
+    [Parameter]
+    public List<DiaChiKhachHang> Addresses { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<DiaChiKhachHang> OnAddressSelected { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private List<DiaChiKhachHang> SafeAddresses =>
+        Addresses ?? new List<DiaChiKhachHang>();
+
+    private IEnumerable<DiaChiKhachHang> SortedAddresses =>
+        SafeAddresses
+            .OrderByDescending(address => address.TrangThai);
+
+    private async Task SelectAddress(
+        DiaChiKhachHang address)
+    {
+        await OnAddressSelected.InvokeAsync(address);
+        await OnClose.InvokeAsync();
+    }
+
+    private Task Close()
+    {
+        return OnClose.InvokeAsync();
+    }
+
+    private static string GetAddressTitle(
+        DiaChiKhachHang address)
+    {
+        return string.IsNullOrWhiteSpace(
+            address.DiaChiDayDu)
+                ? "Địa chỉ giao hàng"
+                : address.DiaChiDayDu;
+    }
+
+    private static string GetAddressDetail(
+        DiaChiKhachHang address)
+    {
+        return string.IsNullOrWhiteSpace(
+            address.DiaChiCuThe)
+                ? "Chưa có thông tin địa chỉ cụ thể"
+                : address.DiaChiCuThe;
+    }
+}

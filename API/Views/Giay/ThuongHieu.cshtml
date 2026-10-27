@@ -1,0 +1,198 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Quản lý Thương Hiệu</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+
+<body>
+    <div class="container mt-5">
+        <h2 class="text-primary mb-4"><i class="fa-solid fa-building-flag"></i> Quản lý Thương Hiệu</h2>
+
+        <button class="btn btn-primary mb-3" id="btnAddNew">
+            <i class="fa fa-plus"></i> Thêm thương hiệu
+        </button>
+
+        <!-- Modal Thêm/Sửa -->
+        <div class="modal fade" id="thuongHieuModal" tabindex="-1" aria-labelledby="thuongHieuModalLabel"
+             aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form id="formThuongHieu">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="thuongHieuModalLabel">Thêm/Sửa Thương Hiệu</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                        </div>
+                        <div class="modal-body">
+                            <input type="hidden" id="thuongHieuId">
+                            <div class="mb-3">
+                                <label class="form-label">Tên thương hiệu</label>
+                                <input type="text" class="form-control" id="tenThuongHieu" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">SĐT</label>
+                                <input type="text" class="form-control" id="sdt">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Địa chỉ</label>
+                                <input type="text" class="form-control" id="diaChi">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Mô tả</label>
+                                <textarea class="form-control" id="moTa" rows="2"></textarea>
+                            </div>
+                            <div class="form-check mb-3">
+                                <input type="checkbox" class="form-check-input" id="trangThai">
+                                <label class="form-check-label" for="trangThai">Đang hoạt động</label>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-success"><i class="fa fa-save"></i> Lưu</button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bảng danh sách -->
+        <table class="table table-bordered table-hover">
+            <thead class="table-primary">
+                <tr>
+                    <th>#</th>
+                    <th>Tên</th>
+                    <th>Email</th>
+                    <th>SĐT</th>
+                    <th>Địa chỉ</th>
+                    <th>Trạng thái</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody id="thuongHieuList"></tbody>
+        </table>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Dữ liệu ảo mẫu
+        let data = [
+            { id: '1', ten: 'Nike', email: 'nike@brands.com', sdt: '0123456789', diaChi: 'Mỹ', moTa: 'Thương hiệu thể thao nổi tiếng', trangThai: true },
+            { id: '2', ten: 'Adidas', email: 'adidas@brands.com', sdt: '0987654321', diaChi: 'Đức', moTa: 'Phong cách trẻ trung', trangThai: false }
+        ];
+
+        const list = document.getElementById("thuongHieuList");
+        const btnAddNew = document.getElementById("btnAddNew");
+        const thuongHieuModal = new bootstrap.Modal(document.getElementById('thuongHieuModal'));
+        const thuongHieuModalLabel = document.getElementById('thuongHieuModalLabel');
+        const idInput = document.getElementById("thuongHieuId");
+        const tenInput = document.getElementById("tenThuongHieu");
+        const emailInput = document.getElementById("email");
+        const sdtInput = document.getElementById("sdt");
+        const diaChiInput = document.getElementById("diaChi");
+        const moTaInput = document.getElementById("moTa");
+        const trangThaiInput = document.getElementById("trangThai");
+        const form = document.getElementById("formThuongHieu");
+
+        function render() {
+            list.innerHTML = "";
+            data.forEach((x, i) => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${i + 1}</td>
+                    <td>${x.ten}</td>
+                    <td>${x.email}</td>
+                    <td>${x.sdt}</td>
+                    <td>${x.diaChi}</td>
+                    <td>${x.trangThai ? '<span class="badge bg-success">Hoạt động</span>' : '<span class="badge bg-secondary">Ngừng</span>'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning btn-edit" data-id="${x.id}"><i class="fa fa-edit"></i></button>
+                        <button class="btn btn-sm btn-danger btn-remove" data-id="${x.id}"><i class="fa fa-trash"></i></button>
+                    </td>
+                `;
+                list.appendChild(row);
+            });
+
+            // Sửa: hiện modal với dữ liệu
+            document.querySelectorAll('.btn-edit').forEach(btn => {
+                btn.onclick = function () {
+                    const id = this.getAttribute('data-id');
+                    const x = data.find(d => d.id === id);
+                    if (x) {
+                        thuongHieuModalLabel.textContent = "Sửa Thương Hiệu";
+                        idInput.value = x.id;
+                        tenInput.value = x.ten;
+                        emailInput.value = x.email;
+                        sdtInput.value = x.sdt;
+                        diaChiInput.value = x.diaChi;
+                        moTaInput.value = x.moTa;
+                        trangThaiInput.checked = x.trangThai;
+                        thuongHieuModal.show();
+                    }
+                };
+            });
+        }
+
+        // Thêm mới: hiện modal rỗng
+        btnAddNew.onclick = () => {
+            thuongHieuModalLabel.textContent = "Thêm Thương Hiệu";
+            idInput.value = "";
+            tenInput.value = "";
+            emailInput.value = "";
+            sdtInput.value = "";
+            diaChiInput.value = "";
+            moTaInput.value = "";
+            trangThaiInput.checked = true;
+            thuongHieuModal.show();
+        };
+
+        // Lưu (thêm hoặc sửa)
+        form.onsubmit = function (e) {
+            e.preventDefault();
+            const ten = tenInput.value.trim();
+            if (!ten.match(/^[a-zA-Z0-9\s]+$/)) {
+                alert("Tên thương hiệu không hợp lệ!");
+                return;
+            }
+            const id = idInput.value;
+            const item = {
+                id: id || Date.now().toString(),
+                ten: ten,
+                email: emailInput.value,
+                sdt: sdtInput.value,
+                diaChi: diaChiInput.value,
+                moTa: moTaInput.value,
+                trangThai: trangThaiInput.checked
+            };
+            if (id) {
+                const index = data.findIndex(x => x.id === id);
+                data[index] = item;
+            } else {
+                data.push(item);
+            }
+            thuongHieuModal.hide();
+            render();
+        };
+
+        // Xóa
+        document.addEventListener('click', function (e) {
+            if (e.target.closest('.btn-remove')) {
+                const id = e.target.closest('.btn-remove').getAttribute('data-id');
+                if (confirm("Bạn có chắc muốn xóa thương hiệu này?")) {
+                    data = data.filter(x => x.id !== id);
+                    render();
+                }
+            }
+        });
+
+        render();
+    </script>
+</body>
+
+</html>

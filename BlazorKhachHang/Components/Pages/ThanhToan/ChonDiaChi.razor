@@ -1,0 +1,123 @@
+﻿@using BlazorKhachHang.Service.IService
+@using Data.Models
+@inject IJSRuntime JS
+@inject IKhachHangService khachHangService
+
+<link href="css/ChonDiaChi.css" rel="stylesheet" />
+
+@if (IsAddressModalVisible)
+{
+    <div class="address-select-overlay"></div>
+
+    <div class="address-select-box">
+        <h3 style="margin-top:0;color:#ff9800;">Chọn địa chỉ giao hàng</h3>
+
+        <div class="address-select-list">
+
+            @if (Addresses.Count == 0)
+            {
+                <div style="color:#999;">Khách hàng chưa có địa chỉ</div>
+            }
+            else
+            {
+                @foreach (var address in Addresses)
+                {
+                    <div class="address-select-item"
+                         @onclick="() => SelectAddress(address)">
+
+                        <div class="address-icon">
+                            @(address.TrangThai ? "🏠" : "📍")
+                        </div>
+
+                        <div class="address-details">
+
+                            <div>
+                                <b>@HoTen</b> | @SoDienThoai
+                            </div>
+
+                            <div class="address-text">
+                                @address.DiaChiCuThe, @address.PhuongXa, @address.QuanHuyen, @address.ThanhPho
+                            </div>
+
+                            @if (address.TrangThai)
+                            {
+                                <span class="address-default">Mặc định</span>
+                            }
+
+                        </div>
+
+                    </div>
+                }
+            }
+
+        </div>
+
+        <button class="close-address-select"
+                @onclick="Close">
+            Đóng
+        </button>
+
+    </div>
+}
+
+@code {
+
+    [Parameter] public EventCallback<DiaChiKhachHang> OnAddressSelected { get; set; }
+
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    [Parameter] public List<DiaChiKhachHang> Addresses { get; set; } = new();
+
+    private string HoTen = "";
+    private string SoDienThoai = "";
+
+    [Parameter] public bool IsAddressModalVisible { get; set; }
+
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!IsAddressModalVisible) return;
+
+        var khachHangId =
+            await JS.InvokeAsync<string>("localStorage.getItem", "khachHangId");
+
+        HoTen = await JS.InvokeAsync<string>("localStorage.getItem", "name") ?? "";
+        SoDienThoai = await JS.InvokeAsync<string>("localStorage.getItem", "phone") ?? "";
+
+        if (!string.IsNullOrEmpty(khachHangId))
+        {
+            var result = await khachHangService.GetAddress(Guid.Parse(khachHangId));
+
+            var lastAddress = result
+    .OrderByDescending(x => x.NgayCapNhat)
+    .FirstOrDefault();
+
+            Addresses = lastAddress != null
+            ? new List<DiaChiKhachHang>
+            {
+    new DiaChiKhachHang
+    {
+        DiaChiKhachHangId = lastAddress.DiaChiKhachHangId,
+        DiaChiCuThe = lastAddress.DiaChiCuThe,
+        PhuongXa = lastAddress.PhuongXa,
+        QuanHuyen = lastAddress.QuanHuyen,
+        ThanhPho = lastAddress.ThanhPho,
+        TrangThai = lastAddress.TrangThai
+    }
+            }
+            : new List<DiaChiKhachHang>();
+        }
+    }
+
+    private async Task SelectAddress(DiaChiKhachHang address)
+    {
+        await OnAddressSelected.InvokeAsync(address);
+        await Close();
+    }
+
+    private async Task Close()
+    {
+        IsAddressModalVisible = false;
+        await OnClose.InvokeAsync();
+    }
+}

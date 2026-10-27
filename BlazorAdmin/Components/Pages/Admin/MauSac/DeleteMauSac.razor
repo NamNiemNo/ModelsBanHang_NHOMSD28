@@ -1,0 +1,55 @@
+﻿@using API.Models.DTO
+
+@if (IsVisible && Item != null)
+{
+    <div class="modal-backdrop fade show"></div>
+
+    <div class="modal show d-block" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-danger shadow">
+
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">Xác nhận xoá</h5>
+                    <button class="btn-close btn-close-white" @onclick="Cancel"></button>
+                </div>
+
+                <div class="modal-body">
+                    <p>
+                        Bạn có chắc muốn xoá màu
+                        <strong>@Item.TenMau</strong> không?
+                    </p>
+
+                    <!-- preview màu -->
+                    <div style="width:40px;height:40px;border-radius:50%;
+                                background:@Item.Color;border:1px solid #ccc">
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="Cancel">Huỷ</button>
+                    <button class="btn btn-danger" @onclick="Delete">Xoá</button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public MauSacDTO? Item { get; set; }
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public EventCallback OnDelete { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private async Task Delete()
+    {
+        if (OnDelete.HasDelegate)
+            await OnDelete.InvokeAsync();
+    }
+
+    private async Task Cancel()
+    {
+        if (OnCancel.HasDelegate)
+            await OnCancel.InvokeAsync();
+    }
+}

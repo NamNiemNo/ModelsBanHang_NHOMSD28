@@ -1,0 +1,164 @@
+﻿@page "/favourite"
+@rendermode InteractiveServer
+@using API.Models.DTO
+@using BlazorKhachHang.Service.IService
+@inject IGiayService giayService
+@inject IGiayYeuThichService giayYeuThichService
+@inject NavigationManager manager
+@inject IJSRuntime JS
+@inject FavoriteState FavoriteState
+@inject IGiayChiTietService chiTietService
+
+
+<link href="css/shoelist.css" rel="stylesheet">
+
+<h3 class="breadcrumb-wrapper">
+    <div class="breadcrumb"><h2>Favourite Shoes ❤️</h2></div>
+</h3>
+
+<main class="container">
+    <div class="product-section">
+        <div class="product-grid">
+
+            @if (giayList != null && giayList.Count > 0)
+            {
+                @foreach (var giay in giayList)
+                {
+                    var firstChiTiet = giay.ChiTietGiays?.FirstOrDefault();
+                    var minPrice = giay.ChiTietGiays?.Min(ct => ct.Gia) ?? 0;
+
+                    if (firstChiTiet != null)
+                    {
+                        <div class="product-card"
+                             style="cursor:pointer"
+                             @onclick="@(() => NavigateToDetail(giay.GiayId))">
+
+                            <div class="product-img-container">
+                                <img src="@GetFullImageUrl(firstChiTiet.AnhGiay)"
+                                     alt="Product Image"
+                                     onerror="this.onerror=null;this.src='/images/no-image.png';" />
+                         alt="Product Image"
+                         onerror="this.onerror=null;this.src='/images/no-image.png';" />
+
+                                <div class="discount-badge">-10%</div>
+
+                                <div class="favorite-btn"
+                                     @onclick:stopPropagation="true"
+                                     @onclick="@(async () => await RemoveFavorite(giay.GiayId))">
+
+                                    <i class="fas fa-heart text-danger"></i>
+
+                                </div>
+
+                            </div>
+
+                            <div class="product-info">
+
+                                <p class="brand">@giay.TenGiay</p>
+
+                                <div class="bottom-info d-flex justify-content-between">
+
+                                    <span class="price">
+                                        <span class="main">@minPrice.ToString("N0")</span><sup>đ</sup>
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+                    }
+                }
+            }
+            else
+            {
+                <p>Chưa có sản phẩm yêu thích</p>
+            }
+
+        </div>
+    </div>
+
+</main>
+@code {
+
+    private List<GiayDTO> giayList = new();
+    private Guid khachHangId;
+
+    private bool loaded = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var id = await JS.InvokeAsync<string>("localStorage.getItem", "khachHangId");
+
+            if (!string.IsNullOrEmpty(id))
+            {
+                khachHangId = Guid.Parse(id);
+                await LoadFavorites();
+            }
+
+            loaded = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadFavorites()
+    {
+        var favs = await giayYeuThichService
+            .GetAllByKhachHangAsync(khachHangId);
+
+        var allShoes = await giayService.GetAllAsync();
+
+        var chiTietList = await chiTietService.GetAllAsync();
+
+        giayList = allShoes
+            .Where(g => favs.Any(f => f.GiayId == g.GiayId))
+            .Select(g => new GiayDTO
+            {
+                GiayId = g.GiayId,
+                TenGiay = g.TenGiay,
+                TenThuongHieu = g.TenThuongHieu,
+                TrangThai = g.TrangThai,
+
+                ChiTietGiays = chiTietList
+                    .Where(ct => ct.GiayId == g.GiayId)
+                    .ToList()
+            })
+            .ToList();
+
+        FavoriteState.SetCount(giayList.Count);
+    }
+    private async Task RemoveFavorite(Guid giayId)
+    {
+        await giayYeuThichService.ToggleFavoriteAsync(giayId, khachHangId);
+
+        var item = giayList.FirstOrDefault(x => x.GiayId == giayId);
+        if (item != null)
+            giayList.Remove(item);
+
+        FavoriteState.Decrease();
+
+        StateHasChanged();
+
+        await JS.InvokeVoidAsync("alert", "Đã bỏ khỏi yêu thích");
+    }
+
+    private void NavigateToDetail(Guid giayId)
+    {
+        manager.NavigateTo($"/detailShoeCategory/{giayId}");
+    }
+    private string BaseApiUrl = "https://localhost:7246";
+
+    private string GetFullImageUrl(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return "/images/no-image.png";
+
+        if (path.StartsWith("http"))
+            return path;
+
+        return $"{BaseApiUrl.TrimEnd('/')}/{path.TrimStart('/')}";
+    }
+
+}

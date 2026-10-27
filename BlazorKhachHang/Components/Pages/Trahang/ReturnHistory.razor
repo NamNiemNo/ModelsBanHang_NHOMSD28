@@ -1,0 +1,132 @@
+﻿@page "/return-history/{HoaDonId:guid}"
+@rendermode @(new Microsoft.AspNetCore.Components.Web.InteractiveServerRenderMode(prerender: false))
+@using API.Models
+@using BlazorKhachHang.Service.IService
+@inject IReturnService returnService
+@inject NavigationManager Nav
+<div class="container mt-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3><i class="bi bi-clock-history"></i> Lịch sử trả hàng</h3>
+        <a href="/trahang/@HoaDonId" class="btn btn-outline-secondary btn-sm">
+            ← Quay lại
+        </a>
+    </div>
+
+    @if (Histories == null)
+    {
+        <div class="text-center my-5">
+            <div class="spinner-border text-primary"></div>
+            <p class="mt-2">Đang tải dữ liệu...</p>
+        </div>
+    }
+    else if (!Histories.Any())
+    {
+        <div class="text-center py-4 text-muted">
+            <i class="bi bi-inbox fs-3"></i>
+            <p class="mt-2">Chưa có lịch sử trả hàng</p>
+        </div>
+    }
+    else
+    {
+        @foreach (var item in Histories)
+        {
+            <div class="card mb-3 shadow-sm border-0">
+                <div class="card-body">
+
+                    <!-- HEADER -->
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <small class="text-muted">
+                            Ngày yêu cầu: @item.NgayYeuCau.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                        </small>
+
+                        <!-- TRẠNG THÁI -->
+                        <div>
+                            @if (item.TrangThai == 1)
+                            {
+                                <span class="badge bg-warning text-dark">Chờ duyệt</span>
+                            }
+                            else if (item.TrangThai == 2)
+                            {
+                                <span class="badge bg-success">Đã duyệt</span>
+                            }
+                            else if (item.TrangThai == 3)
+                            {
+                                <span class="badge bg-danger">Bị từ chối</span>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- BODY -->
+                    <div class="d-flex gap-3 align-items-center">
+
+                        @*  <!-- ẢNH -->
+                        <img src="@(item.GiayChiTiet?.Anh ?? "img/no-image.png")"
+                             style="width:70px;height:70px;object-fit:cover;border-radius:8px;border:1px solid #eee" />
+ *@
+                        <!-- INFO -->
+                        <div class="flex-grow-1">
+                            <h6 class="fw-bold mb-1">
+                                @(item.GiayChiTiet?.Giay?.TenGiay ?? "Sản phẩm không xác định")
+                            </h6>
+
+                            <div class="text-muted small">
+                                Mã SP: @item.GiayChiTietId
+                            </div>
+
+                            @if (item.GiayChiTiet?.KichCo != null)
+                            {
+                                <div class="small">Size: <b>@item.GiayChiTiet.KichCo.TenKichCo</b></div>
+                            }
+
+                            @if (item.GiayChiTiet?.MauSac != null)
+                            {
+                                <div class="small">Màu: <b>@item.GiayChiTiet.MauSac.TenMau</b></div>
+                            }
+
+                            <div class="mt-1 small">
+                                Số lượng: <b>@item.SoLuong</b>
+                            </div>
+                        </div>
+
+                        <!-- GIÁ -->
+                        <div class="text-end">
+                            <div class="text-danger fw-bold">
+                                @item.GiaTaiThoiDiemTra.ToString("N0") ₫
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- LÝ DO -->
+                    @if (item.TrangThai == 3 && !string.IsNullOrEmpty(item.LyDoTuChoi))
+                    {
+                        <div class="mt-2 text-danger small">
+                            <b>Lý do từ chối:</b> @item.LyDoTuChoi
+                        </div>
+                    }
+
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public Guid HoaDonId { get; set; }
+
+    private List<TraHang> Histories;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            Histories = await returnService.GetYeuCauByHoaDonAsync(HoaDonId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+            Histories = new List<TraHang>();
+        }
+    }
+
+}

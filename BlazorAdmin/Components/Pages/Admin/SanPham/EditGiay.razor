@@ -1,0 +1,1220 @@
+﻿@page "/editgiay/{id:guid}"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+@layout AdminLayout
+@using API.Models.DTO
+
+@inject IGiayService GiayService
+@inject NavigationManager NavigationManager
+
+<div class="edit-product-page">
+
+    <!-- HEADER -->
+    <div class="page-header">
+        <button type="button"
+                class="back-button"
+                title="Quay lại"
+                @onclick="NavigateBack">
+            ←
+        </button>
+
+        <div class="header-icon">✎</div>
+
+        <div>
+            <h2>Chỉnh sửa sản phẩm</h2>
+            <p>Cập nhật thông tin cơ bản của sản phẩm giày</p>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="loading-card">
+            <div class="loading-spinner"></div>
+            <strong>Đang tải sản phẩm...</strong>
+            <span>Vui lòng chờ trong giây lát</span>
+        </div>
+    }
+    else if (notFound)
+    {
+        <div class="not-found-card">
+            <div class="not-found-icon">!</div>
+            <h3>Không tìm thấy sản phẩm</h3>
+            <p>
+                Sản phẩm không tồn tại hoặc đã bị xóa khỏi hệ thống.
+            </p>
+
+            <button @onclick="NavigateBack">
+                Quay về danh sách
+            </button>
+        </div>
+    }
+    else
+    {
+        <EditForm Model="@giay"
+                  OnValidSubmit="@HandleSubmit"
+                  FormName="EditGiayForm">
+
+            <DataAnnotationsValidator />
+
+            <div class="form-layout">
+
+                <!-- FORM CHÍNH -->
+                <div class="form-card">
+
+                    <div class="section-heading">
+                        <div class="section-icon">👟</div>
+
+                        <div>
+                            <h4>Thông tin sản phẩm</h4>
+                            <p>
+                                Những trường có dấu
+                                <span>*</span>
+                                là bắt buộc
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="form-grid">
+
+                        <!-- TÊN GIÀY -->
+                        <div class="form-group full-width">
+                            <label>
+                                Tên sản phẩm
+                                <span>*</span>
+                            </label>
+
+                            <div class="input-with-icon">
+                                <span>👟</span>
+
+                                <InputText class="form-control-custom"
+                                           @bind-Value="giay.TenGiay"
+                                           placeholder="Nhập tên sản phẩm giày" />
+                            </div>
+
+                            <ValidationMessage For="@(() => giay.TenGiay)" />
+                        </div>
+
+                        <!-- THƯƠNG HIỆU -->
+                        <div class="form-group">
+                            <label>
+                                Thương hiệu
+                                <span>*</span>
+                            </label>
+
+                            <InputSelect class="form-control-custom"
+                                         @bind-Value="giay.ThuongHieuId">
+
+                                <option value="">
+                                    -- Chọn thương hiệu --
+                                </option>
+
+                                @foreach (var item in dropdownOptions.ThuongHieus)
+                                {
+                                    <option value="@item.Id">
+                                        @item.Name
+                                    </option>
+                                }
+
+                            </InputSelect>
+
+                            <ValidationMessage For="@(() => giay.ThuongHieuId)" />
+                        </div>
+
+                        <!-- CHẤT LIỆU -->
+                        <div class="form-group">
+                            <label>
+                                Chất liệu
+                                <span>*</span>
+                            </label>
+
+                            <InputSelect class="form-control-custom"
+                                         @bind-Value="giay.ChatLieuId">
+
+                                <option value="">
+                                    -- Chọn chất liệu --
+                                </option>
+
+                                @foreach (var item in dropdownOptions.ChatLieus)
+                                {
+                                    <option value="@item.Id">
+                                        @item.Name
+                                    </option>
+                                }
+
+                            </InputSelect>
+
+                            <ValidationMessage For="@(() => giay.ChatLieuId)" />
+                        </div>
+
+                        <!-- THỂ LOẠI -->
+                        <div class="form-group">
+                            <label>
+                                Thể loại
+                                <span>*</span>
+                            </label>
+
+                            <InputSelect class="form-control-custom"
+                                         @bind-Value="giay.TheLoaiGiayId">
+
+                                <option value="">
+                                    -- Chọn thể loại --
+                                </option>
+
+                                @foreach (var item in dropdownOptions.TheLoaiGiays)
+                                {
+                                    <option value="@item.Id">
+                                        @item.Name
+                                    </option>
+                                }
+
+                            </InputSelect>
+
+                            <ValidationMessage For="@(() => giay.TheLoaiGiayId)" />
+                        </div>
+
+                        <!-- ĐẾ GIÀY -->
+                        <div class="form-group">
+                            <label>
+                                Đế giày
+                                <span>*</span>
+                            </label>
+
+                            <InputSelect class="form-control-custom"
+                                         @bind-Value="giay.DeGiayId">
+
+                                <option value="">
+                                    -- Chọn đế giày --
+                                </option>
+
+                                @foreach (var item in dropdownOptions.DeGiays)
+                                {
+                                    <option value="@item.Id">
+                                        @item.Name
+                                    </option>
+                                }
+
+                            </InputSelect>
+
+                            <ValidationMessage For="@(() => giay.DeGiayId)" />
+                        </div>
+
+                        <!-- KIỂU DÁNG -->
+                        <div class="form-group full-width">
+                            <label>
+                                Kiểu dáng
+                                <span>*</span>
+                            </label>
+
+                            <InputSelect class="form-control-custom"
+                                         @bind-Value="giay.KieuDangId">
+
+                                <option value="">
+                                    -- Chọn kiểu dáng --
+                                </option>
+
+                                @foreach (var item in dropdownOptions.KieuDangs)
+                                {
+                                    <option value="@item.Id">
+                                        @item.Name
+                                    </option>
+                                }
+
+                            </InputSelect>
+
+                            <ValidationMessage For="@(() => giay.KieuDangId)" />
+                        </div>
+
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(errorMessage))
+                    {
+                        <div class="error-message">
+                            <span>!</span>
+
+                            <div>
+                                <strong>Không thể lưu sản phẩm</strong>
+                                <small>@errorMessage</small>
+                            </div>
+
+                            <button type="button"
+                                    @onclick="CloseError">
+                                ×
+                            </button>
+                        </div>
+                    }
+
+                    <div class="form-actions">
+
+                        <button type="button"
+                                class="cancel-button"
+                                disabled="@isSaving"
+                                @onclick="NavigateBack">
+                            Hủy thay đổi
+                        </button>
+
+                        <button type="submit"
+                                class="save-button"
+                                disabled="@isSaving">
+
+                            @if (isSaving)
+                            {
+                                <span class="button-spinner"></span>
+                                <span>Đang lưu...</span>
+                            }
+                            else
+                            {
+                                <span>✓</span>
+                                <span>Lưu thay đổi</span>
+                            }
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+                <!-- XEM TRƯỚC -->
+                <div class="preview-card">
+
+                    <div class="preview-title">
+                        <span>◉</span>
+                        Xem trước sản phẩm
+                    </div>
+
+                    <div class="product-avatar">
+                        @GetProductInitial(giay.TenGiay)
+                    </div>
+
+                    <h3>
+                        @(string.IsNullOrWhiteSpace(giay.TenGiay)
+                            ? "Tên sản phẩm"
+                            : giay.TenGiay)
+                    </h3>
+
+                    <span class="product-status @(giay.TrangThai ? "selling" : "stopped")">
+                        <i></i>
+                        @(giay.TrangThai ? "Đang bán" : "Ngừng bán")
+                    </span>
+
+                    <div class="preview-divider"></div>
+
+                    <div class="preview-list">
+
+                        <div class="preview-row">
+                            <span>Thương hiệu</span>
+                            <strong>
+                                @GetSelectedBrandName()
+                            </strong>
+                        </div>
+
+                        <div class="preview-row">
+                            <span>Chất liệu</span>
+                            <strong>
+                                @GetSelectedMaterialName()
+                            </strong>
+                        </div>
+
+                        <div class="preview-row">
+                            <span>Thể loại</span>
+                            <strong>
+                                @GetSelectedCategoryName()
+                            </strong>
+                        </div>
+
+                        <div class="preview-row">
+                            <span>Đế giày</span>
+                            <strong>
+                                @GetSelectedSoleName()
+                            </strong>
+                        </div>
+
+                        <div class="preview-row">
+                            <span>Kiểu dáng</span>
+                            <strong>
+                                @GetSelectedStyleName()
+                            </strong>
+                        </div>
+
+                    </div>
+
+                    <div class="product-id-box">
+                        <span>Mã sản phẩm</span>
+                        <strong>@giay.GiayId</strong>
+                    </div>
+
+                    <div class="preview-note">
+                        <div>💡</div>
+
+                        <p>
+                            Sau khi lưu, thông tin mới sẽ được cập nhật
+                            tại danh sách sản phẩm và trang bán hàng.
+                        </p>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </EditForm>
+    }
+
+    <!-- TOAST -->
+    @if (!string.IsNullOrWhiteSpace(toastMessage))
+    {
+        <div class="success-toast">
+            <div class="toast-icon">✓</div>
+
+            <div>
+                <strong>Cập nhật thành công</strong>
+                <small>@toastMessage</small>
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private GiayDTO giay = new();
+    private DropdownOptionsDTO dropdownOptions = new();
+
+    private bool isLoading = true;
+    private bool isSaving;
+    private bool notFound;
+
+    private string errorMessage = string.Empty;
+    private string toastMessage = string.Empty;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoading = true;
+            notFound = false;
+            errorMessage = string.Empty;
+
+            var result = await GiayService.GetByIdAsync(Id);
+
+            if (result == null)
+            {
+                notFound = true;
+                return;
+            }
+
+            giay = result;
+
+            dropdownOptions =
+                await GiayService.GetDropdownOptionsAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                "Không thể tải dữ liệu sản phẩm: " + ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (isSaving)
+            return;
+
+        try
+        {
+            isSaving = true;
+            errorMessage = string.Empty;
+            toastMessage = string.Empty;
+
+            giay.TenGiay =
+                giay.TenGiay?.Trim() ?? string.Empty;
+
+            if (!ValidateInput())
+                return;
+
+            // Kiểm tra trùng tên, bỏ qua sản phẩm đang sửa
+            var allProducts =
+                await GiayService.GetAllAsync();
+
+            var isDuplicate = allProducts.Any(x =>
+                x.GiayId != giay.GiayId
+                && string.Equals(
+                    x.TenGiay?.Trim(),
+                    giay.TenGiay,
+                    StringComparison.OrdinalIgnoreCase));
+
+            if (isDuplicate)
+            {
+                errorMessage =
+                    "Tên sản phẩm đã tồn tại. Vui lòng nhập tên khác.";
+                return;
+            }
+
+            await GiayService.UpdateAsync(giay);
+
+            toastMessage =
+                "Thông tin sản phẩm đã được cập nhật.";
+
+            StateHasChanged();
+
+            await Task.Delay(700);
+
+            NavigationManager.NavigateTo("/sanpham");
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                "Cập nhật sản phẩm thất bại: " + ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private bool ValidateInput()
+    {
+        if (string.IsNullOrWhiteSpace(giay.TenGiay))
+        {
+            errorMessage =
+                "Tên sản phẩm không được để trống.";
+            return false;
+        }
+
+        if (giay.TenGiay.Length < 2)
+        {
+            errorMessage =
+                "Tên sản phẩm phải có ít nhất 2 ký tự.";
+            return false;
+        }
+
+        if (giay.TenGiay.Length > 100)
+        {
+            errorMessage =
+                "Tên sản phẩm không được vượt quá 100 ký tự.";
+            return false;
+        }
+
+        if (IsEmptySelection(giay.ThuongHieuId))
+        {
+            errorMessage =
+                "Vui lòng chọn thương hiệu.";
+            return false;
+        }
+
+        if (IsEmptySelection(giay.ChatLieuId))
+        {
+            errorMessage =
+                "Vui lòng chọn chất liệu.";
+            return false;
+        }
+
+        if (IsEmptySelection(giay.TheLoaiGiayId))
+        {
+            errorMessage =
+                "Vui lòng chọn thể loại giày.";
+            return false;
+        }
+
+        if (IsEmptySelection(giay.DeGiayId))
+        {
+            errorMessage =
+                "Vui lòng chọn đế giày.";
+            return false;
+        }
+
+        if (IsEmptySelection(giay.KieuDangId))
+        {
+            errorMessage =
+                "Vui lòng chọn kiểu dáng.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool IsEmptySelection(object? value)
+    {
+        if (value == null)
+            return true;
+
+        var text = value.ToString();
+
+        if (string.IsNullOrWhiteSpace(text))
+            return true;
+
+        return !Guid.TryParse(text, out var id)
+               || id == Guid.Empty;
+    }
+
+    private string GetSelectedBrandName()
+    {
+        return dropdownOptions.ThuongHieus
+            .FirstOrDefault(x => x.Id == giay.ThuongHieuId)
+            ?.Name
+            ?? "Chưa chọn";
+    }
+
+    private string GetSelectedMaterialName()
+    {
+        return dropdownOptions.ChatLieus
+            .FirstOrDefault(x => x.Id == giay.ChatLieuId)
+            ?.Name
+            ?? "Chưa chọn";
+    }
+
+    private string GetSelectedCategoryName()
+    {
+        return dropdownOptions.TheLoaiGiays
+            .FirstOrDefault(x => x.Id == giay.TheLoaiGiayId)
+            ?.Name
+            ?? "Chưa chọn";
+    }
+
+    private string GetSelectedSoleName()
+    {
+        return dropdownOptions.DeGiays
+            .FirstOrDefault(x => x.Id == giay.DeGiayId)
+            ?.Name
+            ?? "Chưa chọn";
+    }
+
+    private string GetSelectedStyleName()
+    {
+        return dropdownOptions.KieuDangs
+            .FirstOrDefault(x => x.Id == giay.KieuDangId)
+            ?.Name
+            ?? "Chưa chọn";
+    }
+
+    private static string GetProductInitial(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return "SP";
+
+        var words = name.Trim()
+            .Split(
+                ' ',
+                StringSplitOptions.RemoveEmptyEntries);
+
+        if (words.Length == 1)
+        {
+            return words[0][0]
+                .ToString()
+                .ToUpperInvariant();
+        }
+
+        return string.Concat(
+            words.First()[0],
+            words.Last()[0])
+            .ToUpperInvariant();
+    }
+
+    private void CloseError()
+    {
+        errorMessage = string.Empty;
+    }
+
+    private void NavigateBack()
+    {
+        NavigationManager.NavigateTo("/sanpham");
+    }
+}
+
+<style>
+    .edit-product-page {
+        --primary: #f97316;
+        --primary-dark: #ea580c;
+        --primary-light: #fff7ed;
+        --text: #172033;
+        --muted: #718096;
+        --border: #e7ebf1;
+        min-height: 100vh;
+        padding: 28px;
+        background: #f6f8fc;
+        color: var(--text);
+    }
+
+    .page-header {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+        max-width: 1120px;
+        margin: 0 auto 22px;
+    }
+
+    .back-button {
+        width: 44px;
+        height: 44px;
+        flex-shrink: 0;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: white;
+        color: #64748b;
+        font-size: 20px;
+        cursor: pointer;
+        transition: .2s;
+    }
+
+        .back-button:hover {
+            border-color: #fed7aa;
+            background: var(--primary-light);
+            color: var(--primary-dark);
+        }
+
+    .header-icon {
+        width: 45px;
+        height: 45px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border-radius: 13px;
+        background: linear-gradient(135deg, #fb923c, #ea580c);
+        color: white;
+        font-size: 18px;
+        font-weight: 800;
+        box-shadow: 0 7px 18px rgba(249, 115, 22, .22);
+    }
+
+    .page-header h2 {
+        margin: 0 0 3px;
+        font-size: 24px;
+        font-weight: 800;
+    }
+
+    .page-header p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+    }
+
+    .form-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 20px;
+        max-width: 1120px;
+        margin: auto;
+    }
+
+    .form-card,
+    .preview-card,
+    .loading-card,
+    .not-found-card {
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: white;
+        box-shadow: 0 8px 28px rgba(15, 23, 42, .055);
+    }
+
+    .form-card {
+        padding: 26px;
+    }
+
+    .preview-card {
+        align-self: start;
+        padding: 24px;
+        text-align: center;
+    }
+
+    .section-heading {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 23px;
+        padding-bottom: 18px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .section-icon {
+        width: 44px;
+        height: 44px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border-radius: 12px;
+        background: var(--primary-light);
+        font-size: 19px;
+    }
+
+    .section-heading h4 {
+        margin: 0 0 3px;
+        font-size: 17px;
+        font-weight: 800;
+    }
+
+    .section-heading p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 11px;
+    }
+
+        .section-heading p span,
+        .form-group label span {
+            color: #dc2626;
+        }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 19px;
+    }
+
+    .form-group {
+        min-width: 0;
+    }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+    .form-control-custom {
+        width: 100%;
+        min-height: 45px;
+        padding: 0 13px;
+        border: 1px solid #dce3ec;
+        border-radius: 11px;
+        outline: none;
+        background: white;
+        color: var(--text);
+        font-size: 13px;
+        transition: .2s;
+    }
+
+        .form-control-custom:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(249, 115, 22, .1);
+        }
+
+    .input-with-icon {
+        position: relative;
+    }
+
+        .input-with-icon > span {
+            position: absolute;
+            top: 50%;
+            left: 13px;
+            z-index: 1;
+            font-size: 16px;
+            transform: translateY(-50%);
+        }
+
+        .input-with-icon .form-control-custom {
+            padding-left: 42px;
+        }
+
+    .validation-message {
+        display: block;
+        margin-top: 5px;
+        color: #dc2626;
+        font-size: 11px;
+    }
+
+    .error-message {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        margin-top: 22px;
+        padding: 13px;
+        border: 1px solid #fecaca;
+        border-radius: 11px;
+        background: #fff1f2;
+        color: #b91c1c;
+    }
+
+        .error-message > span {
+            width: 24px;
+            height: 24px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border-radius: 50%;
+            background: #dc2626;
+            color: white;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .error-message > div {
+            flex: 1;
+        }
+
+        .error-message strong,
+        .error-message small {
+            display: block;
+        }
+
+        .error-message strong {
+            margin-bottom: 2px;
+            font-size: 12px;
+        }
+
+        .error-message small {
+            font-size: 11px;
+        }
+
+        .error-message button {
+            border: 0;
+            background: transparent;
+            color: #b91c1c;
+            font-size: 19px;
+            cursor: pointer;
+        }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 28px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+    }
+
+    .cancel-button,
+    .save-button {
+        min-height: 43px;
+        padding: 0 18px;
+        border-radius: 11px;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .cancel-button {
+        border: 1px solid #dce3ec;
+        background: white;
+        color: #64748b;
+    }
+
+    .save-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border: 0;
+        background: linear-gradient(135deg, #fb923c, #ea580c);
+        color: white;
+        box-shadow: 0 7px 18px rgba(249, 115, 22, .23);
+    }
+
+        .cancel-button:disabled,
+        .save-button:disabled {
+            cursor: not-allowed;
+            opacity: .65;
+        }
+
+    .preview-title {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border);
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 800;
+        text-align: left;
+    }
+
+    .product-avatar {
+        width: 85px;
+        height: 85px;
+        display: grid;
+        place-items: center;
+        margin: 22px auto 13px;
+        border: 5px solid #ffedd5;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #fb923c, #ea580c);
+        color: white;
+        font-size: 23px;
+        font-weight: 800;
+        box-shadow: 0 9px 24px rgba(249, 115, 22, .25);
+    }
+
+    .preview-card h3 {
+        margin: 0 0 9px;
+        overflow-wrap: anywhere;
+        font-size: 18px;
+        font-weight: 800;
+    }
+
+    .product-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 800;
+    }
+
+        .product-status i {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .product-status.selling {
+            background: #ecfdf5;
+            color: #15803d;
+        }
+
+        .product-status.stopped {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+
+    .preview-divider {
+        height: 1px;
+        margin: 21px 0;
+        background: var(--border);
+    }
+
+    .preview-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 15px;
+        padding: 10px 0;
+        border-bottom: 1px solid #f0f3f7;
+        text-align: left;
+    }
+
+        .preview-row span {
+            flex-shrink: 0;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .preview-row strong {
+            overflow-wrap: anywhere;
+            color: #334155;
+            font-size: 11px;
+            text-align: right;
+        }
+
+    .product-id-box {
+        margin-top: 18px;
+        padding: 12px;
+        border-radius: 10px;
+        background: #f8fafc;
+        text-align: left;
+    }
+
+        .product-id-box span,
+        .product-id-box strong {
+            display: block;
+        }
+
+        .product-id-box span {
+            margin-bottom: 4px;
+            color: var(--muted);
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+
+        .product-id-box strong {
+            overflow-wrap: anywhere;
+            color: #475569;
+            font-size: 10px;
+        }
+
+    .preview-note {
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        margin-top: 15px;
+        padding: 12px;
+        border: 1px solid #fed7aa;
+        border-radius: 10px;
+        background: var(--primary-light);
+        text-align: left;
+    }
+
+        .preview-note p {
+            margin: 0;
+            color: #9a4c12;
+            font-size: 10px;
+            line-height: 1.55;
+        }
+
+    .loading-card,
+    .not-found-card {
+        max-width: 1120px;
+        min-height: 400px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        margin: auto;
+        text-align: center;
+    }
+
+        .loading-card strong {
+            color: #475569;
+        }
+
+        .loading-card span,
+        .not-found-card p {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+    .loading-spinner,
+    .button-spinner {
+        display: inline-block;
+        border-style: solid;
+        border-radius: 50%;
+        animation: edit-spin .7s linear infinite;
+    }
+
+    .loading-spinner {
+        width: 35px;
+        height: 35px;
+        border-width: 3px;
+        border-color: #fed7aa;
+        border-top-color: var(--primary);
+    }
+
+    .button-spinner {
+        width: 14px;
+        height: 14px;
+        border-width: 2px;
+        border-color: rgba(255, 255, 255, .55);
+        border-top-color: white;
+    }
+
+    .not-found-icon {
+        width: 58px;
+        height: 58px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: #fff1f2;
+        color: #dc2626;
+        font-size: 25px;
+        font-weight: 800;
+    }
+
+    .not-found-card h3,
+    .not-found-card p {
+        margin: 0;
+    }
+
+    .not-found-card button {
+        margin-top: 8px;
+        padding: 10px 16px;
+        border: 0;
+        border-radius: 10px;
+        background: var(--primary);
+        color: white;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .success-toast {
+        position: fixed;
+        right: 25px;
+        bottom: 25px;
+        z-index: 3000;
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        min-width: 320px;
+        padding: 14px;
+        border-radius: 13px;
+        background: #059669;
+        color: white;
+        box-shadow: 0 14px 35px rgba(15, 23, 42, .22);
+    }
+
+    .toast-icon {
+        width: 31px;
+        height: 31px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, .18);
+        font-weight: 800;
+    }
+
+    .success-toast strong,
+    .success-toast small {
+        display: block;
+    }
+
+    .success-toast small {
+        margin-top: 2px;
+        opacity: .9;
+    }
+
+    @@keyframes edit-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @@media (max-width: 900px) {
+        .form-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .preview-card {
+            order: -1;
+        }
+    }
+
+    @@media (max-width: 600px) {
+        .edit-product-page {
+            padding: 16px;
+        }
+
+        .form-card,
+        .preview-card {
+            padding: 19px;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .form-group.full-width {
+            grid-column: auto;
+        }
+
+        .form-actions {
+            flex-direction: column-reverse;
+        }
+
+        .cancel-button,
+        .save-button {
+            width: 100%;
+        }
+
+        .success-toast {
+            right: 15px;
+            bottom: 15px;
+            left: 15px;
+            min-width: 0;
+        }
+    }
+</style>

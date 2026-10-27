@@ -1,0 +1,221 @@
+﻿@page "/trahang/{HoaDonId:guid}"
+
+@using BlazorKhachHang.Service.IService
+@using API.Models.DTO.TraHang
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop
+@using Microsoft.AspNetCore.Components.Web
+
+@* Sử dụng namespace đầy đủ để tránh lỗi 'InteractiveServer' does not exist *@
+@rendermode @(new Microsoft.AspNetCore.Components.Web.InteractiveServerRenderMode(prerender: false))
+
+@inject IReturnService ReturnService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3><i class="bi bi-arrow-left-right"></i> Xử lý Trả hàng</h3>
+
+        <div class="d-flex gap-2">
+            <!-- Nút Xem chi tiết -->
+            <button class="btn btn-outline-primary btn-sm"
+                    @onclick='() => NavigationManager.NavigateTo($"/return-history/{HoaDonId}", true)'>
+                Xem chi tiết
+            </button>
+
+            <!-- Nút Quay lại -->
+            <button class="btn btn-outline-secondary btn-sm"
+                    @onclick='() => NavigationManager.NavigateTo("/Oder")'>
+                Quay lại
+            </button>
+        </div>
+    </div>
+
+    @if (IsLoading)
+    {
+        <div class="text-center my-5">
+            <div class="spinner-border text-primary"></div>
+            <p class="mt-2">Đang tải dữ liệu hóa đơn...</p>
+        </div>
+    }
+    else if (ReturnInfo != null)
+    {
+        <div class="card p-3 shadow-sm mb-4 border-0">
+            <h5 class="text-primary border-bottom pb-2 mb-3">Thông tin đơn hàng</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <p><b>Mã đơn:</b> <span class="text-muted">@ReturnInfo.HoaDonId</span></p>
+                    <p><b>Ngày mua:</b> @ReturnInfo.NgayTao.ToString("dd/MM/yyyy")</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p><b>Trạng thái:</b> <span class="badge bg-info">@ReturnInfo.TrangThai</span></p>
+                    <p><b>Thanh toán:</b> @ReturnInfo.TenHinhThuc</p>
+                </div>
+            </div>
+
+            <h5 class="text-primary border-bottom pb-2 mt-4">Sản phẩm có thể trả</h5>
+            <div class="mt-3">
+                @if (ReturnInfo.SanPhams == null || !ReturnInfo.SanPhams.Any())
+                {
+                    <div class="alert alert-warning">Không có sản phẩm nào đủ điều kiện trả lại.</div>
+                }
+                else
+                {
+                    @foreach (var item in ReturnInfo.SanPhams)
+                    {
+                        <div class="order-item d-flex gap-3 align-items-center border p-3 mb-2 shadow-sm rounded @(item.IsSelected ? "border-primary bg-light" : "")">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1 fw-bold">@item.TenSanPham</h6>
+                                <div class="text-muted small">
+                                    Đơn giá: <b class="text-danger">@item.Gia.ToString("N0") đ</b>
+                                    | Đã mua: <b>@item.SoLuongMua</b>
+                                    | Có thể trả: <b class="text-success">@item.SoLuongConLai</b>
+                                </div>
+
+                                <div class="d-flex align-items-center mt-2 gap-4">
+                                    <div style="width:140px;">
+                                        <label class="small text-muted">Số lượng trả:</label>
+                                        <InputNumber class="form-control form-control-sm"
+                                                     @bind-Value="item.SoLuongTra"
+                                                     min="0" max="@item.SoLuongConLai" />
+                                    </div>
+
+                                    <div class="form-check mt-3">
+                                        <InputCheckbox class="form-check-input" @bind-Value="item.IsSelected" id="@item.GiayChiTietId.ToString()" />
+                                        <label class="form-check-label" for="@item.GiayChiTietId.ToString()">Chọn trả</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+
+            <div class="mt-4">
+                <label class="fw-bold mb-1">Lý do trả hàng:</label>
+                <textarea class="form-control" @bind="LyDo" rows="3" placeholder="Vui lòng nhập lý do cụ thể..."></textarea>
+            </div>
+
+            <button class="btn btn-danger mt-4 w-100 fw-bold py-2"
+                    @onclick="SubmitAsync"
+                    disabled="@(ReturnInfo.SanPhams == null || !ReturnInfo.SanPhams.Any(x => x.IsSelected))">
+                XÁC NHẬN GỬI YÊU CẦU TRẢ HÀNG
+            </button>
+        </div>
+
+        @if (LichSuTra != null && LichSuTra.Any())
+        {
+            <div class="card p-3 shadow-sm bg-light border-0">
+                <h5 class="text-secondary border-bottom pb-2 mb-3">
+                    Lịch sử trả hàng của đơn này
+                </h5>
+
+                <div class="table-responsive">
+                    <table class="table table-sm bg-white border">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Sản phẩm</th>
+                                <th class="text-center">SL</th>
+                                <th>Thời gian</th>
+                                <th>Ghi chú</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var ls in LichSuTra)
+                            {
+                                <tr>
+                                    <td class="small"><b>@ls.TenSanPham</b></td>
+                                    <td class="text-center text-danger fw-bold">@ls.SoLuong</td>
+                                    <td class="small">@ls.NgayTraHang?.ToString("dd/MM/yyyy HH:mm")</td>
+                                    <td class="small text-muted">@ls.GhiChu</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="alert alert-danger shadow-sm">
+            <i class="bi bi-exclamation-triangle"></i> Không tìm thấy thông tin hóa đơn hoặc hóa đơn không hợp lệ.
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid HoaDonId { get; set; }
+
+    private ReturnDTO? ReturnInfo;
+    private List<ReturnHistoryDTO> LichSuTra = new();
+    private bool IsLoading = true;
+    private string LyDo = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        IsLoading = true;
+        try
+        {
+            ReturnInfo = await ReturnService.GetReturnInfoAsync(HoaDonId);
+            var history = await ReturnService.GetReturnHistoryAsync(HoaDonId);
+            LichSuTra = history ?? new List<ReturnHistoryDTO>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+
+
+    private async Task SubmitAsync()
+    {
+        var itemsToReturn = ReturnInfo.SanPhams
+            .Where(x => x.IsSelected && x.SoLuongTra > 0)
+            .Select(x => new ChiTietTraHangDTO
+            {
+                GiayChiTietId = x.GiayChiTietId,
+                SoLuong = x.SoLuongTra,
+                GhiChu = LyDo
+            }).ToList();
+
+        if (!itemsToReturn.Any())
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Vui lòng chọn sản phẩm cần trả!");
+            return;
+        }
+
+        var request = new CreateReturnDTO
+        {
+            HoaDonId = HoaDonId,
+            Items = itemsToReturn
+        };
+
+        var result = await ReturnService.ProcessReturnAsync(request);
+
+        if (result)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Đã gửi yêu cầu! Vui lòng chờ shop xác nhận.");
+
+            // 👉 Điều hướng sang trang của bạn
+            NavigationManager.NavigateTo($"/return-history/{request.HoaDonId}", true);
+
+            // ❗ KHÔNG cần đoạn dưới nữa (vì đã chuyển trang)
+            // await LoadData();
+            // reset form...
+        }
+
+    }
+
+}

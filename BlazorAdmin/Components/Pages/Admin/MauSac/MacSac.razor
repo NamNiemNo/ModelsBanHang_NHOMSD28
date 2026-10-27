@@ -1,0 +1,1639 @@
+﻿@page "/MauSac"
+@rendermode InteractiveServer
+
+@using API.Models.DTO
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
+@attribute [Authorize(Roles = "Admin")]
+@layout AdminLayout
+@inject IMauSacService mauSacService
+
+<PageTitle>Quản lý màu sắc</PageTitle>
+
+<div class="color-page">
+
+    <!-- Tiêu đề -->
+    <header class="color-header">
+        <div>
+            <span class="page-eyebrow">THUỘC TÍNH SẢN PHẨM</span>
+
+            <h1>Quản lý màu sắc</h1>
+
+            <p>
+                Thêm mới, chỉnh sửa và theo dõi trạng thái màu sắc.
+            </p>
+        </div>
+
+        <button type="button"
+                class="add-color-button"
+                @onclick="ShowAddForm">
+
+            <svg viewBox="0 0 24 24">
+                <path d="M12 5v14M5 12h14" />
+            </svg>
+
+            Thêm màu sắc
+        </button>
+    </header>
+
+    <!-- Thống kê -->
+    <section class="color-statistics">
+
+        <article class="color-stat-card stat-total">
+            <div class="stat-icon">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 0-5H12a4 4 0 0 1 0-8h1a3 3 0 0 0 0-6h-1Z" />
+                    <circle cx="7.5" cy="10" r="1" />
+                    <circle cx="9" cy="15" r="1" />
+                    <circle cx="14" cy="6" r="1" />
+                </svg>
+            </div>
+
+            <div>
+                <span>Tổng số màu</span>
+                <strong>@danhSach.Count</strong>
+                <small>Tất cả màu sắc trong hệ thống</small>
+            </div>
+        </article>
+
+        <article class="color-stat-card stat-active">
+            <div class="stat-icon">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="m8 12 3 3 5-6" />
+                </svg>
+            </div>
+
+            <div>
+                <span>Đang hoạt động</span>
+
+                <strong>
+                    @danhSach.Count(x => x.TrangThai)
+                </strong>
+
+                <small>Màu sắc đang được sử dụng</small>
+            </div>
+        </article>
+
+        <article class="color-stat-card stat-disabled">
+            <div class="stat-icon">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="m8 8 8 8M16 8l-8 8" />
+                </svg>
+            </div>
+
+            <div>
+                <span>Ngừng hoạt động</span>
+
+                <strong>
+                    @danhSach.Count(x => !x.TrangThai)
+                </strong>
+
+                <small>Màu sắc đã ngừng sử dụng</small>
+            </div>
+        </article>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="page-error-message">
+            <span>@ErrorMessage</span>
+
+            <button type="button" @onclick="LoadDataAsync">
+                Thử lại
+            </button>
+        </div>
+    }
+
+    <!-- Danh sách -->
+    <section class="color-panel">
+
+        <!-- Tìm kiếm và lọc -->
+        <div class="color-toolbar">
+
+            <div class="color-search">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="m20 20-4-4" />
+                </svg>
+
+                <input type="text"
+                       value="@searchTerm"
+                       @oninput="HandleSearch"
+                       placeholder="Tìm tên, mã màu hoặc mô tả..." />
+
+                @if (!string.IsNullOrWhiteSpace(searchTerm))
+                {
+                    <button type="button"
+                            title="Xóa tìm kiếm"
+                            @onclick="ClearSearch">
+                        ×
+                    </button>
+                }
+            </div>
+
+            <div class="status-filter-buttons">
+
+                <button type="button"
+                        class="filter-button @(StatusFilter == "all" ? "active" : "")"
+                        @onclick='() => SetStatusFilter("all")'>
+
+                    Tất cả
+                    <span>@danhSach.Count</span>
+                </button>
+
+                <button type="button"
+                        class="filter-button @(StatusFilter == "active" ? "active" : "")"
+                        @onclick='() => SetStatusFilter("active")'>
+
+                    Hoạt động
+
+                    <span>
+                        @danhSach.Count(x => x.TrangThai)
+                    </span>
+                </button>
+
+                <button type="button"
+                        class="filter-button @(StatusFilter == "disabled" ? "active" : "")"
+                        @onclick='() => SetStatusFilter("disabled")'>
+
+                    Ngừng hoạt động
+
+                    <span>
+                        @danhSach.Count(x => !x.TrangThai)
+                    </span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Bảng cuộn -->
+        <div class="color-table-wrapper">
+            <table class="color-table">
+                <thead>
+                    <tr>
+                        <th class="number-column">STT</th>
+                        <th class="preview-column">Màu</th>
+                        <th>Tên màu</th>
+                        <th>Mã màu</th>
+                        <th>Mô tả</th>
+                        <th>Trạng thái</th>
+                        <th class="action-column">Chức năng</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @if (IsLoading)
+                    {
+                        <tr>
+                            <td colspan="7">
+                                <div class="loading-state">
+                                    <span class="loading-spinner"></span>
+                                    <strong>Đang tải dữ liệu...</strong>
+                                    <small>Vui lòng chờ trong giây lát</small>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    else if (PagedData.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="7">
+                                <div class="empty-state">
+                                    <div class="empty-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 0-5H12a4 4 0 0 1 0-8h1a3 3 0 0 0 0-6h-1Z" />
+                                        </svg>
+                                    </div>
+
+                                    <strong>Không tìm thấy màu sắc</strong>
+
+                                    <small>
+                                        Hãy thử từ khóa hoặc bộ lọc khác.
+                                    </small>
+
+                                    <button type="button"
+                                            @onclick="ResetFilter">
+                                        Đặt lại bộ lọc
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var row in PagedData
+                            .Select((item, index) => new
+                            {
+                                Item = item,
+                                Number =
+                                    (CurrentPage - 1) * PageSize
+                                    + index + 1
+                            }))
+                        {
+                            var colorValue = GetSafeColor(row.Item.Color);
+
+                            <tr>
+                                <td class="table-number">
+                                    @row.Number
+                                </td>
+
+                                <!-- Xem trước màu -->
+                                <td>
+                                    <div class="color-preview-wrapper">
+                                        <span class="color-preview-large"
+                                              style="background-color:@colorValue">
+                                        </span>
+                                    </div>
+                                </td>
+
+                                <!-- Tên màu -->
+                                <td>
+                                    <div class="color-name-cell">
+                                        <span class="color-avatar"
+                                              style="background-color:@colorValue">
+                                        </span>
+
+                                        <div>
+                                            <strong>
+                                                @row.Item.TenMau
+                                            </strong>
+
+                                            <small>
+                                                Màu sắc sản phẩm
+                                            </small>
+                                        </div>
+                                    </div>
+                                </td>
+
+                                <!-- Mã màu -->
+                                <td>
+                                    <span class="color-code">
+                                        <span style="background-color:@colorValue"></span>
+                                        @colorValue.ToUpperInvariant()
+                                    </span>
+                                </td>
+
+                                <!-- Mô tả -->
+                                <td>
+                                    <div class="color-description"
+                                         title="@row.Item.MoTa">
+
+                                        @(string.IsNullOrWhiteSpace(
+                                            row.Item.MoTa)
+                                            ? "Chưa có mô tả"
+                                            : row.Item.MoTa)
+                                    </div>
+                                </td>
+
+                                <!-- Trạng thái -->
+                                <td>
+                                    <span class="color-status @(row.Item.TrangThai ? "status-active" : "status-disabled")">
+
+                                        <span class="status-dot"></span>
+
+                                        @(row.Item.TrangThai
+                                            ? "Đang hoạt động"
+                                            : "Ngừng hoạt động")
+                                    </span>
+                                </td>
+
+                                <!-- Thao tác -->
+                                <td>
+                                    <div class="table-actions">
+
+                                        <button type="button"
+                                                class="action-button edit-button"
+                                                @onclick="() => ShowEditForm(row.Item)">
+
+                                            <svg viewBox="0 0 24 24">
+                                                <path d="M4 20h4L19 9l-4-4L4 16v4Z" />
+                                                <path d="m13 7 4 4" />
+                                            </svg>
+
+                                            Sửa
+                                        </button>
+
+                                        <button type="button"
+                                                class="action-button delete-button"
+                                                @onclick="() => AskDelete(row.Item)">
+
+                                            <svg viewBox="0 0 24 24">
+                                                <path d="M4 7h16M9 7V4h6v3" />
+                                                <path d="m6 7 1 13h10l1-13" />
+                                                <path d="M10 11v5M14 11v5" />
+                                            </svg>
+
+                                            Xóa
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Phân trang -->
+        <footer class="color-table-footer">
+
+            <div class="page-size-control">
+                <span>Hiển thị</span>
+
+                <select value="@PageSize"
+                        @onchange="OnPageSizeChanged">
+
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                </select>
+
+                <span>
+                    / @Filtered.Count màu sắc
+                </span>
+            </div>
+
+            <nav class="color-pagination">
+
+                <button type="button"
+                        class="page-button"
+                        disabled="@(CurrentPage == 1)"
+                        @onclick="() => ChangePage(1)">
+                    «
+                </button>
+
+                <button type="button"
+                        class="page-button"
+                        disabled="@(CurrentPage == 1)"
+                        @onclick="() => ChangePage(CurrentPage - 1)">
+                    ‹
+                </button>
+
+                @foreach (var page in VisiblePages)
+                {
+                    <button type="button"
+                            class="page-button @(CurrentPage == page ? "active" : "")"
+                            @onclick="() => ChangePage(page)">
+                    </button>
+                }
+
+                <button type="button"
+                        class="page-button"
+                        disabled="@(CurrentPage == TotalPages)"
+                        @onclick="() => ChangePage(CurrentPage + 1)">
+                    ›
+                </button>
+
+                <button type="button"
+                        class="page-button"
+                        disabled="@(CurrentPage == TotalPages)"
+                        @onclick="() => ChangePage(TotalPages)">
+                    »
+                </button>
+            </nav>
+        </footer>
+    </section>
+
+    <!-- Modal thêm/sửa -->
+    <CreateOrUpdateMauSac
+        FormData="@FormData"
+        ExistingItems="@danhSach"
+        IsVisible="@IsPopupVisible"
+        IsEdit="@IsEdit"
+        OnSubmit="SubmitForm"
+        OnClose="ClosePopup" />
+
+    <!-- Xác nhận xóa -->
+    <DeleteMauSac
+        Item="@SelectedItem"
+        IsVisible="@IsConfirmVisible"
+        OnDelete="ConfirmDelete"
+        OnCancel="@CloseDeletePopup" />
+
+    <!-- Toast -->
+    @if (!string.IsNullOrWhiteSpace(ToastMessage))
+    {
+        <div class="color-toast @(ToastSuccess ? "toast-success" : "toast-error")">
+
+            <span class="toast-icon">
+                @(ToastSuccess ? "✓" : "!")
+            </span>
+
+            <div>
+                <strong>
+                    @(ToastSuccess ? "Thành công" : "Thông báo")
+                </strong>
+
+                <small>@ToastMessage</small>
+            </div>
+
+            <button type="button" @onclick="CloseToast">
+                ×
+            </button>
+        </div>
+    }
+</div>
+
+<style>
+    .color-page,
+    .color-page * {
+        box-sizing: border-box;
+    }
+
+    .color-page {
+        --primary: #f97316;
+        --primary-dark: #ea580c;
+        --primary-soft: #fff7ed;
+        --text-dark: #0f172a;
+        --text: #334155;
+        --muted: #64748b;
+        --border: #e8edf3;
+
+        min-height: 100vh;
+        padding: 28px;
+
+        background: #f6f8fb;
+        color: var(--text-dark);
+    }
+
+    /* Header */
+
+    .color-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 24px;
+
+        margin-bottom: 24px;
+    }
+
+    .page-eyebrow {
+        display: block;
+        margin-bottom: 6px;
+
+        color: var(--primary-dark);
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: .14em;
+    }
+
+    .color-header h1 {
+        margin: 0;
+
+        color: var(--text-dark);
+        font-size: 30px;
+        font-weight: 800;
+        letter-spacing: -.03em;
+    }
+
+    .color-header p {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+    }
+
+    .add-color-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+
+        min-height: 44px;
+        padding: 0 18px;
+
+        border: none;
+        border-radius: 11px;
+        background: var(--primary);
+        color: #ffffff;
+
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+
+        box-shadow: 0 6px 15px rgba(249,115,22,.22);
+    }
+
+    .add-color-button:hover {
+        background: var(--primary-dark);
+    }
+
+    .add-color-button svg {
+        width: 18px;
+        height: 18px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+    }
+
+    /* Thống kê */
+
+    .color-statistics {
+        display: grid;
+        grid-template-columns: repeat(3,minmax(0,1fr));
+        gap: 16px;
+
+        margin-bottom: 20px;
+    }
+
+    .color-stat-card {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+
+        min-width: 0;
+        padding: 20px;
+
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: #ffffff;
+
+        box-shadow: 0 6px 24px rgba(15,23,42,.045);
+    }
+
+    .stat-icon {
+        display: grid;
+        flex: 0 0 50px;
+
+        width: 50px;
+        height: 50px;
+
+        place-items: center;
+
+        border-radius: 14px;
+        background: currentColor;
+    }
+
+    .stat-icon svg {
+        width: 24px;
+        height: 24px;
+
+        fill: none;
+        stroke: #ffffff;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .color-stat-card span,
+    .color-stat-card small {
+        display: block;
+    }
+
+    .color-stat-card span {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .color-stat-card strong {
+        display: block;
+        margin: 4px 0 3px;
+
+        color: var(--text-dark);
+        font-size: 25px;
+    }
+
+    .color-stat-card small {
+        color: #94a3b8;
+        font-size: 9px;
+    }
+
+    .stat-total {
+        color: #6366f1;
+    }
+
+    .stat-active {
+        color: #10b981;
+    }
+
+    .stat-disabled {
+        color: #94a3b8;
+    }
+
+    /* Panel */
+
+    .color-panel {
+        display: flex;
+        height: 620px;
+        min-height: 470px;
+
+        flex-direction: column;
+        overflow: hidden;
+
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: #ffffff;
+
+        box-shadow: 0 10px 35px rgba(15,23,42,.05);
+    }
+
+    .color-toolbar {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+
+        padding: 18px 20px;
+
+        border-bottom: 1px solid var(--border);
+    }
+
+    /* Search */
+
+    .color-search {
+        position: relative;
+        width: min(100%,480px);
+    }
+
+    .color-search > svg {
+        position: absolute;
+        top: 50%;
+        left: 14px;
+
+        width: 18px;
+        height: 18px;
+
+        transform: translateY(-50%);
+
+        fill: none;
+        stroke: #94a3b8;
+        stroke-width: 2;
+
+        pointer-events: none;
+    }
+
+    .color-search input {
+        width: 100%;
+        height: 44px;
+        padding: 0 43px;
+
+        border: 1px solid #dce3ec;
+        border-radius: 11px;
+        outline: none;
+
+        background: #f8fafc;
+        color: var(--text-dark);
+
+        font-size: 12px;
+    }
+
+    .color-search input:focus {
+        border-color: #fb923c;
+        background: #ffffff;
+
+        box-shadow: 0 0 0 4px rgba(249,115,22,.1);
+    }
+
+    .color-search button {
+        position: absolute;
+        top: 50%;
+        right: 10px;
+
+        display: grid;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+
+        transform: translateY(-50%);
+        place-items: center;
+
+        border: none;
+        border-radius: 8px;
+        background: transparent;
+        color: #94a3b8;
+
+        font-size: 19px;
+        cursor: pointer;
+    }
+
+    /* Filter */
+
+    .status-filter-buttons {
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+    }
+
+    .filter-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+
+        min-height: 38px;
+        padding: 0 11px;
+
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+        background: #ffffff;
+        color: #64748b;
+
+        font-size: 10px;
+        font-weight: 800;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .filter-button span {
+        min-width: 20px;
+        padding: 2px 6px;
+
+        border-radius: 999px;
+        background: #f1f5f9;
+
+        font-size: 9px;
+        text-align: center;
+    }
+
+    .filter-button.active {
+        border-color: #fdba74;
+        background: #fff7ed;
+        color: #ea580c;
+    }
+
+    .filter-button.active span {
+        background: #ffedd5;
+    }
+
+    /* Table */
+
+    .color-table-wrapper {
+        flex: 1;
+        min-height: 0;
+
+        overflow-x: auto;
+        overflow-y: auto;
+
+        scrollbar-width: thin;
+        scrollbar-color: #94a3b8 #f1f5f9;
+    }
+
+    .color-table-wrapper::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    .color-table-wrapper::-webkit-scrollbar-track {
+        background: #f1f5f9;
+    }
+
+    .color-table-wrapper::-webkit-scrollbar-thumb {
+        border: 2px solid #f1f5f9;
+        border-radius: 10px;
+        background: #94a3b8;
+    }
+
+    .color-table {
+        width: 100%;
+        min-width: 1000px;
+
+        border-collapse: separate;
+        border-spacing: 0;
+
+        color: #334155;
+        font-size: 11px;
+    }
+
+    .color-table th {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+
+        padding: 14px;
+
+        border-bottom: 1px solid var(--border);
+        background: #f8fafc;
+        color: #64748b;
+
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: .04em;
+
+        text-align: left;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .color-table td {
+        padding: 14px;
+
+        border-bottom: 1px solid #edf1f5;
+        background: #ffffff;
+
+        vertical-align: middle;
+    }
+
+    .color-table tbody tr:hover td {
+        background: #fffaf5;
+    }
+
+    .number-column {
+        width: 65px;
+        text-align: center !important;
+    }
+
+    .preview-column {
+        width: 75px;
+        text-align: center !important;
+    }
+
+    .action-column {
+        width: 190px;
+        text-align: center !important;
+    }
+
+    .table-number {
+        color: #94a3b8;
+        font-weight: 800;
+        text-align: center;
+    }
+
+    .color-preview-wrapper {
+        display: flex;
+        justify-content: center;
+    }
+
+    .color-preview-large {
+        width: 34px;
+        height: 34px;
+
+        border: 3px solid #ffffff;
+        border-radius: 50%;
+
+        outline: 1px solid #cbd5e1;
+
+        box-shadow: 0 3px 8px rgba(15,23,42,.12);
+    }
+
+    .color-name-cell {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+
+        min-width: 170px;
+    }
+
+    .color-avatar {
+        flex: 0 0 38px;
+
+        width: 38px;
+        height: 38px;
+
+        border: 3px solid #ffffff;
+        border-radius: 11px;
+
+        outline: 1px solid #e2e8f0;
+    }
+
+    .color-name-cell strong,
+    .color-name-cell small {
+        display: block;
+    }
+
+    .color-name-cell strong {
+        color: #1e293b;
+        font-size: 11px;
+    }
+
+    .color-name-cell small {
+        margin-top: 3px;
+        color: #94a3b8;
+        font-size: 8px;
+    }
+
+    .color-code {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+
+        padding: 5px 8px;
+
+        border-radius: 7px;
+        background: #f1f5f9;
+        color: #475569;
+
+        font-family: monospace;
+        font-size: 9px;
+        font-weight: 700;
+    }
+
+    .color-code > span {
+        width: 13px;
+        height: 13px;
+
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+    }
+
+    .color-description {
+        display: -webkit-box;
+        max-width: 400px;
+        overflow: hidden;
+
+        color: #64748b;
+        line-height: 1.5;
+
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+    }
+
+    /* Status */
+
+    .color-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+
+        min-height: 28px;
+        padding: 0 10px;
+
+        border: 1px solid transparent;
+        border-radius: 999px;
+
+        font-size: 9px;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .status-dot {
+        width: 7px;
+        height: 7px;
+
+        border-radius: 50%;
+        background: currentColor;
+    }
+
+    .status-active {
+        border-color: #bbf7d0;
+        background: #f0fdf4;
+        color: #15803d;
+    }
+
+    .status-disabled {
+        border-color: #e2e8f0;
+        background: #f8fafc;
+        color: #64748b;
+    }
+
+    /* Actions */
+
+    .table-actions {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+    }
+
+    .action-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+
+        min-height: 33px;
+        padding: 0 10px;
+
+        border-radius: 8px;
+
+        font-size: 9px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .action-button svg {
+        width: 14px;
+        height: 14px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .edit-button {
+        border: 1px solid #c7d2fe;
+        background: #eef2ff;
+        color: #4f46e5;
+    }
+
+    .delete-button {
+        border: 1px solid #fecaca;
+        background: #fef2f2;
+        color: #dc2626;
+    }
+
+    /* Footer */
+
+    .color-table-footer {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+
+        min-height: 66px;
+        padding: 12px 20px;
+
+        border-top: 1px solid var(--border);
+        background: #fbfcfe;
+    }
+
+    .page-size-control {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+
+        color: #64748b;
+        font-size: 10px;
+    }
+
+    .page-size-control select {
+        height: 34px;
+        padding: 0 25px 0 9px;
+
+        border: 1px solid #dce3ec;
+        border-radius: 8px;
+
+        background: #ffffff;
+        color: #475569;
+
+        font-size: 10px;
+    }
+
+    .color-pagination {
+        display: flex;
+        gap: 5px;
+    }
+
+    .page-button {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        padding: 0;
+
+        place-items: center;
+
+        border: 1px solid #dce3ec;
+        border-radius: 9px;
+        background: #ffffff;
+        color: #475569;
+
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .page-button.active {
+        border-color: #f97316;
+        background: #f97316;
+        color: #ffffff;
+    }
+
+    .page-button:disabled {
+        opacity: .4;
+        cursor: not-allowed;
+    }
+
+    /* Loading */
+
+    .loading-state,
+    .empty-state {
+        display: flex;
+        min-height: 310px;
+
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+
+        text-align: center;
+    }
+
+    .loading-spinner {
+        width: 36px;
+        height: 36px;
+        margin-bottom: 12px;
+
+        border: 3px solid #ffedd5;
+        border-top-color: #f97316;
+        border-radius: 50%;
+
+        animation: colorSpin .8s linear infinite;
+    }
+
+    .loading-state small,
+    .empty-state small {
+        margin-top: 5px;
+
+        color: #94a3b8;
+        font-size: 9px;
+    }
+
+    .empty-icon {
+        display: grid;
+        width: 60px;
+        height: 60px;
+        margin-bottom: 12px;
+
+        place-items: center;
+
+        border-radius: 18px;
+        background: #fff7ed;
+        color: #f97316;
+    }
+
+    .empty-icon svg {
+        width: 28px;
+        height: 28px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.7;
+    }
+
+    .empty-state button {
+        margin-top: 14px;
+        padding: 7px 11px;
+
+        border: 1px solid #fed7aa;
+        border-radius: 8px;
+        background: #fff7ed;
+        color: #ea580c;
+
+        font-size: 9px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    /* Error */
+
+    .page-error-message {
+        display: flex;
+        justify-content: space-between;
+
+        margin-bottom: 16px;
+        padding: 13px 15px;
+
+        border: 1px solid #fecaca;
+        border-radius: 11px;
+        background: #fef2f2;
+        color: #b91c1c;
+
+        font-size: 10px;
+    }
+
+    .page-error-message button {
+        border: none;
+        background: transparent;
+        color: #991b1b;
+
+        font-weight: 800;
+        cursor: pointer;
+        text-decoration: underline;
+    }
+
+    /* Toast */
+
+    .color-toast {
+        position: fixed;
+        right: 24px;
+        bottom: 24px;
+        z-index: 100000;
+
+        display: flex;
+        align-items: center;
+        gap: 10px;
+
+        width: min(380px, calc(100% - 30px));
+        padding: 13px;
+
+        border: 1px solid;
+        border-radius: 12px;
+        background: #ffffff;
+
+        box-shadow: 0 15px 35px rgba(15,23,42,.18);
+    }
+
+    .toast-success {
+        border-color: #bbf7d0;
+    }
+
+    .toast-error {
+        border-color: #fecaca;
+    }
+
+    .toast-icon {
+        display: grid;
+        width: 34px;
+        height: 34px;
+
+        place-items: center;
+
+        border-radius: 9px;
+
+        font-weight: 900;
+    }
+
+    .toast-success .toast-icon {
+        background: #dcfce7;
+        color: #15803d;
+    }
+
+    .toast-error .toast-icon {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+
+    .color-toast > div {
+        flex: 1;
+    }
+
+    .color-toast strong,
+    .color-toast small {
+        display: block;
+    }
+
+    .color-toast strong {
+        color: #1e293b;
+        font-size: 10px;
+    }
+
+    .color-toast small {
+        margin-top: 3px;
+
+        color: #64748b;
+        font-size: 9px;
+    }
+
+    .color-toast > button {
+        border: none;
+        background: transparent;
+        color: #94a3b8;
+
+        font-size: 19px;
+        cursor: pointer;
+    }
+
+    @@keyframes colorSpin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @@media (max-width: 900px) {
+        .color-statistics {
+            grid-template-columns: 1fr;
+        }
+
+        .color-toolbar {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .color-search {
+            width: 100%;
+        }
+    }
+
+    @@media (max-width: 600px) {
+        .color-page {
+            padding: 16px 12px;
+        }
+
+        .color-header {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .add-color-button {
+            align-self: flex-start;
+        }
+
+        .color-panel {
+            height: 580px;
+        }
+
+        .color-table-footer {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .color-pagination {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+
+@code {
+    private List<MauSacDTO> danhSach = new();
+
+    private string searchTerm = string.Empty;
+    private string StatusFilter = "all";
+    private string ErrorMessage = string.Empty;
+
+    private int CurrentPage = 1;
+    private int PageSize = 5;
+
+    private bool IsLoading;
+    private bool IsPopupVisible;
+    private bool IsEdit;
+
+    private MauSacDTO FormData = new();
+
+    private bool IsConfirmVisible;
+    private MauSacDTO? SelectedItem;
+
+    private string? ToastMessage;
+    private bool ToastSuccess;
+    private int ToastVersion;
+
+    private List<MauSacDTO> Filtered
+    {
+        get
+        {
+            IEnumerable<MauSacDTO> query = danhSach;
+
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                var keyword = searchTerm.Trim();
+
+                query = query.Where(x =>
+                    (x.TenMau ?? string.Empty)
+                        .Contains(
+                            keyword,
+                            StringComparison.OrdinalIgnoreCase)
+                    ||
+                    (x.MoTa ?? string.Empty)
+                        .Contains(
+                            keyword,
+                            StringComparison.OrdinalIgnoreCase)
+                    ||
+                    (x.Color ?? string.Empty)
+                        .Contains(
+                            keyword,
+                            StringComparison.OrdinalIgnoreCase));
+            }
+
+            query = StatusFilter switch
+            {
+                "active" => query.Where(x => x.TrangThai),
+                "disabled" => query.Where(x => !x.TrangThai),
+                _ => query
+            };
+
+            return query
+                .OrderByDescending(x => x.TrangThai)
+                .ThenBy(x => x.TenMau)
+                .ToList();
+        }
+    }
+
+    private List<MauSacDTO> PagedData =>
+        Filtered
+            .Skip((CurrentPage - 1) * PageSize)
+            .Take(PageSize)
+            .ToList();
+
+    private int TotalPages =>
+        Math.Max(
+            1,
+            (int)Math.Ceiling(
+                Filtered.Count / (double)PageSize));
+
+    private IEnumerable<int> VisiblePages
+    {
+        get
+        {
+            var start = Math.Max(1, CurrentPage - 2);
+            var end = Math.Min(TotalPages, start + 4);
+
+            start = Math.Max(1, end - 4);
+
+            return Enumerable.Range(
+                start,
+                end - start + 1);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        IsLoading = true;
+        ErrorMessage = string.Empty;
+
+        try
+        {
+            danhSach =
+                await mauSacService.GetAllAsync()
+                ?? new List<MauSacDTO>();
+
+            CurrentPage = Math.Clamp(
+                CurrentPage,
+                1,
+                TotalPages);
+        }
+        catch (Exception ex)
+        {
+            danhSach.Clear();
+
+            ErrorMessage =
+                "Không thể tải danh sách màu sắc: "
+                + ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private void HandleSearch(ChangeEventArgs e)
+    {
+        searchTerm =
+            e.Value?.ToString()
+            ?? string.Empty;
+
+        CurrentPage = 1;
+    }
+
+    private void ClearSearch()
+    {
+        searchTerm = string.Empty;
+        CurrentPage = 1;
+    }
+
+    private void SetStatusFilter(string status)
+    {
+        StatusFilter = status;
+        CurrentPage = 1;
+    }
+
+    private void ResetFilter()
+    {
+        searchTerm = string.Empty;
+        StatusFilter = "all";
+        CurrentPage = 1;
+    }
+
+    private void ChangePage(int page)
+    {
+        if (page >= 1 && page <= TotalPages)
+        {
+            CurrentPage = page;
+        }
+    }
+
+    private void OnPageSizeChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var size))
+        {
+            PageSize = size;
+            CurrentPage = 1;
+        }
+    }
+
+    private void ShowAddForm()
+    {
+        IsEdit = false;
+
+        FormData = new MauSacDTO
+        {
+            TenMau = string.Empty,
+            MoTa = string.Empty,
+            TrangThai = true,
+            Color = "#000000"
+        };
+
+        IsPopupVisible = true;
+    }
+
+    private void ShowEditForm(MauSacDTO item)
+    {
+        IsEdit = true;
+
+        // Tạo bản sao để khi bấm hủy không làm đổi dữ liệu bảng.
+        FormData = new MauSacDTO
+        {
+            MauSacId = item.MauSacId,
+            TenMau = item.TenMau,
+            MoTa = item.MoTa,
+            TrangThai = item.TrangThai,
+            Color = GetSafeColor(item.Color)
+        };
+
+        IsPopupVisible = true;
+    }
+
+    private void ClosePopup()
+    {
+        IsPopupVisible = false;
+    }
+
+    private async Task SubmitForm()
+    {
+        try
+        {
+            FormData.TenMau = FormData.TenMau?.Trim() ?? "";
+            FormData.MoTa = FormData.MoTa?.Trim() ?? "";
+
+            if (IsEdit)
+            {
+                await mauSacService.UpdateAsync(FormData);
+            }
+            else
+            {
+                await mauSacService.CreateAsync(FormData);
+            }
+
+            danhSach = await mauSacService.GetAllAsync();
+            IsPopupVisible = false;
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync(
+                "alert",
+                "Không thể lưu màu sắc: " + ex.Message
+            );
+        }
+    }
+
+    private void AskDelete(MauSacDTO item)
+    {
+        SelectedItem = item;
+        IsConfirmVisible = true;
+    }
+
+    private void CloseDeletePopup()
+    {
+        IsConfirmVisible = false;
+        SelectedItem = null;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (SelectedItem == null)
+            return;
+
+        try
+        {
+            await mauSacService.DeleteAsync(SelectedItem.MauSacId);
+
+            danhSach = await mauSacService.GetAllAsync();
+            IsConfirmVisible = false;
+            SelectedItem = null;
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync(
+                "alert",
+                "Không thể xóa màu sắc: " + ex.Message
+            );
+        }
+    }
+
+    private void ShowToast(string message, bool success)
+    {
+        ToastMessage = message;
+        ToastSuccess = success;
+
+        var version = ++ToastVersion;
+
+        _ = HideToastAsync(version);
+    }
+
+    private async Task HideToastAsync(int version)
+    {
+        await Task.Delay(3000);
+
+        if (version == ToastVersion)
+        {
+            ToastMessage = null;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void CloseToast()
+    {
+        ToastVersion++;
+        ToastMessage = null;
+    }
+
+    private static string GetSafeColor(string? color)
+    {
+        if (!string.IsNullOrWhiteSpace(color) &&
+            color.Length == 7 &&
+            color.StartsWith("#") &&
+            color.Skip(1).All(Uri.IsHexDigit))
+        {
+            return color;
+        }
+
+        return "#000000";
+    }
+}

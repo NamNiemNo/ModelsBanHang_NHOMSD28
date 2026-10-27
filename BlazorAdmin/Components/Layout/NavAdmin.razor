@@ -1,0 +1,520 @@
+﻿@using Microsoft.AspNetCore.Components.Routing
+
+@inject NavigationManager Navigation
+
+@implements IDisposable
+
+<div class="admin-navigation">
+
+    <div class="sidebar-brand">
+        <div class="brand-logo">
+            <img src="/img/Logo.png"
+                 alt="Logo"
+                 onerror="this.style.display='none'" />
+        </div>
+
+        <div class="brand-text">
+            <strong>NIVO Admin</strong>
+            <small>Hệ thống quản lý</small>
+        </div>
+    </div>
+
+    <div class="navigation-scroll">
+
+        <div class="menu-section-title">Tổng quan</div>
+
+        <NavLink class="menu-entry"
+                 href="/thongke"
+                 @onclick="NotifyNavigation">
+            <span class="menu-icon">
+                <i class="bi bi-grid-1x2-fill"></i>
+            </span>
+            <span>Thống kê</span>
+        </NavLink>
+
+        <NavLink class="menu-entry"
+                 href="/BanHang"
+                 @onclick="NotifyNavigation">
+            <span class="menu-icon">
+                <i class="bi bi-cart-check-fill"></i>
+            </span>
+            <span>Bán hàng tại quầy</span>
+        </NavLink>
+
+        <NavLink class="menu-entry"
+                 href="/admin/hoadon"
+                 @onclick="NotifyNavigation">
+            <span class="menu-icon">
+                <i class="bi bi-receipt-cutoff"></i>
+            </span>
+            <span>Quản lý đơn hàng</span>
+        </NavLink>
+
+        <div class="menu-section-title">Quản lý</div>
+
+        <!-- SẢN PHẨM -->
+        <button type="button"
+                class="menu-entry menu-group-button @(productOpen ? "group-open" : "")"
+                @onclick="ToggleProduct">
+            <span class="menu-icon">
+                <i class="bi bi-box-seam-fill"></i>
+            </span>
+
+            <span>Quản lý sản phẩm</span>
+
+            <i class="bi bi-chevron-down group-arrow"></i>
+        </button>
+
+        @if (productOpen)
+        {
+            <div class="submenu-container">
+                <NavLink class="submenu-entry"
+                         href="/SanPham"
+                         @onclick="NotifyNavigation">
+                    <i class="bi bi-circle-fill"></i>
+                    Sản phẩm
+                </NavLink>
+
+                <NavLink class="submenu-entry"
+                         href="/DeGiay"
+                         @onclick="NotifyNavigation">
+                    <i class="bi bi-circle-fill"></i>
+                    Đế giày
+                </NavLink>
+
+                <NavLink class="submenu-entry"
+                         href="/TheLoaiGiay"
+                         @onclick="NotifyNavigation">
+                    <i class="bi bi-circle-fill"></i>
+                    Loại giày
+                </NavLink>
+
+                <NavLink class="submenu-entry"
+                         href="/ChatLieu"
+                         @onclick="NotifyNavigation">
+                    <i class="bi bi-circle-fill"></i>
+                    Chất liệu
+                </NavLink>
+
+                <NavLink class="submenu-entry"
+                         href="/KieuDang"
+                         @onclick="NotifyNavigation">
+                    <i class="bi bi-circle-fill"></i>
+                    Kiểu dáng
+                </NavLink>
+
+                <NavLink class="submenu-entry"
+                         href="/ThuongHieu"
+                         @onclick="NotifyNavigation">
+                    <i class="bi bi-circle-fill"></i>
+                    Thương hiệu
+                </NavLink>
+
+                <NavLink class="submenu-entry"
+                         href="/MauSac"
+                         @onclick="NotifyNavigation">
+                    <i class="bi bi-circle-fill"></i>
+                    Màu sắc
+                </NavLink>
+            </div>
+        }
+
+        <NavLink class="menu-entry"
+                 href="/TraHang"
+                 @onclick="NotifyNavigation">
+            <span class="menu-icon">
+                <i class="bi bi-arrow-return-left"></i>
+            </span>
+            <span>Trả hàng</span>
+        </NavLink>
+
+        <!-- GIẢM GIÁ -->
+        <button type="button"
+                class="menu-entry menu-group-button @(discountOpen ? "group-open" : "")"
+                @onclick="ToggleDiscount">
+            <span class="menu-icon">
+                <i class="bi bi-tags-fill"></i>
+            </span>
+
+            <span>Giảm giá</span>
+
+            <i class="bi bi-chevron-down group-arrow"></i>
+        </button>
+
+        @if (discountOpen)
+        {
+            <div class="submenu-container">
+                <NavLink class="submenu-entry"
+                         href="/Admin/voucher"
+                         @onclick="NotifyNavigation">
+                    <i class="bi bi-circle-fill"></i>
+                    Voucher
+                </NavLink>
+
+                <NavLink class="submenu-entry"
+                         href="/DotGiamGia"
+                         @onclick="NotifyNavigation">
+                    <i class="bi bi-circle-fill"></i>
+                    Đợt giảm giá
+                </NavLink>
+            </div>
+        }
+
+        <!-- TÀI KHOẢN -->
+        <button type="button"
+                class="menu-entry menu-group-button @(accountOpen ? "group-open" : "")"
+                @onclick="ToggleAccount">
+            <span class="menu-icon">
+                <i class="bi bi-people-fill"></i>
+            </span>
+
+            <span>Tài khoản</span>
+
+            <i class="bi bi-chevron-down group-arrow"></i>
+        </button>
+
+        @if (accountOpen)
+        {
+            <div class="submenu-container">
+                <NavLink class="submenu-entry"
+                         href="/QuanLyNhanVien"
+                         @onclick="NotifyNavigation">
+                    <i class="bi bi-circle-fill"></i>
+                    Nhân viên
+                </NavLink>
+
+                <NavLink class="submenu-entry"
+                         href="/KhachHang"
+                         @onclick="NotifyNavigation">
+                    <i class="bi bi-circle-fill"></i>
+                    Khách hàng
+                </NavLink>
+            </div>
+        }
+    </div>
+
+    <div class="sidebar-footer">
+        <div class="sidebar-footer-icon">
+            <i class="bi bi-shield-check"></i>
+        </div>
+
+        <div>
+            <strong>Quản trị viên</strong>
+            <small>Toàn quyền hệ thống</small>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public EventCallback OnNavigate { get; set; }
+
+    private bool productOpen;
+    private bool discountOpen;
+    private bool accountOpen;
+
+    protected override void OnInitialized()
+    {
+        UpdateExpandedMenu();
+        Navigation.LocationChanged += HandleLocationChanged;
+    }
+
+    private void ToggleProduct()
+    {
+        productOpen = !productOpen;
+    }
+
+    private void ToggleDiscount()
+    {
+        discountOpen = !discountOpen;
+    }
+
+    private void ToggleAccount()
+    {
+        accountOpen = !accountOpen;
+    }
+
+    private async Task NotifyNavigation()
+    {
+        await OnNavigate.InvokeAsync();
+    }
+
+    private void HandleLocationChanged(
+        object? sender,
+        LocationChangedEventArgs args)
+    {
+        UpdateExpandedMenu();
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void UpdateExpandedMenu()
+    {
+        var path = new Uri(Navigation.Uri)
+            .AbsolutePath
+            .ToLowerInvariant();
+
+        if (path.StartsWith("/sanpham") ||
+            path.StartsWith("/giay") ||
+            path.StartsWith("/degiay") ||
+            path.StartsWith("/theloaigiay") ||
+            path.StartsWith("/chatlieu") ||
+            path.StartsWith("/kieudang") ||
+            path.StartsWith("/thuonghieu") ||
+            path.StartsWith("/mausac") ||
+            path.StartsWith("/editgiay") ||
+            path.StartsWith("/addgiay"))
+        {
+            productOpen = true;
+        }
+
+        if (path.StartsWith("/admin/voucher") ||
+            path.StartsWith("/admin/addvoucher") ||
+            path.StartsWith("/admin/updatevoucher") ||
+            path.StartsWith("/dotgiamgia") ||
+            path.StartsWith("/themdotgiamgia"))
+        {
+            discountOpen = true;
+        }
+
+        if (path.StartsWith("/quanlynhanvien") ||
+            path.StartsWith("/addnhanvien") ||
+            path.StartsWith("/editnhanvien") ||
+            path.StartsWith("/khachhang") ||
+            path.StartsWith("/addkhachhang") ||
+            path.StartsWith("/editkhachhang"))
+        {
+            accountOpen = true;
+        }
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= HandleLocationChanged;
+    }
+}
+
+<style>
+    .admin-navigation {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        background: radial-gradient(circle at top left, rgba(249,115,22,.16), transparent 34%), #111827;
+        color: #fff;
+    }
+
+    .sidebar-brand {
+        min-height: 82px;
+        padding: 17px 18px;
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+
+    .brand-logo {
+        width: 45px;
+        height: 45px;
+        flex-shrink: 0;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 13px;
+        background: linear-gradient(135deg, #fb923c, #ea580c);
+    }
+
+        .brand-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+    .brand-text strong,
+    .brand-text small {
+        display: block;
+    }
+
+    .brand-text strong {
+        font-size: 15px;
+    }
+
+    .brand-text small {
+        margin-top: 3px;
+        color: #94a3b8;
+        font-size: 11px;
+    }
+
+    .navigation-scroll {
+        flex: 1;
+        padding: 12px 12px 25px;
+        overflow-y: auto;
+    }
+
+        .navigation-scroll::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .navigation-scroll::-webkit-scrollbar-thumb {
+            border-radius: 999px;
+            background: rgba(255,255,255,.18);
+        }
+
+    .menu-section-title {
+        padding: 17px 12px 7px;
+        color: #64748b;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+    }
+
+    .menu-entry {
+        width: 100%;
+        min-height: 46px;
+        margin: 4px 0;
+        padding: 8px 11px;
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        border: 0;
+        border-radius: 11px;
+        background: transparent;
+        color: #cbd5e1;
+        font-size: 13px;
+        font-weight: 600;
+        text-align: left;
+        text-decoration: none;
+        transition: .2s ease;
+    }
+
+        .menu-entry:hover {
+            background: rgba(255,255,255,.07);
+            color: #fff;
+        }
+
+        .menu-entry.active {
+            background: linear-gradient(135deg, #f97316, #ea580c);
+            color: #fff;
+            box-shadow: 0 8px 18px rgba(234,88,12,.24);
+        }
+
+    .menu-icon {
+        width: 31px;
+        height: 31px;
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 9px;
+        background: rgba(255,255,255,.07);
+        font-size: 15px;
+    }
+
+    .menu-entry.active .menu-icon {
+        background: rgba(255,255,255,.16);
+    }
+
+    .menu-group-button > span:nth-child(2) {
+        flex: 1;
+    }
+
+    .group-arrow {
+        font-size: 11px;
+        transition: transform .2s ease;
+    }
+
+    .group-open .group-arrow {
+        transform: rotate(180deg);
+    }
+
+    .submenu-container {
+        position: relative;
+        margin: 2px 0 5px 26px;
+        padding: 3px 0 3px 15px;
+        border-left: 1px solid rgba(255,255,255,.12);
+        animation: openSubmenu .2s ease;
+    }
+
+    .submenu-entry {
+        min-height: 38px;
+        padding: 7px 10px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        border-radius: 9px;
+        color: #94a3b8;
+        font-size: 12px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: .2s ease;
+    }
+
+        .submenu-entry i {
+            color: #64748b;
+            font-size: 5px;
+        }
+
+        .submenu-entry:hover {
+            background: rgba(255,255,255,.06);
+            color: #fff;
+        }
+
+        .submenu-entry.active {
+            background: rgba(249,115,22,.14);
+            color: #fb923c;
+        }
+
+            .submenu-entry.active i {
+                color: #f97316;
+            }
+
+    .sidebar-footer {
+        margin: 12px;
+        padding: 12px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid rgba(255,255,255,.08);
+        border-radius: 13px;
+        background: rgba(255,255,255,.04);
+    }
+
+    .sidebar-footer-icon {
+        width: 38px;
+        height: 38px;
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 11px;
+        background: rgba(249,115,22,.15);
+        color: #fb923c;
+    }
+
+    .sidebar-footer strong,
+    .sidebar-footer small {
+        display: block;
+    }
+
+    .sidebar-footer strong {
+        font-size: 12px;
+    }
+
+    .sidebar-footer small {
+        margin-top: 2px;
+        color: #64748b;
+        font-size: 10px;
+    }
+
+    @@keyframes openSubmenu {
+        from {
+            opacity: 0;
+            transform: translateY(-5px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>

@@ -1,0 +1,2518 @@
+﻿@page "/giay/{giayid:guid}"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+@layout AdminLayout
+@using API.IService
+@using API.Models.DTO
+@using Microsoft.AspNetCore.Components.Forms
+@using System.Globalization
+
+@inject IGiayChiTietService giayChiTietService
+@inject IMauSacService mauSacService
+@inject IKichCoService kichCoService
+@inject IAnhService anhService
+@inject NavigationManager NavigationManager
+
+<div class="variant-page">
+
+    <!-- HEADER -->
+    <div class="page-header">
+
+        <div class="header-left">
+            <button class="back-button"
+                    title="Quay lại"
+                    @onclick="NavigateBack">
+                ←
+            </button>
+
+            <div class="header-icon">◫</div>
+
+            <div>
+                <div class="breadcrumb">
+                    Sản phẩm / Chi tiết sản phẩm
+                </div>
+
+                <h2>@ProductName</h2>
+
+                <p>Quản lý màu sắc, kích cỡ, giá và tồn kho</p>
+            </div>
+        </div>
+
+        <button class="add-button"
+                @onclick="ShowAddModal">
+            <span>＋</span>
+            Thêm biến thể
+        </button>
+
+    </div>
+
+    <!-- THỐNG KÊ -->
+    <div class="stat-grid">
+
+        <div class="stat-card">
+            <div class="stat-icon total">◫</div>
+            <div>
+                <span>Tổng biến thể</span>
+                <strong>@danhSachChiTiet.Count</strong>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon active">✓</div>
+            <div>
+                <span>Đang bán</span>
+                <strong>
+                    @danhSachChiTiet.Count(x => x.TrangThai)
+                </strong>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon inactive">⏸</div>
+            <div>
+                <span>Ngừng bán</span>
+                <strong>
+                    @danhSachChiTiet.Count(x => !x.TrangThai)
+                </strong>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon stock">▣</div>
+            <div>
+                <span>Tổng tồn kho</span>
+                <strong>
+                    @danhSachChiTiet.Sum(x => x.SoLuongCon)
+                </strong>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon ordered">↗</div>
+            <div>
+                <span>Tổng đã đặt</span>
+                <strong>
+                    @danhSachChiTiet.Sum(x => x.SoLuongDat)
+                </strong>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- KHUNG BẢNG -->
+    <div class="variant-panel">
+
+        <!-- FILTER -->
+        <div class="filter-toolbar">
+
+            <div class="search-box">
+                <span>⌕</span>
+
+                <input placeholder="Tìm màu sắc, kích cỡ..."
+                       @bind="SearchText"
+                       @bind:event="oninput" />
+
+                @if (!string.IsNullOrWhiteSpace(SearchText))
+                {
+                    <button @onclick="() => SearchText = string.Empty">
+                        ×
+                    </button>
+                }
+            </div>
+
+            <div class="filter-controls">
+
+                <select class="filter-select"
+                        @bind="FilterStatus">
+                    <option value="">Tất cả trạng thái</option>
+                    <option value="True">Đang bán</option>
+                    <option value="False">Ngừng bán</option>
+                </select>
+
+                <InputSelect class="filter-select"
+                             @bind-Value="FilterMauSacId">
+                    <option value="">Tất cả màu sắc</option>
+
+                    @foreach (var color in mauSacList.OrderBy(x => x.TenMau))
+                    {
+                        <option value="@color.MauSacId">
+                            @color.TenMau
+                        </option>
+                    }
+                </InputSelect>
+
+                <InputSelect class="filter-select"
+                             @bind-Value="FilterKichCoId">
+                    <option value="">Tất cả kích cỡ</option>
+
+                    @foreach (var size in kichCoList.OrderBy(x => x.size))
+                    {
+                        <option value="@size.KichCoId">
+                            Size @size.size
+                        </option>
+                    }
+                </InputSelect>
+
+                @if (HasActiveFilter)
+                {
+                    <button class="reset-filter"
+                            @onclick="ResetFilter">
+                        Đặt lại
+                    </button>
+                }
+
+            </div>
+
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(pageError))
+        {
+            <div class="page-error">
+                <span>!</span>
+                <div>@pageError</div>
+                <button @onclick="() => pageError = string.Empty">×</button>
+            </div>
+        }
+
+        <!-- TABLE CÓ THANH CUỘN -->
+        <div class="table-wrapper">
+
+            <table class="variant-table">
+                <thead>
+                    <tr>
+                        <th class="col-image">Ảnh</th>
+                        <th>Thông tin biến thể</th>
+                        <th>Màu sắc</th>
+                        <th>Kích cỡ</th>
+                        <th>Giá bán</th>
+                        <th class="center">Tồn kho</th>
+                        <th class="center">Đã đặt</th>
+                        <th>Trạng thái</th>
+                        <th>Ngày tạo</th>
+                        <th>Ngày cập nhật</th>
+                        <th class="col-action">Hành động</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @if (isLoading)
+                    {
+                        <tr>
+                            <td colspan="11">
+                                <div class="loading-state">
+                                    <div class="loading-spinner"></div>
+                                    <span>Đang tải danh sách biến thể...</span>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    else if (!PagedVariants.Any())
+                    {
+                        <tr>
+                            <td colspan="11">
+                                <div class="empty-state">
+                                    <div>🔎</div>
+                                    <strong>Không tìm thấy biến thể</strong>
+                                    <span>
+                                        Hãy thay đổi bộ lọc hoặc thêm biến thể mới
+                                    </span>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var item in PagedVariants)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="product-image">
+                                        <img src="@GetImageUrl(item.AnhGiay)"
+                                             alt="@item.TenGiay"
+                                             onerror="this.src='/images/no-image.png';" />
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <div class="variant-info">
+                                        <strong>
+                                            @GetVariantName(item)
+                                        </strong>
+
+                                        <small title="@item.GiayChiTietId">
+                                            @ShortId(item.GiayChiTietId)
+                                        </small>
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <div class="color-info">
+                                        <span class="color-circle"
+                                              style="background-color:@GetColorCode(item.MauSacId)">
+                                        </span>
+
+                                        <strong>
+                                            @(item.TenMau ?? "Chưa cập nhật")
+                                        </strong>
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <span class="size-badge">
+                                        @item.size
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <strong class="price-value">
+                                        @item.Gia.ToString(
+                                                 "N0",
+                                                 new CultureInfo("vi-VN")) ₫
+                                    </strong>
+                                </td>
+
+                                <td class="center">
+                                    <span class="@GetStockClass(item.SoLuongCon)">
+                                        @item.SoLuongCon
+                                    </span>
+                                </td>
+
+                                <td class="center">
+                                    <span class="ordered-value">
+                                        @item.SoLuongDat
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <button class="status-button @(item.TrangThai ? "selling" : "stopped")"
+                                            disabled="@(updatingId == item.GiayChiTietId)"
+                                            title="Nhấn để chuyển trạng thái"
+                                            @onclick="() => ToggleStatus(item)">
+
+                                        @if (updatingId == item.GiayChiTietId)
+                                        {
+                                            <span class="mini-spinner"></span>
+                                        }
+                                        else
+                                        {
+                                            <span class="status-dot"></span>
+                                        }
+
+                                        @(item.TrangThai
+                                            ? "Đang bán"
+                                            : "Ngừng bán")
+                                    </button>
+                                </td>
+
+                                <td>
+                                    <div class="date-value">
+                                        <strong>
+                                            @item.NgayTao.ToString("dd/MM/yyyy")
+                                        </strong>
+                                        <small>
+                                            @item.NgayTao.ToString("HH:mm")
+                                        </small>
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <div class="date-value">
+                                        <strong>
+                                            @item.NgaySua.ToString("dd/MM/yyyy")
+                                        </strong>
+                                        <small>
+                                            @item.NgaySua.ToString("HH:mm")
+                                        </small>
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <div class="action-group">
+                                        <button class="edit-button"
+                                                title="Chỉnh sửa biến thể"
+                                                @onclick="() => EditItem(item)">
+                                            ✎
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+
+        </div>
+
+        <!-- PAGINATION -->
+        <div class="pagination-bar">
+
+            <div class="page-size">
+                <span>Hiển thị</span>
+
+                <select value="@pageSize"
+                        @onchange="OnPageSizeChanged">
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                </select>
+
+                <span>biến thể</span>
+            </div>
+
+            <div class="result-info">
+                Hiển thị
+                <strong>@FirstDisplayedItem</strong>
+                -
+                <strong>@LastDisplayedItem</strong>
+                trong
+                <strong>@FilteredVariants.Count</strong>
+                kết quả
+            </div>
+
+            <div class="pagination">
+
+                <button disabled="@(currentPage == 1)"
+                        @onclick="PreviousPage">
+                    ‹
+                </button>
+
+                @foreach (var page in VisiblePages)
+                {
+                    var pageNumber = page;
+
+                    <button class="@(pageNumber == currentPage ? "active" : "")"
+                            @onclick="() => ChangePage(pageNumber)">
+                        @pageNumber
+                    </button>
+                }
+
+                <button disabled="@(currentPage == TotalPages)"
+                        @onclick="NextPage">
+                    ›
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- MODAL THÊM/SỬA -->
+    @if (showModal)
+    {
+        <div class="modal-overlay" @onclick="CloseModal">
+
+            <div class="variant-modal"
+                 @onclick:stopPropagation="true">
+
+                <div class="modal-header">
+
+                    <div>
+                        <span class="modal-label">
+                            @(isEditMode ? "CHỈNH SỬA" : "THÊM MỚI")
+                        </span>
+
+                        <h3>
+                            @(isEditMode
+                                ? "Cập nhật biến thể"
+                                : "Thêm biến thể sản phẩm")
+                        </h3>
+
+                        <p>
+                            Nhập màu sắc, kích cỡ, giá và số lượng
+                        </p>
+                    </div>
+
+                    <button type="button"
+                            class="close-modal"
+                            disabled="@isSaving"
+                            @onclick="CloseModal">
+                        ×
+                    </button>
+
+                </div>
+
+                <EditForm Model="@currentItem"
+                          OnValidSubmit="@HandleSave"
+                          FormName="GiayChiTietForm">
+
+                    <DataAnnotationsValidator />
+
+                    <div class="modal-body">
+
+                        <div class="modal-grid">
+
+                            <!-- FORM -->
+                            <div class="modal-form">
+
+                                <div class="form-grid">
+
+                                    <div class="form-group">
+                                        <label>
+                                            Màu sắc
+                                            <span>*</span>
+                                        </label>
+
+                                        <InputSelect class="form-control-custom"
+                                                     @bind-Value="currentItem.MauSacId">
+
+                                            <option value="">
+                                                -- Chọn màu sắc --
+                                            </option>
+
+                                            @foreach (var color in mauSacList
+                                        .OrderBy(x => x.TenMau))
+                                            {
+                                                <option value="@color.MauSacId">
+                                                    @color.TenMau
+                                                </option>
+                                            }
+
+                                        </InputSelect>
+
+                                        <ValidationMessage For="@(() => currentItem.MauSacId)" />
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>
+                                            Kích cỡ
+                                            <span>*</span>
+                                        </label>
+
+                                        <InputSelect class="form-control-custom"
+                                                     @bind-Value="currentItem.KichCoId">
+
+                                            <option value="">
+                                                -- Chọn kích cỡ --
+                                            </option>
+
+                                            @foreach (var size in kichCoList
+                                        .OrderBy(x => x.size))
+                                            {
+                                                <option value="@size.KichCoId">
+                                                    Size @size.size
+                                                </option>
+                                            }
+
+                                        </InputSelect>
+
+                                        <ValidationMessage For="@(() => currentItem.KichCoId)" />
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>
+                                            Giá bán
+                                            <span>*</span>
+                                        </label>
+
+                                        <div class="money-input">
+                                            <InputNumber class="form-control-custom"
+                                                         @bind-Value="currentItem.Gia"
+                                                         min="1000"
+                                                         step="1000" />
+
+                                            <span>₫</span>
+                                        </div>
+
+                                        <ValidationMessage For="@(() => currentItem.Gia)" />
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>
+                                            Số lượng tồn kho
+                                            <span>*</span>
+                                        </label>
+
+                                        <InputNumber class="form-control-custom"
+                                                     @bind-Value="currentItem.SoLuongCon"
+                                                     min="0" />
+
+                                        <ValidationMessage For="@(() => currentItem.SoLuongCon)" />
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>Số lượng đã đặt</label>
+
+                                        <InputNumber class="form-control-custom readonly-input"
+                                                     @bind-Value="currentItem.SoLuongDat"
+                                                     readonly />
+
+                                        <small class="field-note">
+                                            Số lượng này được cập nhật từ đơn hàng
+                                        </small>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>Trạng thái</label>
+
+                                        <div class="status-switch-box">
+
+                                            <label class="custom-switch">
+                                                <InputCheckbox @bind-Value="currentItem.TrangThai" />
+                                                <span class="switch-slider"></span>
+                                            </label>
+
+                                            <div>
+                                                <strong>
+                                                    @(currentItem.TrangThai
+                                                        ? "Đang bán"
+                                                        : "Ngừng bán")
+                                                </strong>
+
+                                                <small>
+                                                    @(currentItem.TrangThai
+                                                        ? "Biến thể được hiển thị"
+                                                        : "Biến thể đang bị ẩn")
+                                                </small>
+                                            </div>
+
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group full-width">
+                                        <label>Mô tả</label>
+
+                                        <InputTextArea class="form-control-custom textarea-control"
+                                                       @bind-Value="currentItem.MoTa"
+                                                       placeholder="Nhập mô tả cho biến thể..." />
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                            <!-- IMAGE -->
+                            <div class="image-column">
+                                <label>Ảnh biến thể</label>
+
+                                @if (HasPreviewImage)
+                                {
+                                    <div class="modal-image-preview">
+                                        <img src="@CurrentPreviewImage"
+                                             alt="Ảnh biến thể"
+                                             onerror="this.src='/images/no-image.png';" />
+
+                                        @if (pendingFile != null)
+                                        {
+                                            <button type="button"
+                                                    title="Bỏ ảnh vừa chọn"
+                                                    @onclick="RemovePendingImage">
+                                                ×
+                                            </button>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="empty-image">
+                                        <span>🖼️</span>
+                                        <strong>Chưa có ảnh</strong>
+                                    </div>
+                                }
+
+                                <label class="upload-button">
+                                    <InputFile OnChange="HandleFileChange"
+                                               accept="image/jpeg,image/png,image/webp" />
+
+                                    <span>⇧</span>
+                                    @(HasPreviewImage ? "Thay ảnh" : "Chọn ảnh")
+                                </label>
+
+                                <small class="image-note">
+                                    JPG, PNG hoặc WEBP, tối đa 5MB
+                                </small>
+                            </div>
+
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(modalError))
+                        {
+                            <div class="modal-error">
+                                <span>!</span>
+                                <div>@modalError</div>
+                            </div>
+                        }
+
+                    </div>
+
+                    <div class="modal-footer">
+
+                        <button type="button"
+                                class="cancel-modal"
+                                disabled="@isSaving"
+                                @onclick="CloseModal">
+                            Hủy
+                        </button>
+
+                        <button type="submit"
+                                class="save-modal"
+                                disabled="@isSaving">
+
+                            @if (isSaving)
+                            {
+                                <span class="mini-spinner"></span>
+                                <span>Đang lưu...</span>
+                            }
+                            else
+                            {
+                                <span>✓</span>
+                                <span>
+                                    @(isEditMode ? "Lưu thay đổi" : "Thêm biến thể")
+                                </span>
+                            }
+
+                        </button>
+
+                    </div>
+
+                </EditForm>
+
+            </div>
+
+        </div>
+    }
+
+    <!-- TOAST -->
+    @if (!string.IsNullOrWhiteSpace(toastMessage))
+    {
+        <div class="custom-toast @(toastSuccess ? "success" : "error")">
+            <span class="toast-icon">
+                @(toastSuccess ? "✓" : "!")
+            </span>
+
+            <div>
+                <strong>
+                    @(toastSuccess ? "Thành công" : "Có lỗi xảy ra")
+                </strong>
+                <small>@toastMessage</small>
+            </div>
+
+            <button @onclick="CloseToast">×</button>
+        </div>
+    }
+
+</div>
+
+@code {
+    [Parameter]
+    public Guid giayid { get; set; }
+
+    private GiayChiTietDTO currentItem = new();
+
+    private List<MauSacDTO> mauSacList = new();
+    private List<KichCoDTO> kichCoList = new();
+    private List<GiayChiTietDTO> danhSachChiTiet = new();
+
+    private IBrowserFile? pendingFile;
+    private string? pendingImagePreview;
+
+    private bool isLoading = true;
+    private bool isSaving;
+    private bool isEditMode;
+    private bool showModal;
+
+    private Guid? updatingId;
+
+    private string searchText = string.Empty;
+    private string filterStatus = string.Empty;
+    private Guid? filterMauSacId;
+    private Guid? filterKichCoId;
+
+    private string pageError = string.Empty;
+    private string modalError = string.Empty;
+
+    private string toastMessage = string.Empty;
+    private bool toastSuccess;
+
+    private int currentPage = 1;
+    private int pageSize = 10;
+
+    private string ProductName =>
+        danhSachChiTiet.FirstOrDefault()?.TenGiay
+        ?? "Chi tiết sản phẩm";
+
+    private string SearchText
+    {
+        get => searchText;
+        set
+        {
+            searchText = value;
+            currentPage = 1;
+        }
+    }
+
+    private string FilterStatus
+    {
+        get => filterStatus;
+        set
+        {
+            filterStatus = value;
+            currentPage = 1;
+        }
+    }
+
+    private Guid? FilterMauSacId
+    {
+        get => filterMauSacId;
+        set
+        {
+            filterMauSacId = value;
+            currentPage = 1;
+        }
+    }
+
+    private Guid? FilterKichCoId
+    {
+        get => filterKichCoId;
+        set
+        {
+            filterKichCoId = value;
+            currentPage = 1;
+        }
+    }
+
+    private bool HasActiveFilter =>
+        !string.IsNullOrWhiteSpace(searchText)
+        || !string.IsNullOrWhiteSpace(filterStatus)
+        || filterMauSacId.HasValue
+        || filterKichCoId.HasValue;
+
+    private List<GiayChiTietDTO> FilteredVariants =>
+        danhSachChiTiet
+            .Where(x =>
+                string.IsNullOrWhiteSpace(searchText)
+                || (x.TenMau ?? string.Empty)
+                    .Contains(
+                        searchText,
+                        StringComparison.OrdinalIgnoreCase)
+                || x.size.ToString()
+                    .Contains(
+                        searchText,
+                        StringComparison.OrdinalIgnoreCase))
+            .Where(x =>
+                string.IsNullOrWhiteSpace(filterStatus)
+                || x.TrangThai.ToString() == filterStatus)
+            .Where(x =>
+                !filterMauSacId.HasValue
+                || x.MauSacId == filterMauSacId.Value)
+            .Where(x =>
+                !filterKichCoId.HasValue
+                || x.KichCoId == filterKichCoId.Value)
+            .ToList();
+
+    private List<GiayChiTietDTO> PagedVariants =>
+        FilteredVariants
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+    private int TotalPages =>
+        Math.Max(
+            1,
+            (int)Math.Ceiling(
+                (double)FilteredVariants.Count / pageSize));
+
+    private IEnumerable<int> VisiblePages
+    {
+        get
+        {
+            const int maxVisible = 5;
+
+            var start = Math.Max(
+                1,
+                currentPage - maxVisible / 2);
+
+            var end = Math.Min(
+                TotalPages,
+                start + maxVisible - 1);
+
+            start = Math.Max(
+                1,
+                end - maxVisible + 1);
+
+            return Enumerable.Range(
+                start,
+                end - start + 1);
+        }
+    }
+
+    private int FirstDisplayedItem =>
+        FilteredVariants.Count == 0
+            ? 0
+            : (currentPage - 1) * pageSize + 1;
+
+    private int LastDisplayedItem =>
+        Math.Min(
+            currentPage * pageSize,
+            FilteredVariants.Count);
+
+    private bool HasPreviewImage =>
+        !string.IsNullOrWhiteSpace(pendingImagePreview)
+        || !string.IsNullOrWhiteSpace(currentItem.AnhGiay);
+
+    private string CurrentPreviewImage =>
+        !string.IsNullOrWhiteSpace(pendingImagePreview)
+            ? pendingImagePreview
+            : GetImageUrl(currentItem.AnhGiay);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoading = true;
+            pageError = string.Empty;
+
+            mauSacList =
+                (await mauSacService.GetAllAsync())?.ToList()
+                ?? new List<MauSacDTO>();
+
+            kichCoList =
+                (await kichCoService.GetAllAsync())?.ToList()
+                ?? new List<KichCoDTO>();
+
+            await LoadVariants();
+        }
+        catch (Exception ex)
+        {
+            pageError =
+                "Không thể tải dữ liệu: " + ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadVariants()
+    {
+        danhSachChiTiet =
+            (await giayChiTietService
+                .GetByGiayIdAsync(giayid))
+            ?.OrderBy(x => x.TenMau)
+            .ThenBy(x => x.size)
+            .ToList()
+            ?? new List<GiayChiTietDTO>();
+
+        EnsureValidPage();
+    }
+
+    private void ShowAddModal()
+    {
+        currentItem = new GiayChiTietDTO
+            {
+                GiayId = giayid,
+                TrangThai = true,
+                SoLuongCon = 1,
+                SoLuongDat = 0,
+                NgayTao = DateTime.Now,
+                NgaySua = DateTime.Now
+            };
+
+        isEditMode = false;
+        modalError = string.Empty;
+        pendingFile = null;
+        pendingImagePreview = null;
+        showModal = true;
+    }
+
+    private void EditItem(GiayChiTietDTO item)
+    {
+        currentItem = new GiayChiTietDTO
+            {
+                GiayChiTietId = item.GiayChiTietId,
+                GiayId = item.GiayId,
+                MauSacId = item.MauSacId,
+                KichCoId = item.KichCoId,
+                Gia = item.Gia,
+                SoLuongCon = item.SoLuongCon,
+                SoLuongDat = item.SoLuongDat,
+                MoTa = item.MoTa,
+                TrangThai = item.TrangThai,
+                AnhGiay = item.AnhGiay,
+                NgayTao = item.NgayTao,
+                NgaySua = item.NgaySua,
+                size = item.size,
+                TenMau = item.TenMau,
+                TenGiay = item.TenGiay
+            };
+
+        isEditMode = true;
+        modalError = string.Empty;
+        pendingFile = null;
+        pendingImagePreview = null;
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        if (isSaving)
+            return;
+
+        showModal = false;
+        modalError = string.Empty;
+        pendingFile = null;
+        pendingImagePreview = null;
+    }
+
+    private async Task HandleSave()
+    {
+        if (isSaving)
+            return;
+
+        try
+        {
+            isSaving = true;
+            modalError = string.Empty;
+
+            if (!ValidateForm())
+                return;
+
+            currentItem.GiayId = giayid;
+            currentItem.NgaySua = DateTime.Now;
+
+            if (currentItem.SoLuongCon <= 0)
+            {
+                currentItem.SoLuongCon = 0;
+                currentItem.TrangThai = false;
+            }
+
+            GiayChiTietDTO? savedItem;
+
+            if (isEditMode)
+            {
+                savedItem =
+                    await giayChiTietService.UpdateAsync(
+                        currentItem.GiayChiTietId,
+                        currentItem);
+            }
+            else
+            {
+                currentItem.NgayTao = DateTime.Now;
+
+                savedItem =
+                    await giayChiTietService.CreateAsync(
+                        currentItem);
+            }
+
+            if (savedItem == null
+                || savedItem.GiayChiTietId == Guid.Empty)
+            {
+                modalError =
+                    "Không thể lưu biến thể sản phẩm.";
+                return;
+            }
+
+            currentItem = savedItem;
+
+            // Nếu biến thể đã được tạo nhưng ảnh lỗi,
+            // chuyển về chế độ sửa để tránh tạo trùng khi lưu lại.
+            isEditMode = true;
+
+            if (pendingFile != null)
+            {
+                var uploaded =
+                    await UploadImage(pendingFile);
+
+                if (!uploaded)
+                {
+                    modalError =
+                        "Biến thể đã được lưu nhưng upload ảnh thất bại.";
+                    return;
+                }
+            }
+
+            showModal = false;
+            pendingFile = null;
+            pendingImagePreview = null;
+
+            await LoadVariants();
+
+            ShowToast(
+                isEditMode
+                    ? "Đã lưu thông tin biến thể."
+                    : "Đã thêm biến thể mới.",
+                true);
+        }
+        catch (Exception ex)
+        {
+            modalError =
+                "Không thể lưu biến thể: " + ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private bool ValidateForm()
+    {
+        if (IsEmptyGuid(currentItem.MauSacId))
+        {
+            modalError = "Vui lòng chọn màu sắc.";
+            return false;
+        }
+
+        if (IsEmptyGuid(currentItem.KichCoId))
+        {
+            modalError = "Vui lòng chọn kích cỡ.";
+            return false;
+        }
+
+        if (currentItem.Gia <= 0)
+        {
+            modalError = "Giá bán phải lớn hơn 0.";
+            return false;
+        }
+
+        if (currentItem.SoLuongCon < 0)
+        {
+            modalError =
+                "Số lượng tồn kho không được nhỏ hơn 0.";
+            return false;
+        }
+
+        var duplicated = danhSachChiTiet.Any(x =>
+            x.GiayChiTietId != currentItem.GiayChiTietId
+            && x.MauSacId == currentItem.MauSacId
+            && x.KichCoId == currentItem.KichCoId);
+
+        if (duplicated)
+        {
+            modalError =
+                "Biến thể màu sắc và kích cỡ này đã tồn tại.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private async Task HandleFileChange(
+        InputFileChangeEventArgs e)
+    {
+        try
+        {
+            modalError = string.Empty;
+
+            var file = e.File;
+
+            if (!file.ContentType.StartsWith(
+                "image/",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                modalError =
+                    "Chỉ được chọn tệp hình ảnh.";
+                return;
+            }
+
+            if (file.Size > 5 * 1024 * 1024)
+            {
+                modalError =
+                    "Dung lượng ảnh tối đa là 5MB.";
+                return;
+            }
+
+            pendingFile = file;
+
+            var resized =
+                await file.RequestImageFileAsync(
+                    "image/jpeg",
+                    700,
+                    700);
+
+            await using var stream =
+                resized.OpenReadStream(5 * 1024 * 1024);
+
+            using var memory = new MemoryStream();
+
+            await stream.CopyToAsync(memory);
+
+            pendingImagePreview =
+                $"data:image/jpeg;base64," +
+                Convert.ToBase64String(memory.ToArray());
+        }
+        catch (Exception ex)
+        {
+            pendingFile = null;
+            pendingImagePreview = null;
+
+            modalError =
+                "Không thể đọc ảnh: " + ex.Message;
+        }
+    }
+
+    private void RemovePendingImage()
+    {
+        pendingFile = null;
+        pendingImagePreview = null;
+    }
+
+    private async Task<bool> UploadImage(
+        IBrowserFile file)
+    {
+        try
+        {
+            if (currentItem.GiayChiTietId == Guid.Empty)
+                return false;
+
+            var image = await anhService.UploadAsync(
+                file,
+                file.Name,
+                currentItem.GiayChiTietId);
+
+            if (image == null
+                || string.IsNullOrWhiteSpace(image.DuongDan))
+            {
+                return false;
+            }
+
+            currentItem.AnhGiay = image.DuongDan;
+
+            var updated =
+                await giayChiTietService.UpdateAsync(
+                    currentItem.GiayChiTietId,
+                    currentItem);
+
+            if (updated == null)
+                return false;
+
+            currentItem = updated;
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private async Task ToggleStatus(
+        GiayChiTietDTO item)
+    {
+        if (updatingId.HasValue)
+            return;
+
+        if (!item.TrangThai && item.SoLuongCon <= 0)
+        {
+            ShowToast(
+                "Biến thể đã hết hàng nên không thể chuyển sang Đang bán.",
+                false);
+            return;
+        }
+
+        var oldStatus = item.TrangThai;
+
+        try
+        {
+            updatingId = item.GiayChiTietId;
+
+            item.TrangThai = !item.TrangThai;
+            item.NgaySua = DateTime.Now;
+
+            var updated =
+                await giayChiTietService.UpdateAsync(
+                    item.GiayChiTietId,
+                    item);
+
+            if (updated == null)
+            {
+                item.TrangThai = oldStatus;
+
+                ShowToast(
+                    "Không thể cập nhật trạng thái.",
+                    false);
+                return;
+            }
+
+            await LoadVariants();
+
+            ShowToast(
+                updated.TrangThai
+                    ? "Đã chuyển biến thể sang Đang bán."
+                    : "Đã chuyển biến thể sang Ngừng bán.",
+                true);
+        }
+        catch (Exception ex)
+        {
+            item.TrangThai = oldStatus;
+
+            ShowToast(
+                "Không thể đổi trạng thái: " + ex.Message,
+                false);
+        }
+        finally
+        {
+            updatingId = null;
+        }
+    }
+
+    private void ResetFilter()
+    {
+        SearchText = string.Empty;
+        FilterStatus = string.Empty;
+        FilterMauSacId = null;
+        FilterKichCoId = null;
+        currentPage = 1;
+    }
+
+    private void OnPageSizeChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(
+            e.Value?.ToString(),
+            out var newSize))
+        {
+            pageSize = newSize;
+            currentPage = 1;
+        }
+    }
+
+    private void ChangePage(int page)
+    {
+        if (page >= 1 && page <= TotalPages)
+        {
+            currentPage = page;
+        }
+    }
+
+    private void PreviousPage()
+    {
+        ChangePage(currentPage - 1);
+    }
+
+    private void NextPage()
+    {
+        ChangePage(currentPage + 1);
+    }
+
+    private void EnsureValidPage()
+    {
+        if (currentPage > TotalPages)
+        {
+            currentPage = TotalPages;
+        }
+
+        if (currentPage < 1)
+        {
+            currentPage = 1;
+        }
+    }
+
+    private static bool IsEmptyGuid(object? value)
+    {
+        if (value == null)
+            return true;
+
+        var text = value.ToString();
+
+        return string.IsNullOrWhiteSpace(text)
+               || !Guid.TryParse(text, out var id)
+               || id == Guid.Empty;
+    }
+
+    private string GetVariantName(GiayChiTietDTO item)
+    {
+        return $"{item.TenMau ?? "Màu"} - Size {item.size}";
+    }
+
+    private string GetColorCode(Guid? colorId)
+    {
+        var color = mauSacList.FirstOrDefault(x =>
+            x.MauSacId == colorId);
+
+        return string.IsNullOrWhiteSpace(color?.Color)
+            ? "#cbd5e1"
+            : color.Color;
+    }
+
+    private static string GetStockClass(int stock)
+    {
+        if (stock <= 0)
+            return "stock-badge out-of-stock";
+
+        if (stock <= 10)
+            return "stock-badge low-stock";
+
+        return "stock-badge in-stock";
+    }
+
+    private static string ShortId(Guid id)
+    {
+        return "#" + id
+            .ToString()[..8]
+            .ToUpperInvariant();
+    }
+
+    private static string GetImageUrl(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return "/images/no-image.png";
+
+        if (path.StartsWith(
+                "http",
+                StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith(
+                "data:",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return path;
+        }
+
+        if (!path.StartsWith("/"))
+        {
+            path = "/" + path;
+        }
+
+        return $"https://localhost:7246{path}";
+    }
+
+    private void NavigateBack()
+    {
+        NavigationManager.NavigateTo("/sanpham");
+    }
+
+    private void ShowToast(
+        string message,
+        bool success)
+    {
+        toastMessage = message;
+        toastSuccess = success;
+    }
+
+    private void CloseToast()
+    {
+        toastMessage = string.Empty;
+    }
+}
+
+<style>
+    .variant-page {
+        --primary: #f97316;
+        --primary-dark: #ea580c;
+        --primary-light: #fff7ed;
+        --text: #172033;
+        --muted: #718096;
+        --border: #e7ebf1;
+        min-height: 100vh;
+        padding: 28px;
+        background: #f6f8fc;
+        color: var(--text);
+    }
+
+    .page-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 21px;
+    }
+
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .back-button {
+        width: 43px;
+        height: 43px;
+        flex-shrink: 0;
+        border: 1px solid var(--border);
+        border-radius: 11px;
+        background: white;
+        color: #64748b;
+        font-size: 20px;
+        cursor: pointer;
+    }
+
+    .header-icon {
+        width: 47px;
+        height: 47px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border-radius: 13px;
+        background: linear-gradient(135deg, #fb923c, #ea580c);
+        color: white;
+        font-size: 19px;
+        font-weight: 800;
+        box-shadow: 0 7px 18px rgba(249, 115, 22, .23);
+    }
+
+    .breadcrumb {
+        margin-bottom: 2px;
+        color: var(--primary-dark);
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .page-header h2 {
+        margin: 0 0 3px;
+        font-size: 24px;
+        font-weight: 800;
+    }
+
+    .page-header p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+    }
+
+    .add-button {
+        min-height: 43px;
+        padding: 0 17px;
+        border: 0;
+        border-radius: 11px;
+        background: linear-gradient(135deg, #fb923c, #ea580c);
+        color: white;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+        box-shadow: 0 8px 18px rgba(249, 115, 22, .23);
+    }
+
+    .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 14px;
+        margin-bottom: 19px;
+    }
+
+    .stat-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-height: 95px;
+        padding: 16px;
+        border: 1px solid var(--border);
+        border-radius: 15px;
+        background: white;
+        box-shadow: 0 5px 17px rgba(15, 23, 42, .04);
+    }
+
+    .stat-icon {
+        width: 44px;
+        height: 44px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border-radius: 12px;
+        font-weight: 800;
+    }
+
+        .stat-icon.total {
+            background: #eff6ff;
+            color: #2563eb;
+        }
+
+        .stat-icon.active {
+            background: #ecfdf5;
+            color: #059669;
+        }
+
+        .stat-icon.inactive {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+
+        .stat-icon.stock {
+            background: var(--primary-light);
+            color: var(--primary-dark);
+        }
+
+        .stat-icon.ordered {
+            background: #faf5ff;
+            color: #9333ea;
+        }
+
+    .stat-card span,
+    .stat-card strong {
+        display: block;
+    }
+
+    .stat-card span {
+        margin-bottom: 4px;
+        color: var(--muted);
+        font-size: 11px;
+    }
+
+    .stat-card strong {
+        font-size: 22px;
+    }
+
+    .variant-panel {
+        display: flex;
+        flex-direction: column;
+        height: 625px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 17px;
+        background: white;
+        box-shadow: 0 8px 27px rgba(15, 23, 42, .05);
+    }
+
+    .filter-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        flex-shrink: 0;
+        padding: 17px 19px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .search-box {
+        position: relative;
+        width: min(360px, 100%);
+    }
+
+        .search-box > span {
+            position: absolute;
+            top: 50%;
+            left: 13px;
+            color: #94a3b8;
+            font-size: 20px;
+            transform: translateY(-50%);
+        }
+
+        .search-box input {
+            width: 100%;
+            height: 41px;
+            padding: 0 40px;
+            border: 1px solid #dce3ec;
+            border-radius: 10px;
+            outline: none;
+            font-size: 12px;
+        }
+
+            .search-box input:focus,
+            .filter-select:focus,
+            .form-control-custom:focus {
+                border-color: var(--primary);
+                box-shadow: 0 0 0 4px rgba(249, 115, 22, .1);
+            }
+
+        .search-box button {
+            position: absolute;
+            top: 50%;
+            right: 9px;
+            width: 25px;
+            height: 25px;
+            padding: 0;
+            border: 0;
+            border-radius: 50%;
+            background: #f1f5f9;
+            color: #64748b;
+            transform: translateY(-50%);
+        }
+
+    .filter-controls {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        overflow-x: auto;
+    }
+
+    .filter-select {
+        min-width: 145px;
+        height: 39px;
+        padding: 0 10px;
+        border: 1px solid #dce3ec;
+        border-radius: 9px;
+        outline: none;
+        background: white;
+        color: #475569;
+        font-size: 11px;
+    }
+
+    .reset-filter {
+        height: 39px;
+        padding: 0 11px;
+        border: 1px solid #fecaca;
+        border-radius: 9px;
+        background: #fff1f2;
+        color: #dc2626;
+        font-size: 10px;
+        font-weight: 800;
+        white-space: nowrap;
+        cursor: pointer;
+    }
+
+    .page-error {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        flex-shrink: 0;
+        margin: 10px 18px 0;
+        padding: 10px 12px;
+        border: 1px solid #fecaca;
+        border-radius: 10px;
+        background: #fff1f2;
+        color: #b91c1c;
+        font-size: 11px;
+    }
+
+        .page-error > span {
+            width: 21px;
+            height: 21px;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            background: #dc2626;
+            color: white;
+            font-weight: 800;
+        }
+
+        .page-error div {
+            flex: 1;
+        }
+
+        .page-error button {
+            border: 0;
+            background: transparent;
+            color: #b91c1c;
+            font-size: 18px;
+        }
+
+    .table-wrapper {
+        flex: 1;
+        min-height: 0;
+        overflow-x: auto;
+        overflow-y: auto;
+    }
+
+    .variant-table {
+        width: 100%;
+        min-width: 1420px;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+        .variant-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            padding: 13px 14px;
+            border-bottom: 1px solid var(--border);
+            background: #f8fafc;
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 800;
+            text-align: left;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .variant-table tbody td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #edf1f6;
+            color: #334155;
+            font-size: 12px;
+            vertical-align: middle;
+        }
+
+        .variant-table tbody tr:hover {
+            background: #fffaf5;
+        }
+
+    .center {
+        text-align: center !important;
+    }
+
+    .col-image {
+        width: 85px;
+    }
+
+    .col-action {
+        width: 100px;
+        text-align: center !important;
+    }
+
+    .product-image {
+        width: 55px;
+        height: 55px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 11px;
+        background: #f8fafc;
+    }
+
+        .product-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+    .variant-info strong,
+    .variant-info small,
+    .date-value strong,
+    .date-value small {
+        display: block;
+    }
+
+    .variant-info strong {
+        color: #172033;
+    }
+
+    .variant-info small,
+    .date-value small {
+        margin-top: 3px;
+        color: #94a3b8;
+        font-size: 9px;
+    }
+
+    .color-info {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        white-space: nowrap;
+    }
+
+    .color-circle {
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+        border: 1px solid rgba(15, 23, 42, .15);
+        border-radius: 50%;
+    }
+
+    .color-info strong {
+        font-size: 11px;
+    }
+
+    .size-badge {
+        display: inline-grid;
+        min-width: 36px;
+        height: 32px;
+        place-items: center;
+        padding: 0 8px;
+        border-radius: 8px;
+        background: #eff6ff;
+        color: #2563eb;
+        font-size: 11px;
+        font-weight: 800;
+    }
+
+    .price-value {
+        color: var(--primary-dark);
+        white-space: nowrap;
+    }
+
+    .stock-badge,
+    .ordered-value {
+        display: inline-grid;
+        min-width: 42px;
+        height: 30px;
+        place-items: center;
+        padding: 0 8px;
+        border-radius: 20px;
+        font-size: 10px;
+        font-weight: 800;
+    }
+
+    .in-stock {
+        background: #ecfdf5;
+        color: #047857;
+    }
+
+    .low-stock {
+        background: #fffbeb;
+        color: #b45309;
+    }
+
+    .out-of-stock {
+        background: #fff1f2;
+        color: #dc2626;
+    }
+
+    .ordered-value {
+        background: #faf5ff;
+        color: #9333ea;
+    }
+
+    .status-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 9px;
+        border: 1px solid transparent;
+        border-radius: 20px;
+        font-size: 10px;
+        font-weight: 800;
+        white-space: nowrap;
+        cursor: pointer;
+    }
+
+        .status-button.selling {
+            border-color: #bbf7d0;
+            background: #f0fdf4;
+            color: #15803d;
+        }
+
+        .status-button.stopped {
+            border-color: #e2e8f0;
+            background: #f8fafc;
+            color: #64748b;
+        }
+
+        .status-button:disabled {
+            cursor: wait;
+            opacity: .65;
+        }
+
+    .status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+    }
+
+    .action-group {
+        display: flex;
+        justify-content: center;
+    }
+
+    .edit-button {
+        width: 34px;
+        height: 34px;
+        border: 1px solid #fed7aa;
+        border-radius: 9px;
+        background: var(--primary-light);
+        color: var(--primary-dark);
+        cursor: pointer;
+    }
+
+    .loading-state,
+    .empty-state {
+        min-height: 270px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        color: #94a3b8;
+    }
+
+        .empty-state > div {
+            font-size: 34px;
+        }
+
+        .empty-state strong {
+            color: #475569;
+        }
+
+    .loading-spinner,
+    .mini-spinner {
+        display: inline-block;
+        border-style: solid;
+        border-radius: 50%;
+        animation: variant-spin .7s linear infinite;
+    }
+
+    .loading-spinner {
+        width: 34px;
+        height: 34px;
+        border-width: 3px;
+        border-color: #fed7aa;
+        border-top-color: var(--primary);
+    }
+
+    .mini-spinner {
+        width: 13px;
+        height: 13px;
+        border-width: 2px;
+        border-color: currentColor;
+        border-top-color: transparent;
+    }
+
+    .pagination-bar {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 14px;
+        flex-shrink: 0;
+        min-height: 64px;
+        padding: 11px 18px;
+        border-top: 1px solid var(--border);
+    }
+
+    .page-size {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        color: #64748b;
+        font-size: 11px;
+    }
+
+        .page-size select {
+            height: 33px;
+            padding: 0 26px 0 9px;
+            border: 1px solid #dce3ec;
+            border-radius: 8px;
+            background: white;
+        }
+
+    .result-info {
+        color: #64748b;
+        font-size: 11px;
+        text-align: center;
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: flex-end;
+        gap: 5px;
+    }
+
+        .pagination button {
+            min-width: 32px;
+            height: 32px;
+            padding: 0 8px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: white;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+            .pagination button.active {
+                border-color: var(--primary);
+                background: var(--primary);
+                color: white;
+            }
+
+            .pagination button:disabled {
+                cursor: not-allowed;
+                opacity: .45;
+            }
+
+    .modal-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 3000;
+        display: grid;
+        place-items: center;
+        padding: 18px;
+        background: rgba(15, 23, 42, .58);
+        backdrop-filter: blur(3px);
+    }
+
+    .variant-modal {
+        width: min(820px, 100%);
+        max-height: 92vh;
+        overflow-y: auto;
+        border-radius: 18px;
+        background: white;
+        box-shadow: 0 25px 65px rgba(15, 23, 42, .28);
+        animation: modal-show .2s ease-out;
+    }
+
+    .modal-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 15px;
+        padding: 21px 23px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .modal-label {
+        color: var(--primary-dark);
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: .6px;
+    }
+
+    .modal-header h3 {
+        margin: 3px 0;
+        font-size: 19px;
+        font-weight: 800;
+    }
+
+    .modal-header p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 10px;
+    }
+
+    .close-modal {
+        width: 34px;
+        height: 34px;
+        border: 0;
+        border-radius: 9px;
+        background: #f1f5f9;
+        color: #64748b;
+        font-size: 19px;
+        cursor: pointer;
+    }
+
+    .modal-body {
+        padding: 22px 23px;
+    }
+
+    .modal-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 220px;
+        gap: 20px;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .form-group label,
+    .image-column > label {
+        display: block;
+        margin-bottom: 7px;
+        color: #334155;
+        font-size: 11px;
+        font-weight: 800;
+    }
+
+        .form-group label span {
+            color: #dc2626;
+        }
+
+    .form-control-custom {
+        width: 100%;
+        min-height: 42px;
+        padding: 0 11px;
+        border: 1px solid #dce3ec;
+        border-radius: 9px;
+        outline: none;
+        background: white;
+        font-size: 11px;
+    }
+
+    .readonly-input {
+        background: #f8fafc;
+        color: #94a3b8;
+    }
+
+    .textarea-control {
+        min-height: 90px;
+        padding-top: 10px;
+        resize: vertical;
+    }
+
+    .money-input {
+        position: relative;
+    }
+
+        .money-input .form-control-custom {
+            padding-right: 30px;
+        }
+
+        .money-input > span {
+            position: absolute;
+            top: 50%;
+            right: 11px;
+            color: #94a3b8;
+            font-size: 11px;
+            transform: translateY(-50%);
+        }
+
+    .field-note {
+        display: block;
+        margin-top: 4px;
+        color: #94a3b8;
+        font-size: 9px;
+    }
+
+    .status-switch-box {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        min-height: 42px;
+    }
+
+    .custom-switch {
+        position: relative;
+        width: 43px;
+        height: 23px;
+        margin: 0;
+        flex-shrink: 0;
+    }
+
+        .custom-switch input {
+            width: 0;
+            height: 0;
+            opacity: 0;
+        }
+
+    .switch-slider {
+        position: absolute;
+        inset: 0;
+        border-radius: 30px;
+        background: #cbd5e1;
+        cursor: pointer;
+        transition: .25s;
+    }
+
+        .switch-slider::before {
+            position: absolute;
+            bottom: 3px;
+            left: 3px;
+            width: 17px;
+            height: 17px;
+            border-radius: 50%;
+            background: white;
+            content: "";
+            transition: .25s;
+        }
+
+    .custom-switch input:checked + .switch-slider {
+        background: #22c55e;
+    }
+
+        .custom-switch input:checked + .switch-slider::before {
+            transform: translateX(20px);
+        }
+
+    .status-switch-box strong,
+    .status-switch-box small {
+        display: block;
+    }
+
+    .status-switch-box strong {
+        color: #334155;
+        font-size: 10px;
+    }
+
+    .status-switch-box small {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 8px;
+    }
+
+    .modal-image-preview,
+    .empty-image {
+        height: 190px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: #f8fafc;
+    }
+
+    .modal-image-preview {
+        position: relative;
+    }
+
+        .modal-image-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .modal-image-preview button {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 29px;
+            height: 29px;
+            border: 0;
+            border-radius: 8px;
+            background: rgba(15, 23, 42, .8);
+            color: white;
+            font-size: 17px;
+            cursor: pointer;
+        }
+
+    .empty-image {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        color: #94a3b8;
+    }
+
+        .empty-image span {
+            font-size: 29px;
+        }
+
+        .empty-image strong {
+            font-size: 10px;
+        }
+
+    .upload-button {
+        min-height: 38px;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        margin-top: 9px;
+        border: 1px solid #fdba74;
+        border-radius: 9px;
+        background: var(--primary-light);
+        color: var(--primary-dark) !important;
+        font-size: 10px !important;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+        .upload-button input {
+            display: none;
+        }
+
+    .image-note {
+        display: block;
+        margin-top: 6px;
+        color: #94a3b8;
+        font-size: 8px;
+        text-align: center;
+    }
+
+    .modal-error {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 17px;
+        padding: 11px;
+        border: 1px solid #fecaca;
+        border-radius: 9px;
+        background: #fff1f2;
+        color: #b91c1c;
+        font-size: 10px;
+    }
+
+        .modal-error > span {
+            width: 21px;
+            height: 21px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border-radius: 50%;
+            background: #dc2626;
+            color: white;
+            font-weight: 800;
+        }
+
+    .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 9px;
+        padding: 15px 23px;
+        border-top: 1px solid var(--border);
+    }
+
+    .cancel-modal,
+    .save-modal {
+        min-height: 40px;
+        padding: 0 15px;
+        border-radius: 9px;
+        font-size: 10px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .cancel-modal {
+        border: 1px solid #dce3ec;
+        background: white;
+        color: #64748b;
+    }
+
+    .save-modal {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        border: 0;
+        background: linear-gradient(135deg, #fb923c, #ea580c);
+        color: white;
+    }
+
+        .cancel-modal:disabled,
+        .save-modal:disabled {
+            cursor: not-allowed;
+            opacity: .65;
+        }
+
+    .custom-toast {
+        position: fixed;
+        right: 25px;
+        bottom: 25px;
+        z-index: 4000;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 315px;
+        max-width: 430px;
+        padding: 14px;
+        border-radius: 12px;
+        color: white;
+        box-shadow: 0 14px 35px rgba(15, 23, 42, .22);
+    }
+
+        .custom-toast.success {
+            background: #059669;
+        }
+
+        .custom-toast.error {
+            background: #dc2626;
+        }
+
+    .toast-icon {
+        width: 30px;
+        height: 30px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, .18);
+        font-weight: 800;
+    }
+
+    .custom-toast div {
+        flex: 1;
+    }
+
+    .custom-toast strong,
+    .custom-toast small {
+        display: block;
+    }
+
+    .custom-toast small {
+        margin-top: 2px;
+        opacity: .9;
+    }
+
+    .custom-toast button {
+        border: 0;
+        background: transparent;
+        color: white;
+        font-size: 19px;
+        cursor: pointer;
+    }
+
+    @@keyframes variant-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @@keyframes modal-show {
+        from {
+            opacity: 0;
+            transform: translateY(12px) scale(.97);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    @@media (max-width: 1150px) {
+        .stat-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .filter-toolbar {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .search-box {
+            width: 100%;
+            max-width: none;
+        }
+    }
+
+    @@media (max-width: 750px) {
+        .variant-page {
+            padding: 16px;
+        }
+
+        .page-header {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .add-button {
+            width: 100%;
+        }
+
+        .stat-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .pagination-bar {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .result-info {
+            display: none;
+        }
+
+        .modal-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .image-column {
+            order: -1;
+        }
+    }
+
+    @@media (max-width: 520px) {
+        .stat-grid,
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .form-group.full-width {
+            grid-column: auto;
+        }
+
+        .filter-controls {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .filter-select,
+        .reset-filter {
+            width: 100%;
+        }
+
+        .variant-panel {
+            height: 700px;
+        }
+
+        .pagination-bar {
+            grid-template-columns: 1fr;
+        }
+
+        .pagination {
+            justify-content: flex-start;
+            overflow-x: auto;
+        }
+
+        .modal-footer {
+            flex-direction: column-reverse;
+        }
+
+        .cancel-modal,
+        .save-modal {
+            width: 100%;
+        }
+
+        .custom-toast {
+            right: 15px;
+            bottom: 15px;
+            left: 15px;
+            min-width: 0;
+        }
+    }
+</style>

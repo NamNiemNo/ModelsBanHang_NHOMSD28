@@ -1,0 +1,891 @@
+﻿@using API.Models.DTO
+@using Microsoft.AspNetCore.Components.Forms
+
+@if (IsVisible && _editContext != null)
+{
+    <div class="color-modal-overlay"
+         @onclick="Close">
+
+        <div class="color-modal"
+             role="dialog"
+             aria-modal="true"
+             @onclick:stopPropagation="true">
+
+            <EditForm EditContext="_editContext"
+                      OnSubmit="HandleSubmit">
+
+                <DataAnnotationsValidator />
+
+                <!-- Header -->
+                <header class="color-modal-header">
+
+                    <div class="modal-header-preview"
+                         style="background-color:@SafeCurrentColor">
+                    </div>
+
+                    <div class="modal-title">
+                        <span>
+                            @(IsEdit
+                                ? "CẬP NHẬT DỮ LIỆU"
+                                : "TẠO MỚI")
+                        </span>
+
+                        <h2>
+                            @(IsEdit
+                                ? "Chỉnh sửa màu sắc"
+                                : "Thêm màu sắc")
+                        </h2>
+
+                        <p>
+                            Chọn màu và nhập thông tin bên dưới.
+                        </p>
+                    </div>
+
+                    <button type="button"
+                            class="modal-close-button"
+                            disabled="@IsSubmitting"
+                            @onclick="Close">
+                        ×
+                    </button>
+                </header>
+
+                <!-- Body -->
+                <div class="color-modal-body">
+
+                    @if (!string.IsNullOrWhiteSpace(SaveError))
+                    {
+                        <div class="modal-error">
+                            <span>!</span>
+                            <div>@SaveError</div>
+                            <button type="button"
+                                    @onclick="ClearError">
+                                ×
+                            </button>
+                        </div>
+                    }
+
+                    <!-- Tên màu -->
+                    <div class="modal-form-group">
+                        <div class="label-row">
+                            <label for="color-name">
+                                Tên màu <span>*</span>
+                            </label>
+
+                            <small>
+                                @GetNameLength()/50
+                            </small>
+                        </div>
+
+                        <InputText id="color-name"
+                                   class="@GetInputClass(
+                                       nameof(FormData.TenMau))"
+                                   placeholder="Ví dụ: Đỏ đô, Xanh navy..."
+                                   maxlength="50"
+                                   @bind-Value="FormData.TenMau" />
+
+                        <ValidationMessage For="@(() => FormData.TenMau)"
+                                           class="validation-message" />
+                    </div>
+
+                    <!-- Chọn màu -->
+                    <div class="modal-form-group">
+                        <label class="color-label">
+                            Mã màu <span>*</span>
+                        </label>
+
+                        <div class="color-picker-card">
+
+                            <div class="color-picker-preview"
+                                 style="background-color:@SafeCurrentColor">
+                            </div>
+
+                            <div class="color-picker-inputs">
+                                <input type="color"
+                                       value="@SafeCurrentColor"
+                                       @oninput="HandleColorChanged" />
+
+                                <InputText class="@GetInputClass(
+                                                   nameof(FormData.Color))"
+                                           maxlength="7"
+                                           placeholder="#000000"
+                                           @bind-Value="FormData.Color" />
+                            </div>
+                        </div>
+
+                        <ValidationMessage For="@(() => FormData.Color)"
+                                           class="validation-message" />
+                    </div>
+
+                    <!-- Mô tả -->
+                    <div class="modal-form-group">
+                        <div class="label-row">
+                            <label for="color-description">
+                                Mô tả
+                            </label>
+
+                            <small>
+                                @GetDescriptionLength()/250
+                            </small>
+                        </div>
+
+                        <InputTextArea id="color-description"
+                                       class="@GetInputClass(nameof(FormData.MoTa))"
+                                       placeholder="Nhập mô tả về màu sắc..."
+                                       maxlength="250"
+                                       rows="4"
+                                       @bind-Value="FormData.MoTa" />
+
+                        <ValidationMessage For="@(() => FormData.MoTa)"
+                                           class="validation-message" />
+                    </div>
+
+                    <!-- Trạng thái -->
+                    <div class="status-card">
+                        <div>
+                            <strong>Trạng thái hoạt động</strong>
+
+                            <small>
+                                @(FormData.TrangThai
+                                    ? "Màu sắc đang được sử dụng"
+                                    : "Màu sắc đã ngừng sử dụng")
+                            </small>
+                        </div>
+
+                        <label class="color-switch">
+                            <InputCheckbox @bind-Value="FormData.TrangThai" />
+
+                            <span></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <footer class="color-modal-footer">
+
+                    <button type="button"
+                            class="cancel-button"
+                            disabled="@IsSubmitting"
+                            @onclick="Close">
+                        Hủy
+                    </button>
+
+                    <button type="submit"
+                            class="save-button"
+                            disabled="@IsSubmitting">
+
+                        @if (IsSubmitting)
+                        {
+                            <span class="button-spinner"></span>
+                            <span>Đang lưu...</span>
+                        }
+                        else
+                        {
+                            <svg viewBox="0 0 24 24">
+                                <path d="M5 4h12l2 2v14H5z" />
+                                <path d="M8 4v6h8V4M8 20v-6h8v6" />
+                            </svg>
+
+                            <span>
+                                @(IsEdit
+                                    ? "Lưu thay đổi"
+                                    : "Thêm màu sắc")
+                            </span>
+                        }
+                    </button>
+                </footer>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<style>
+    .color-modal-overlay,
+    .color-modal-overlay * {
+        box-sizing: border-box;
+    }
+
+    .color-modal-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(15,23,42,.64);
+        backdrop-filter: blur(5px);
+        animation: colorModalFade .2s ease;
+    }
+
+    .color-modal {
+        width: min(570px,100%);
+        max-height: 94vh;
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+        border-radius: 19px;
+        background: #ffffff;
+        box-shadow: 0 25px 70px rgba(15,23,42,.3);
+        animation: colorModalSlide .22s ease;
+    }
+
+        .color-modal form {
+            display: flex;
+            max-height: 94vh;
+            flex-direction: column;
+        }
+
+    /* Header */
+
+    .color-modal-header {
+        position: relative;
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        gap: 13px;
+        padding: 22px 65px 19px 22px;
+        border-bottom: 1px solid #e8edf3;
+        background: linear-gradient(135deg,#ffffff,#fff7ed);
+    }
+
+    .modal-header-preview {
+        flex: 0 0 45px;
+        width: 45px;
+        height: 45px;
+        border: 4px solid #ffffff;
+        border-radius: 14px;
+        outline: 1px solid #e2e8f0;
+        box-shadow: 0 4px 12px rgba(15,23,42,.12);
+    }
+
+    .modal-title > span {
+        display: block;
+        margin-bottom: 4px;
+        color: #ea580c;
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: .13em;
+    }
+
+    .modal-title h2 {
+        margin: 0;
+        color: #0f172a;
+        font-size: 19px;
+        font-weight: 800;
+    }
+
+    .modal-title p {
+        margin: 5px 0 0;
+        color: #64748b;
+        font-size: 10px;
+    }
+
+    .modal-close-button {
+        position: absolute;
+        top: 18px;
+        right: 18px;
+        display: grid;
+        width: 34px;
+        height: 34px;
+        padding: 0;
+        place-items: center;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+        background: #ffffff;
+        color: #64748b;
+        font-size: 22px;
+        cursor: pointer;
+    }
+
+        .modal-close-button:hover:not(:disabled) {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+    /* Body */
+
+    .color-modal-body {
+        flex: 1;
+        min-height: 0;
+        padding: 22px;
+        overflow-y: auto;
+    }
+
+    .modal-form-group {
+        margin-bottom: 19px;
+    }
+
+    .label-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+    }
+
+        .label-row label,
+        .color-label {
+            color: #334155;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+            .label-row label span,
+            .color-label span {
+                color: #ef4444;
+            }
+
+        .label-row small {
+            color: #94a3b8;
+            font-size: 9px;
+        }
+
+    .modal-form-control {
+        width: 100%;
+        height: 43px;
+        padding: 0 13px;
+        border: 1px solid #dce3ec;
+        border-radius: 10px;
+        outline: none;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 11px;
+    }
+
+    textarea.modal-form-control {
+        min-height: 105px;
+        padding-top: 12px;
+        resize: vertical;
+    }
+
+    .modal-form-control:focus {
+        border-color: #fb923c;
+        background: #ffffff;
+        box-shadow: 0 0 0 4px rgba(249,115,22,.1);
+    }
+
+    .modal-form-control.invalid {
+        border-color: #ef4444;
+        background: #fffafa;
+    }
+
+    .validation-message {
+        display: block;
+        margin-top: 6px;
+        color: #dc2626;
+        font-size: 9px;
+    }
+
+    /* Color picker */
+
+    .color-picker-card {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-top: 8px;
+        padding: 14px;
+        border: 1px solid #e8edf3;
+        border-radius: 12px;
+        background: #f8fafc;
+    }
+
+    .color-picker-preview {
+        flex: 0 0 70px;
+        width: 70px;
+        height: 70px;
+        border: 5px solid #ffffff;
+        border-radius: 18px;
+        outline: 1px solid #cbd5e1;
+        box-shadow: 0 5px 14px rgba(15,23,42,.13);
+    }
+
+    .color-picker-inputs {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        gap: 9px;
+    }
+
+        .color-picker-inputs input[type="color"] {
+            flex: 0 0 45px;
+            width: 45px;
+            height: 43px;
+            padding: 3px;
+            border: 1px solid #dce3ec;
+            border-radius: 9px;
+            background: #ffffff;
+            cursor: pointer;
+        }
+
+    /* Status */
+
+    .status-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px;
+        border: 1px solid #e8edf3;
+        border-radius: 11px;
+        background: #f8fafc;
+    }
+
+        .status-card strong,
+        .status-card small {
+            display: block;
+        }
+
+        .status-card strong {
+            color: #334155;
+            font-size: 10px;
+        }
+
+        .status-card small {
+            margin-top: 4px;
+            color: #94a3b8;
+            font-size: 8px;
+        }
+
+    .color-switch {
+        position: relative;
+        width: 46px;
+        height: 25px;
+    }
+
+        .color-switch input {
+            width: 0;
+            height: 0;
+            opacity: 0;
+        }
+
+        .color-switch > span {
+            position: absolute;
+            inset: 0;
+            border-radius: 999px;
+            background: #cbd5e1;
+            cursor: pointer;
+        }
+
+            .color-switch > span::before {
+                position: absolute;
+                bottom: 3px;
+                left: 3px;
+                width: 19px;
+                height: 19px;
+                border-radius: 50%;
+                background: #ffffff;
+                content: "";
+                transition: .2s;
+            }
+
+        .color-switch input:checked + span {
+            background: #22c55e;
+        }
+
+            .color-switch input:checked + span::before {
+                transform: translateX(21px);
+            }
+
+    /* Error */
+
+    .modal-error {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin-bottom: 16px;
+        padding: 11px;
+        border: 1px solid #fecaca;
+        border-radius: 9px;
+        background: #fef2f2;
+        color: #b91c1c;
+        font-size: 9px;
+    }
+
+        .modal-error > span {
+            display: grid;
+            width: 29px;
+            height: 29px;
+            place-items: center;
+            border-radius: 8px;
+            background: #fee2e2;
+            font-weight: 900;
+        }
+
+        .modal-error > div {
+            flex: 1;
+        }
+
+        .modal-error > button {
+            border: none;
+            background: transparent;
+            color: #b91c1c;
+            font-size: 18px;
+            cursor: pointer;
+        }
+
+    /* Footer */
+
+    .color-modal-footer {
+        display: flex;
+        flex-shrink: 0;
+        justify-content: flex-end;
+        gap: 9px;
+        padding: 14px 22px;
+        border-top: 1px solid #e8edf3;
+        background: #fbfcfe;
+    }
+
+    .cancel-button,
+    .save-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        min-height: 40px;
+        padding: 0 16px;
+        border-radius: 9px;
+        font-size: 10px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .cancel-button {
+        border: 1px solid #dce3ec;
+        background: #ffffff;
+        color: #64748b;
+    }
+
+    .save-button {
+        border: none;
+        background: #f97316;
+        color: #ffffff;
+        box-shadow: 0 5px 12px rgba(249,115,22,.2);
+    }
+
+        .save-button svg {
+            width: 16px;
+            height: 16px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+        }
+
+        .cancel-button:disabled,
+        .save-button:disabled {
+            opacity: .6;
+            cursor: wait;
+        }
+
+    .button-spinner {
+        width: 15px;
+        height: 15px;
+        border: 2px solid rgba(255,255,255,.45);
+        border-top-color: #ffffff;
+        border-radius: 50%;
+        animation: modalColorSpin .7s linear infinite;
+    }
+
+    @@keyframes colorModalFade {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+
+    @@keyframes colorModalSlide {
+        from {
+            opacity: 0;
+            transform: translateY(16px) scale(.98);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    @@keyframes modalColorSpin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @@media (max-width: 600px) {
+        .color-modal-overlay {
+            padding: 10px;
+        }
+
+        .color-modal {
+            border-radius: 14px;
+        }
+
+        .color-modal-body {
+            padding: 17px;
+        }
+
+        .color-picker-preview {
+            flex-basis: 55px;
+            width: 55px;
+            height: 55px;
+        }
+
+        .color-picker-inputs {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .color-modal-footer {
+            padding: 12px 17px;
+        }
+
+        .cancel-button,
+        .save-button {
+            flex: 1;
+        }
+    }
+</style>
+
+@code {
+    [Parameter]
+    public MauSacDTO FormData { get; set; } = new();
+
+    [Parameter]
+    public List<MauSacDTO> ExistingItems { get; set; } = new();
+
+    [Parameter]
+    public EventCallback OnSubmit { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    [Parameter]
+    public bool IsVisible { get; set; }
+
+    [Parameter]
+    public bool IsEdit { get; set; }
+
+    private EditContext? _editContext;
+    private ValidationMessageStore? _messageStore;
+    private MauSacDTO? _currentModel;
+
+    private bool IsSubmitting;
+    private string SaveError = string.Empty;
+
+    private string SafeCurrentColor =>
+        GetSafeColor(FormData.Color);
+
+    protected override void OnParametersSet()
+    {
+        if (!IsVisible)
+        {
+            return;
+        }
+
+        if (_editContext == null ||
+            !ReferenceEquals(_currentModel, FormData))
+        {
+            _currentModel = FormData;
+
+            FormData.TenMau ??= string.Empty;
+            FormData.MoTa ??= string.Empty;
+            FormData.Color = GetSafeColor(FormData.Color);
+
+            _editContext = new EditContext(FormData);
+            _messageStore =
+                new ValidationMessageStore(_editContext);
+
+            SaveError = string.Empty;
+            IsSubmitting = false;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (_editContext == null ||
+            _messageStore == null)
+        {
+            return;
+        }
+
+        _messageStore.Clear();
+        _editContext.NotifyValidationStateChanged();
+
+        var annotationsValid =
+            _editContext.Validate();
+
+        FormData.TenMau =
+            FormData.TenMau?.Trim()
+            ?? string.Empty;
+
+        FormData.MoTa =
+            FormData.MoTa?.Trim()
+            ?? string.Empty;
+
+        FormData.Color =
+            FormData.Color?.Trim().ToUpperInvariant()
+            ?? string.Empty;
+
+        var hasManualError = false;
+
+        if (string.IsNullOrWhiteSpace(FormData.TenMau))
+        {
+            AddError(
+                nameof(FormData.TenMau),
+                "Tên màu không được để trống.");
+
+            hasManualError = true;
+        }
+
+        if (!IsValidColor(FormData.Color))
+        {
+            AddError(
+                nameof(FormData.Color),
+                "Mã màu phải có định dạng #RRGGBB.");
+
+            hasManualError = true;
+        }
+
+        if (FormData.MoTa.Length > 250)
+        {
+            AddError(
+                nameof(FormData.MoTa),
+                "Mô tả không vượt quá 250 ký tự.");
+
+            hasManualError = true;
+        }
+
+        var duplicateName =
+            ExistingItems.Any(item =>
+                item.MauSacId != FormData.MauSacId
+                &&
+                (item.TenMau ?? string.Empty)
+                    .Trim()
+                    .Equals(
+                        FormData.TenMau,
+                        StringComparison.OrdinalIgnoreCase));
+
+        if (duplicateName)
+        {
+            AddError(
+                nameof(FormData.TenMau),
+                "Tên màu đã tồn tại.");
+
+            hasManualError = true;
+        }
+
+        var duplicateCode =
+            ExistingItems.Any(item =>
+                item.MauSacId != FormData.MauSacId
+                &&
+                GetSafeColor(item.Color)
+                    .Equals(
+                        FormData.Color,
+                        StringComparison.OrdinalIgnoreCase));
+
+        if (duplicateCode)
+        {
+            AddError(
+                nameof(FormData.Color),
+                "Mã màu đã tồn tại.");
+
+            hasManualError = true;
+        }
+
+        if (!annotationsValid || hasManualError)
+        {
+            _editContext.NotifyValidationStateChanged();
+            return;
+        }
+
+        IsSubmitting = true;
+        SaveError = string.Empty;
+
+        try
+        {
+            await OnSubmit.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            SaveError =
+                "Không thể lưu màu sắc: "
+                + ex.Message;
+        }
+        finally
+        {
+            IsSubmitting = false;
+        }
+    }
+
+    private void HandleColorChanged(ChangeEventArgs e)
+    {
+        FormData.Color =
+            GetSafeColor(e.Value?.ToString());
+    }
+
+    private void AddError(string fieldName, string message)
+    {
+        if (_messageStore == null)
+        {
+            return;
+        }
+
+        _messageStore.Add(
+            new FieldIdentifier(FormData, fieldName),
+            message);
+    }
+
+    private string GetInputClass(string fieldName)
+    {
+        if (_editContext == null)
+        {
+            return "modal-form-control";
+        }
+
+        var hasError =
+            _editContext
+                .GetValidationMessages(
+                    new FieldIdentifier(FormData, fieldName))
+                .Any();
+
+        return hasError
+            ? "modal-form-control invalid"
+            : "modal-form-control";
+    }
+
+    private async Task Close()
+    {
+        if (!IsSubmitting)
+        {
+            await OnClose.InvokeAsync();
+        }
+    }
+
+    private void ClearError()
+    {
+        SaveError = string.Empty;
+    }
+
+    private int GetNameLength()
+    {
+        return FormData.TenMau?.Length ?? 0;
+    }
+
+    private int GetDescriptionLength()
+    {
+        return FormData.MoTa?.Length ?? 0;
+    }
+
+    private static bool IsValidColor(string? color)
+    {
+        return !string.IsNullOrWhiteSpace(color)
+               && color.Length == 7
+               && color.StartsWith("#")
+               && color.Skip(1).All(Uri.IsHexDigit);
+    }
+
+    private static string GetSafeColor(string? color)
+    {
+        return IsValidColor(color)
+            ? color!
+            : "#000000";
+    }
+}

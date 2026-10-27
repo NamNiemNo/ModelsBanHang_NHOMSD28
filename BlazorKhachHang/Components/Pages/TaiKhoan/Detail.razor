@@ -1,0 +1,291 @@
+﻿@page "/giay/{giayid:guid}"
+@inject IGiayChiTietService giayChiTietService
+@inject IMauSacService mauSacService
+@inject IKichCoService kichCoService
+@inject IAnhService anhService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+@using API.IService
+@using API.Models.DTO
+@using System.Globalization
+@using BlazorKhachHang.Service.IService
+@using Microsoft.AspNetCore.Components.Forms
+@using System.Linq
+
+@* ====== GIAO DIỆN ====== *@
+@if (isAvailable)
+{
+    <div class="container my-4">
+        <div class="row mt-4">
+            <!-- Ảnh chính + danh sách biến thể -->
+            <div class="col-md-6">
+                <div class="border p-2 text-center"
+                     style="height:400px;display:flex;justify-content:center;align-items:center;">
+                    <img src="@mainImageUrl"
+                         class="img-fluid"
+                         style="max-height:100%;max-width:100%;object-fit:contain" />
+                </div>
+
+                <div class="d-flex justify-content-start mt-2 overflow-auto">
+                    @foreach (var group in productGroups)
+                    {
+                        var active = selectedGroup?.Image == group.Image ? "border-primary border-2" : "";
+                        <img src="@($"https://localhost:7246{group.Image}")"
+                             class="img-thumbnail me-2 @active"
+                             style="height:80px;width:auto;cursor:pointer"
+                             @onclick="@(() => SelectGroup(group))"
+                             onerror="this.src='/images/no-image.png';" />
+                    }
+                </div>
+            </div>
+
+            <!-- Thông tin chi tiết -->
+            <div class="col-md-6">
+                <div class="row">
+                    <div class="col-12">
+                        <h2 class="fw-bold">
+                            Tên sản phẩm: @danhSachChiTiet.FirstOrDefault()?.TenGiay
+                        </h2>
+                    </div>
+                </div>
+
+                <div class="mb-2">
+                    <span class="text-muted text-decoration-line-through me-2">
+                        @giaGoc?.ToString("N0", new CultureInfo("vi-VN")) ₫
+                    </span>
+                    <span class="fw-bold text-danger fs-4">
+                        @giaSale?.ToString("N0", new CultureInfo("vi-VN")) ₫
+                    </span>
+                </div>
+
+                <div class="mb-2">
+                    <strong>Màu:</strong> @selectedGroup?.TenMau
+                </div>
+
+                <div class="mb-2">
+                    <strong>Tình trạng kho:</strong> @tongSoLuong tồn
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Kích cỡ</label>
+                    <div class="d-flex flex-wrap">
+                        @foreach (var size in GetAvailableSizes())
+                        {
+                            var isSelected = selectedKichCoId == size.KichCoId;
+                            var btnClass = isSelected ? "btn-dark" : "btn-outline-dark";
+                            var disable = selectedColorVariants.Any(v => v.KichCoId == size.KichCoId
+                            && v.SoLuongCon > 0) != true;
+
+                            <button class="btn @btnClass btn-sm me-2 mb-2"
+                                    @onclick="@(() => SelectSize(size.KichCoId))"
+                                    disabled="@disable">
+                                @size.size
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Số lượng</label>
+                    <div class="input-group" style="max-width:150px">
+                        <button class="btn btn-outline-secondary"
+                                type="button"
+                                @onclick="@(() => ChangeQty(-1))"
+                                disabled="@(quantity <= 1)">
+                            -
+                        </button>
+
+                        <input type="text"
+                               class="form-control text-center"
+                               value="@quantity" readonly />
+
+                        <button class="btn btn-outline-secondary"
+                                type="button"
+                                @onclick="@(() => ChangeQty(1))"
+                                disabled="@(quantity >= tongSoLuong)">
+                            +
+                        </button>
+                    </div>
+                </div>
+
+                <div class="d-flex">
+                    <button class="btn btn-warning me-2" @onclick="AddToCart">Thêm vào giỏ</button>
+                    <button class="btn btn-danger" @onclick="BuyNow">Mua ngay</button>
+                </div>
+
+                <div class="row mt-5">
+                    <div class="col-12">
+                        <h5>Mô tả sản phẩm</h5>
+                        <div style="max-height:300px;overflow-y:auto;border:1px solid #ddd;
+                                        padding:10px;border-radius:5px;background:#f9f9f9;
+                                        white-space:pre-wrap;word-wrap:break-word;line-height:1.6;">
+                            @(danhSachChiTiet.FirstOrDefault()?.MoTa ?? "Không có mô tả")
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="container my-5 text-center">
+        <h4 class="text-muted">Sản phẩm hiện không có sẵn.</h4>
+        <a href="/" class="btn btn-outline-primary mt-3">Quay lại trang chủ</a>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid giayid { get; set; }
+
+    /* ---------- DATA ---------- */
+    private List<GiayChiTietDTO> danhSachChiTiet = new();
+    private List<MauSacDTO> mauSacList = new();
+    private List<KichCoDTO> kichCoList = new();
+
+    private List<ProductGroup> productGroups = new();
+    private ProductGroup? selectedGroup;
+    private GiayChiTietDTO? selectedVariant;
+    private List<GiayChiTietDTO> selectedColorVariants = new();
+
+    /* ---------- UI STATE ---------- */
+    private string mainImageUrl = "/images/no-image.png";
+    private decimal? giaGoc;
+    private decimal? giaSale;
+    private int tongSoLuong = 0;
+    private int quantity = 1;
+    private Guid? selectedKichCoId;
+    private bool isAvailable = false;
+
+    /* ---------- LIFE CYCLE ---------- */
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Lấy danh mục màu + size
+            mauSacList = (await mauSacService.GetAllAsync())?.ToList() ?? new();
+            kichCoList = (await kichCoService.GetAllAsync())?.ToList() ?? new();
+
+            // Chỉ lấy các biến thể đang bán (TrangThai == true)
+            danhSachChiTiet = (await giayChiTietService.GetByGiayIdAsync(giayid))?
+                                .Where(x => x.TrangThai == true)
+                                .ToList() ?? new();
+
+            // Kiểm tra còn sản phẩm hay không
+            isAvailable = danhSachChiTiet.Any();
+            if (!isAvailable) return;
+
+            // Gom nhóm theo hình (mỗi màu một ảnh đại diện)
+            productGroups = danhSachChiTiet
+                .Where(x => !string.IsNullOrEmpty(x.AnhGiay))
+                .GroupBy(x => x.AnhGiay)
+                .Select(g =>
+                {
+                    var first = g.First();
+                    var mau = mauSacList.FirstOrDefault(m => m.MauSacId == first.MauSacId);
+                    return new ProductGroup
+                    {
+                        Image = g.Key,
+                        MauSacId = first.MauSacId,
+                        TenMau = mau?.TenMau,
+                        Variants = danhSachChiTiet
+                                        .Where(x => x.MauSacId == first.MauSacId
+                                                 && x.TrangThai == true)
+                                        .ToList()
+                    };
+                })
+                .ToList();
+
+            // Mặc định chọn nhóm đầu tiên (nếu có)
+            if (productGroups.Any())
+            {
+                SelectGroup(productGroups.First());
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("console.error", ex.ToString());
+        }
+    }
+
+    /* ---------- HANDLERS ---------- */
+    private void SelectGroup(ProductGroup group)
+    {
+        selectedGroup = group;
+        selectedColorVariants = group.Variants;      // đã lọc trạng thái true ở trên
+        mainImageUrl = $"https://localhost:7246{group.Image}";
+        selectedKichCoId = null;
+        selectedVariant = null;
+        UpdateGroupStats();
+    }
+
+    private void SelectSize(Guid? sizeId)
+    {
+        if (selectedColorVariants == null || sizeId == null) return;
+
+        selectedKichCoId = sizeId;
+        selectedVariant = selectedColorVariants.FirstOrDefault(v => v.KichCoId == sizeId);
+
+        if (selectedVariant != null)
+        {
+            giaSale = (decimal?)selectedVariant.Gia;
+            giaGoc = (decimal?)selectedVariant.Gia;
+            tongSoLuong = selectedVariant.SoLuongCon;
+            quantity = 1;
+
+            if (!string.IsNullOrEmpty(selectedVariant.AnhGiay))
+            {
+                mainImageUrl = $"https://localhost:7246{selectedVariant.AnhGiay}";
+            }
+        }
+    }
+
+    private void ChangeQty(int delta)
+    {
+        if (tongSoLuong <= 0) return;
+        quantity = Math.Clamp(quantity + delta, 1, tongSoLuong);
+    }
+
+    private async Task AddToCart()
+    {
+        if (selectedVariant == null)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Vui lòng chọn kích cỡ trước khi thêm vào giỏ.");
+            return;
+        }
+
+        await JSRuntime.InvokeVoidAsync("alert", "Đã thêm sản phẩm vào giỏ hàng!");
+    }
+
+    private async Task BuyNow() => await AddToCart();
+
+    /* ---------- HELPERS ---------- */
+    private void UpdateGroupStats()
+    {
+        if (selectedColorVariants == null || !selectedColorVariants.Any()) return;
+
+        giaGoc = selectedColorVariants.Max(v => (decimal)v.Gia);
+        giaSale = selectedColorVariants.Min(v => (decimal)v.Gia);
+        tongSoLuong = selectedColorVariants.Sum(v => v.SoLuongCon);
+        quantity = 1;
+    }
+
+    private IEnumerable<KichCoDTO> GetAvailableSizes()
+    {
+        if (selectedColorVariants == null) return Enumerable.Empty<KichCoDTO>();
+
+        var ids = selectedColorVariants.Select(v => v.KichCoId).Distinct();
+        return kichCoList.Where(k => ids.Contains(k.KichCoId))
+                         .OrderBy(k => k.size);
+    }
+
+    /* ---------- NỘI BỘ ---------- */
+    private class ProductGroup
+    {
+        public string? Image { get; set; }
+        public Guid? MauSacId { get; set; }
+        public string? TenMau { get; set; }
+        public List<GiayChiTietDTO> Variants { get; set; } = new();
+    }
+}

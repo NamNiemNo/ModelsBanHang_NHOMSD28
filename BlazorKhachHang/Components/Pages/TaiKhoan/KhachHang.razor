@@ -1,0 +1,1637 @@
+﻿@page "/khachhang"
+@layout Layout.Layoutgeneral
+
+@using API.Models.DTO.BanHang
+@using Application.DTOs
+@using BlazorKhachHang.Service.IService
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop
+@using System.ComponentModel.DataAnnotations
+@using System.Net
+@using System.Net.Http.Json
+
+@inject IJSRuntime JS
+@inject HttpClient Http
+@inject IXuLyDiaChi XuLyDiaChi
+@inject NavigationManager Nav
+
+<PageTitle>Thông tin khách hàng - FSHOES</PageTitle>
+
+<div class="profile-page">
+    <div class="profile-container">
+        <aside class="profile-sidebar">
+            <div class="avatar-area">
+                <img src="@avatarImage"
+                     alt="Ảnh đại diện"
+                     class="profile-avatar" />
+
+                <label for="avatarInput"
+                       class="avatar-edit-button">
+                    <i class="bi bi-camera"></i>
+                    Đổi ảnh
+                </label>
+
+                <InputFile id="avatarInput"
+                           class="avatar-input"
+                           accept="image/*"
+                           OnChange="@OnAvatarChanged" />
+            </div>
+
+            <div class="customer-summary">
+                <strong>
+                    @(string.IsNullOrWhiteSpace(Profile.HoTen)
+                        ? "Khách hàng"
+                        : Profile.HoTen)
+                </strong>
+
+                <span>
+                    @(string.IsNullOrWhiteSpace(Profile.Email)
+                        ? "Chưa cập nhật email"
+                        : Profile.Email)
+                </span>
+            </div>
+
+            <div class="sidebar-title">
+                Tài khoản của tôi
+            </div>
+
+            <nav class="profile-menu">
+                <button type="button"
+                        class="@GetMenuClass("profile")"
+                        @onclick="@(() => SetActiveTab("profile"))">
+                    <i class="bi bi-person"></i>
+                    Hồ sơ
+                </button>
+
+                <button type="button"
+                        class="@GetMenuClass("address")"
+                        @onclick="@(() => SetActiveTab("address"))">
+                    <i class="bi bi-geo-alt"></i>
+                    Địa chỉ
+                </button>
+
+                <button type="button"
+                        class="@GetMenuClass("orders")"
+                        @onclick="@(() => SetActiveTab("orders"))">
+                    <i class="bi bi-bag-check"></i>
+                    Đơn mua
+                </button>
+            </nav>
+        </aside>
+
+        <main class="profile-content">
+            @if (activeTab == "profile")
+            {
+                <section class="content-card">
+                    <div class="card-heading">
+                        <div>
+                            <h2>Hồ sơ của tôi</h2>
+                            <p>Quản lý và bảo vệ thông tin tài khoản.</p>
+                        </div>
+
+                        @if (!isLoadingProfile
+                       && string.IsNullOrWhiteSpace(profileError)
+                       && !isEditingProfile)
+                        {
+                            <button type="button"
+                                    class="btn-edit"
+                                    @onclick="@StartEditProfile">
+                                <i class="bi bi-pencil-square"></i>
+                                Chỉnh sửa
+                            </button>
+                        }
+                    </div>
+
+                    @if (isLoadingProfile)
+                    {
+                        <div class="loading-box">
+                            <div class="spinner-border text-primary"></div>
+                            <span>Đang tải thông tin khách hàng...</span>
+                        </div>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(profileError))
+                    {
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                            <span>@profileError</span>
+                        </div>
+
+                        <button type="button"
+                                class="btn btn-outline-danger"
+                                @onclick="@ReloadProfileAsync">
+                            Tải lại thông tin
+                        </button>
+                    }
+                    else if (!isEditingProfile)
+                    {
+                        <div class="information-list">
+                            <div class="information-row">
+                                <span class="information-label">
+                                    Họ và tên
+                                </span>
+
+                                <strong>
+                                    @DisplayValue(Profile.HoTen)
+                                </strong>
+                            </div>
+
+                            <div class="information-row">
+                                <span class="information-label">
+                                    Email
+                                </span>
+
+                                <strong>
+                                    @DisplayValue(Profile.Email)
+                                </strong>
+                            </div>
+
+                            <div class="information-row">
+                                <span class="information-label">
+                                    Số điện thoại
+                                </span>
+
+                                <strong>
+                                    @DisplayValue(Profile.SoDienThoai)
+                                </strong>
+                            </div>
+
+                            <div class="information-row">
+                                <span class="information-label">
+                                    Giới tính
+                                </span>
+
+                                <strong>
+                                    @DisplayValue(Profile.GioiTinh)
+                                </strong>
+                            </div>
+
+                            <div class="information-row">
+                                <span class="information-label">
+                                    Ngày sinh
+                                </span>
+
+                                <strong>
+                                    @(Profile.NgaySinh?.ToString("dd/MM/yyyy")
+                                        ?? "Chưa cập nhật")
+                                </strong>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <EditForm Model="@profileForm"
+                                  OnValidSubmit="@SaveProfileAsync">
+
+                            <div class="edit-grid">
+                                <div class="form-group full-width">
+                                    <label>Họ và tên</label>
+
+                                    <InputText class="form-control"
+                                               @bind-Value="profileForm.HoTen" />
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Email</label>
+
+                                    <InputText class="form-control"
+                                               type="email"
+                                               @bind-Value="profileForm.Email" />
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Số điện thoại</label>
+
+                                    <InputText class="form-control"
+                                               @bind-Value="profileForm.SoDienThoai" />
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Giới tính</label>
+
+                                    <InputSelect class="form-select"
+                                                 @bind-Value="profileForm.GioiTinh">
+                                        <option value="">
+                                            Chưa cập nhật
+                                        </option>
+                                        <option value="Nam">Nam</option>
+                                        <option value="Nữ">Nữ</option>
+                                        <option value="Khác">Khác</option>
+                                    </InputSelect>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Ngày sinh</label>
+
+                                    <InputDate class="form-control"
+                                               @bind-Value="profileForm.NgaySinh" />
+                                </div>
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(saveProfileError))
+                            {
+                                <div class="alert alert-danger mt-3">
+                                    @saveProfileError
+                                </div>
+                            }
+
+                            <div class="form-actions">
+                                <button type="button"
+                                        class="btn-cancel"
+                                        disabled="@isSavingProfile"
+                                        @onclick="@CancelEditProfile">
+                                    Hủy
+                                </button>
+
+                                <button type="submit"
+                                        class="btn-save"
+                                        disabled="@isSavingProfile">
+
+                                    @if (isSavingProfile)
+                                    {
+                                        <span class="spinner-border spinner-border-sm"></span>
+                                        <span>Đang lưu...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-check-lg"></i>
+                                        <span>Lưu thay đổi</span>
+                                    }
+                                </button>
+                            </div>
+                        </EditForm>
+                    }
+                </section>
+            }
+            else if (activeTab == "address")
+            {
+                <section class="content-card">
+                    <div class="card-heading">
+                        <div>
+                            <h2>Địa chỉ của tôi</h2>
+                            <p>Quản lý địa chỉ nhận hàng của bạn.</p>
+                        </div>
+
+                        @if (!isEditingAddress)
+                        {
+                            <button type="button"
+                                    class="btn-edit"
+                                    @onclick="@AddAddress">
+                                <i class="bi bi-plus-lg"></i>
+                                Thêm địa chỉ
+                            </button>
+                        }
+                    </div>
+
+                    @if (isLoadingAddress)
+                    {
+                        <div class="loading-box">
+                            <div class="spinner-border text-primary"></div>
+                            <span>Đang tải địa chỉ...</span>
+                        </div>
+                    }
+                    else if (isEditingAddress)
+                    {
+                        <EditForm Model="@addressForm"
+                                  OnValidSubmit="@SaveAddressAsync">
+
+                            <DataAnnotationsValidator />
+
+                            <div class="edit-grid">
+                                <div class="form-group">
+                                    <label>Tỉnh/Thành phố</label>
+
+                                    <InputSelect class="form-select"
+                                                 TValue="string"
+                                                 Value="@addressForm.ThanhPho"
+                                                 ValueChanged="@OnProvinceChanged"
+                                                 ValueExpression="@(() => addressForm.ThanhPho)">
+                                        <option value="">
+                                            Chọn Tỉnh/Thành phố
+                                        </option>
+
+                                        @foreach (var province in provinces)
+                                        {
+                                            <option value="@province.Ten">
+                                                @province.Ten
+                                            </option>
+                                        }
+                                    </InputSelect>
+
+                                    <ValidationMessage For="@(() => addressForm.ThanhPho)" />
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Quận/Huyện</label>
+
+                                    <InputSelect class="form-select"
+                                                 TValue="string"
+                                                 Value="@addressForm.QuanHuyen"
+                                                 ValueChanged="@OnDistrictChanged"
+                                                 ValueExpression="@(() => addressForm.QuanHuyen)">
+                                        <option value="">
+                                            Chọn Quận/Huyện
+                                        </option>
+
+                                        @foreach (var district in districts)
+                                        {
+                                            <option value="@district.Ten">
+                                                @district.Ten
+                                            </option>
+                                        }
+                                    </InputSelect>
+
+                                    <ValidationMessage For="@(() => addressForm.QuanHuyen)" />
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Phường/Xã</label>
+
+                                    <InputSelect class="form-select"
+                                                 @bind-Value="addressForm.PhuongXa">
+                                        <option value="">
+                                            Chọn Phường/Xã
+                                        </option>
+
+                                        @foreach (var ward in wards)
+                                        {
+                                            <option value="@ward.Ten">
+                                                @ward.Ten
+                                            </option>
+                                        }
+                                    </InputSelect>
+
+                                    <ValidationMessage For="@(() => addressForm.PhuongXa)" />
+                                </div>
+
+                                <div class="form-group full-width">
+                                    <label>Địa chỉ cụ thể</label>
+
+                                    <InputText class="form-control"
+                                               placeholder="Số nhà, tên đường..."
+                                               @bind-Value="addressForm.DiaChiCuThe" />
+
+                                    <ValidationMessage For="@(() => addressForm.DiaChiCuThe)" />
+                                </div>
+
+                                <div class="form-group full-width default-check">
+                                    <InputCheckbox id="defaultAddress"
+                                                   @bind-Value="addressForm.IsDefault" />
+
+                                    <label for="defaultAddress">
+                                        Đặt làm địa chỉ mặc định
+                                    </label>
+                                </div>
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(addressError))
+                            {
+                                <div class="alert alert-danger mt-3">
+                                    @addressError
+                                </div>
+                            }
+
+                            <div class="form-actions">
+                                <button type="button"
+                                        class="btn-cancel"
+                                        disabled="@isSavingAddress"
+                                        @onclick="@CancelAddress">
+                                    Hủy
+                                </button>
+
+                                <button type="submit"
+                                        class="btn-save"
+                                        disabled="@isSavingAddress">
+
+                                    @if (isSavingAddress)
+                                    {
+                                        <span class="spinner-border spinner-border-sm"></span>
+                                        <span>Đang lưu...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-check-lg"></i>
+                                        <span>Lưu địa chỉ</span>
+                                    }
+                                </button>
+                            </div>
+                        </EditForm>
+                    }
+                    else if (addresses.Count == 0)
+                    {
+                        <div class="empty-box">
+                            <i class="bi bi-geo-alt"></i>
+                            <h4>Chưa có địa chỉ</h4>
+                            <p>Hãy thêm địa chỉ để nhận hàng thuận tiện hơn.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="address-list">
+                            @foreach (var item in addresses)
+                            {
+                                <article class="address-item">
+                                    <div class="address-icon">
+                                        <i class="bi bi-house-door"></i>
+                                    </div>
+
+                                    <div class="address-information">
+                                        <div class="address-title">
+                                            <strong>@Profile.HoTen</strong>
+
+                                            @if (item.IsDefault)
+                                            {
+                                                <span class="default-badge">
+                                                    Mặc định
+                                                </span>
+                                            }
+                                        </div>
+
+                                        <span>@Profile.SoDienThoai</span>
+
+                                        <p>@FormatAddress(item)</p>
+                                    </div>
+
+                                    <div class="address-actions">
+                                        <button type="button"
+                                                @onclick="@(() => EditAddress(item))">
+                                            Sửa
+                                        </button>
+
+                                        @if (!item.IsDefault)
+                                        {
+                                            <button type="button"
+                                                    @onclick="@(() => SetDefaultAddressAsync(item.DiaChiKhachHangId))">
+                                                Đặt mặc định
+                                            </button>
+                                        }
+
+                                        <button type="button"
+                                                class="delete"
+                                                @onclick="@(() => DeleteAddressAsync(item.DiaChiKhachHangId))">
+                                            Xóa
+                                        </button>
+                                    </div>
+                                </article>
+                            }
+                        </div>
+                    }
+                </section>
+            }
+            else if (activeTab == "orders")
+            {
+                <section class="content-card order-card">
+                    <div class="card-heading">
+                        <div>
+                            <h2>Đơn mua của tôi</h2>
+                            <p>Theo dõi các đơn hàng đã đặt.</p>
+                        </div>
+                    </div>
+
+                    <DonMuaTab />
+                </section>
+            }
+        </main>
+    </div>
+</div>
+
+<style>
+    .profile-page {
+        min-height: 70vh;
+        padding: 40px 20px;
+        background: #f7f4f1;
+    }
+
+    .profile-container {
+        width: min(1180px, 100%);
+        display: grid;
+        grid-template-columns: 270px minmax(0, 1fr);
+        gap: 24px;
+        margin: 0 auto;
+    }
+
+    .profile-sidebar,
+    .content-card {
+        border: 1px solid #eadfd7;
+        border-radius: 20px;
+        background: #fff;
+        box-shadow: 0 10px 30px rgba(54, 32, 20, 0.06);
+    }
+
+    .profile-sidebar {
+        height: fit-content;
+        padding: 25px 18px;
+    }
+
+    .avatar-area {
+        display: flex;
+        align-items: center;
+        flex-direction: column;
+    }
+
+    .profile-avatar {
+        width: 112px;
+        height: 112px;
+        object-fit: cover;
+        border: 4px solid #fff;
+        border-radius: 50%;
+        background: #f1ebe6;
+        box-shadow: 0 8px 24px rgba(67, 40, 25, 0.18);
+    }
+
+    .avatar-edit-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 13px;
+        padding: 7px 12px;
+        border: 1px solid #dbcabd;
+        border-radius: 9px;
+        color: #7a4a2d;
+        font-size: 12px;
+        cursor: pointer;
+    }
+
+        .avatar-edit-button:hover {
+            background: #f8eee6;
+        }
+
+    .avatar-input {
+        display: none;
+    }
+
+    .customer-summary {
+        display: flex;
+        align-items: center;
+        flex-direction: column;
+        margin: 17px 0 25px;
+        text-align: center;
+    }
+
+        .customer-summary strong {
+            max-width: 100%;
+            overflow: hidden;
+            color: #2d1d15;
+            font-size: 17px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .customer-summary span {
+            max-width: 100%;
+            margin-top: 4px;
+            overflow: hidden;
+            color: #8c7b70;
+            font-size: 12px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+    .sidebar-title {
+        margin: 0 10px 9px;
+        color: #a09289;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .profile-menu {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+        .profile-menu button {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            padding: 12px 14px;
+            border: none;
+            border-radius: 11px;
+            background: transparent;
+            color: #6f6158;
+            font-size: 13px;
+            text-align: left;
+            cursor: pointer;
+        }
+
+            .profile-menu button:hover,
+            .profile-menu button.active {
+                background: linear-gradient(135deg, #f4e8dd, #fff8f2);
+                color: #7a4a2d;
+                font-weight: 700;
+            }
+
+    .profile-content {
+        min-width: 0;
+    }
+
+    .content-card {
+        min-height: 500px;
+        padding: 28px;
+    }
+
+    .card-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 28px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #eee5df;
+    }
+
+        .card-heading h2 {
+            margin: 0;
+            color: #2c1c13;
+            font-size: 23px;
+        }
+
+        .card-heading p {
+            margin: 6px 0 0;
+            color: #8b7d74;
+            font-size: 13px;
+        }
+
+    .btn-edit,
+    .btn-save,
+    .btn-cancel {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        min-height: 40px;
+        padding: 0 16px;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .btn-edit,
+    .btn-save {
+        border: none;
+        background: linear-gradient(135deg, #7a4a2d, #2c1c13);
+        color: #fff;
+    }
+
+    .btn-cancel {
+        border: 1px solid #d8cbc2;
+        background: #fff;
+        color: #74665e;
+    }
+
+        .btn-save:disabled,
+        .btn-cancel:disabled {
+            cursor: not-allowed;
+            opacity: 0.65;
+        }
+
+    .loading-box,
+    .empty-box {
+        min-height: 310px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 13px;
+        color: #817168;
+        text-align: center;
+    }
+
+        .empty-box > i {
+            color: #c39a78;
+            font-size: 48px;
+        }
+
+        .empty-box h4,
+        .empty-box p {
+            margin: 0;
+        }
+
+    .information-list {
+        max-width: 730px;
+    }
+
+    .information-row {
+        display: grid;
+        grid-template-columns: 180px minmax(0, 1fr);
+        gap: 25px;
+        padding: 18px 6px;
+        border-bottom: 1px solid #f0e9e4;
+    }
+
+    .information-label {
+        color: #8a7b72;
+        font-size: 13px;
+    }
+
+    .information-row strong {
+        color: #34241b;
+        font-size: 14px;
+        font-weight: 650;
+        word-break: break-word;
+    }
+
+    .edit-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 19px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 7px;
+        color: #46352b;
+        font-size: 13px;
+        font-weight: 650;
+    }
+
+    .form-control,
+    .form-select {
+        min-height: 44px;
+        border: 1px solid #ded3cc;
+        border-radius: 10px;
+    }
+
+        .form-control:focus,
+        .form-select:focus {
+            border-color: #b98256;
+            box-shadow: 0 0 0 4px rgba(185, 130, 86, 0.13);
+        }
+
+    .full-width {
+        grid-column: 1 / -1;
+    }
+
+    .default-check {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+    }
+
+        .default-check label {
+            margin: 0;
+            cursor: pointer;
+        }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 27px;
+    }
+
+    .address-list {
+        display: flex;
+        flex-direction: column;
+        gap: 13px;
+    }
+
+    .address-item {
+        display: grid;
+        grid-template-columns: 48px minmax(0, 1fr) auto;
+        gap: 15px;
+        padding: 18px;
+        border: 1px solid #ebe1da;
+        border-radius: 14px;
+        background: #fffdfb;
+    }
+
+    .address-icon {
+        width: 45px;
+        height: 45px;
+        display: grid;
+        place-items: center;
+        border-radius: 12px;
+        background: #f4e7dc;
+        color: #7a4a2d;
+        font-size: 18px;
+    }
+
+    .address-information {
+        min-width: 0;
+        color: #817168;
+        font-size: 13px;
+    }
+
+    .address-title {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 9px;
+        color: #34241b;
+    }
+
+    .address-information > span {
+        display: block;
+        margin-top: 5px;
+    }
+
+    .address-information p {
+        margin: 8px 0 0;
+        color: #55453c;
+        line-height: 1.6;
+    }
+
+    .default-badge {
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: #e4f5eb;
+        color: #218450;
+        font-size: 10px;
+        font-weight: 700;
+    }
+
+    .address-actions {
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        flex-direction: column;
+        gap: 7px;
+    }
+
+        .address-actions button {
+            border: none;
+            background: transparent;
+            color: #7a4a2d;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+            .address-actions button:hover {
+                text-decoration: underline;
+            }
+
+            .address-actions button.delete {
+                color: #d94b4b;
+            }
+
+    .field-validation-error {
+        display: block;
+        margin-top: 5px;
+        color: #dc3545;
+        font-size: 11px;
+    }
+
+    @@media (max-width: 850px) {
+        .profile-container {
+            grid-template-columns: 1fr;
+        }
+
+        .profile-sidebar {
+            position: static;
+        }
+
+        .profile-menu {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+            .profile-menu button {
+                justify-content: center;
+            }
+    }
+
+    @@media (max-width: 620px) {
+        .profile-page {
+            padding: 20px 12px;
+        }
+
+        .content-card {
+            padding: 20px 16px;
+            border-radius: 15px;
+        }
+
+        .card-heading {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .edit-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .full-width {
+            grid-column: auto;
+        }
+
+        .information-row {
+            grid-template-columns: 1fr;
+            gap: 7px;
+        }
+
+        .address-item {
+            grid-template-columns: 42px minmax(0, 1fr);
+        }
+
+        .address-actions {
+            grid-column: 1 / -1;
+            align-items: center;
+            justify-content: flex-end;
+            flex-direction: row;
+            flex-wrap: wrap;
+        }
+
+        .profile-menu button {
+            flex-direction: column;
+            gap: 4px;
+            font-size: 11px;
+        }
+    }
+</style>
+
+@code {
+    private const string DefaultAvatar =
+        "https://i.pravatar.cc/200?img=12";
+
+    private string activeTab = "profile";
+    private string avatarImage = DefaultAvatar;
+
+    private Guid customerId;
+
+    private bool isLoadingProfile = true;
+    private bool isEditingProfile;
+    private bool isSavingProfile;
+
+    private string profileError = string.Empty;
+    private string saveProfileError = string.Empty;
+
+    private CustomerProfileModel Profile = new();
+    private ProfileFormModel profileForm = new();
+
+    private bool isLoadingAddress;
+    private bool isEditingAddress;
+    private bool isSavingAddress;
+
+    private string addressError = string.Empty;
+
+    private Guid editingAddressId;
+
+    private List<DiaChiKhachHangDto> addresses = new();
+    private AddressFormModel addressForm = new();
+
+    private List<DiaChi> provinces = new();
+    private List<DiaChi> districts = new();
+    private List<DiaChi> wards = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            provinces = await XuLyDiaChi.ParseDiaChiAsync(
+                "wwwroot/Files/ThanhPho.txt");
+        }
+        catch
+        {
+            provinces = new List<DiaChi>();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        var token = await JS.InvokeAsync<string?>(
+            "localStorage.getItem",
+            "authToken");
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            Nav.NavigateTo("/login", replace: true);
+            return;
+        }
+
+        var savedAvatar = await JS.InvokeAsync<string?>(
+            "localStorage.getItem",
+            "avatarImage");
+
+        if (!string.IsNullOrWhiteSpace(savedAvatar))
+        {
+            avatarImage = savedAvatar;
+        }
+
+        var loaded = await LoadProfileAsync();
+
+        if (loaded)
+        {
+            await LoadAddressesAsync();
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task<bool> LoadProfileAsync()
+    {
+        isLoadingProfile = true;
+        profileError = string.Empty;
+
+        try
+        {
+            var response =
+                await Http.GetAsync("api/KhachHang/me");
+
+            if (response.StatusCode is HttpStatusCode.Unauthorized
+                or HttpStatusCode.Forbidden)
+            {
+                await ClearLoginDataAsync();
+                Nav.NavigateTo("/login", replace: true);
+                return false;
+            }
+
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                profileError =
+                    "Không tìm thấy hồ sơ khách hàng của tài khoản này.";
+
+                return false;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                profileError =
+                    $"Không thể tải hồ sơ. Mã lỗi: {(int)response.StatusCode}.";
+
+                return false;
+            }
+
+            var result =
+                await response.Content
+                    .ReadFromJsonAsync<CustomerProfileModel>();
+
+            if (result == null)
+            {
+                profileError =
+                    "API không trả về thông tin khách hàng hợp lệ.";
+
+                return false;
+            }
+
+            customerId = result.KhachHangId;
+            Profile = result;
+
+            await JS.InvokeVoidAsync(
+                "localStorage.setItem",
+                "khachHangId",
+                customerId.ToString());
+
+            return true;
+        }
+        catch (HttpRequestException)
+        {
+            profileError =
+                "Không thể kết nối đến API để tải hồ sơ.";
+
+            return false;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            profileError =
+                "Dữ liệu hồ sơ API trả về không đúng định dạng.";
+
+            return false;
+        }
+        finally
+        {
+            isLoadingProfile = false;
+        }
+    }
+
+    private async Task ReloadProfileAsync()
+    {
+        if (await LoadProfileAsync())
+        {
+            await LoadAddressesAsync();
+        }
+    }
+
+    private void StartEditProfile()
+    {
+        profileForm = new ProfileFormModel
+            {
+                HoTen = Profile.HoTen,
+                Email = Profile.Email,
+                SoDienThoai = Profile.SoDienThoai,
+                GioiTinh = Profile.GioiTinh ?? string.Empty,
+                NgaySinh = Profile.NgaySinh
+            };
+
+        saveProfileError = string.Empty;
+        isEditingProfile = true;
+    }
+
+    private void CancelEditProfile()
+    {
+        saveProfileError = string.Empty;
+        isEditingProfile = false;
+    }
+
+    private async Task SaveProfileAsync()
+    {
+        saveProfileError = string.Empty;
+
+        profileForm.HoTen =
+            (profileForm.HoTen ?? string.Empty).Trim();
+
+        profileForm.Email =
+            (profileForm.Email ?? string.Empty).Trim();
+
+        profileForm.SoDienThoai =
+            (profileForm.SoDienThoai ?? string.Empty).Trim();
+
+        if (string.IsNullOrWhiteSpace(profileForm.HoTen))
+        {
+            saveProfileError = "Vui lòng nhập họ và tên.";
+            return;
+        }
+
+        if (!new EmailAddressAttribute()
+                .IsValid(profileForm.Email))
+        {
+            saveProfileError = "Địa chỉ email không hợp lệ.";
+            return;
+        }
+
+        if (!System.Text.RegularExpressions.Regex.IsMatch(
+                profileForm.SoDienThoai,
+                @"^(09|03)\d{8}$"))
+        {
+            saveProfileError =
+                "Số điện thoại phải có 10 số và bắt đầu bằng 09 hoặc 03.";
+
+            return;
+        }
+
+        if (profileForm.NgaySinh.HasValue
+            && profileForm.NgaySinh.Value.Date > DateTime.Today)
+        {
+            saveProfileError =
+                "Ngày sinh không được lớn hơn ngày hiện tại.";
+
+            return;
+        }
+
+        isSavingProfile = true;
+
+        try
+        {
+            var request = new KhachHangUpdateDTO
+                {
+                    KhachHangId = customerId,
+                    HoTen = profileForm.HoTen,
+                    Email = profileForm.Email,
+                    SoDienThoai = profileForm.SoDienThoai,
+                    GioiTinh =
+                        string.IsNullOrWhiteSpace(profileForm.GioiTinh)
+                            ? null
+                            : profileForm.GioiTinh.Trim(),
+                    NgaySinh = profileForm.NgaySinh
+                };
+
+            var response = await Http.PutAsJsonAsync(
+                "api/KhachHang/me",
+                request);
+
+            if (response.StatusCode is HttpStatusCode.Unauthorized
+                or HttpStatusCode.Forbidden)
+            {
+                await ClearLoginDataAsync();
+                Nav.NavigateTo("/login", replace: true);
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                saveProfileError =
+                    await ReadErrorAsync(
+                        response,
+                        "Không thể cập nhật hồ sơ.");
+
+                return;
+            }
+
+            var updated =
+                await response.Content
+                    .ReadFromJsonAsync<CustomerProfileModel>();
+
+            if (updated != null)
+            {
+                Profile = updated;
+            }
+            else
+            {
+                Profile.HoTen = request.HoTen;
+                Profile.Email = request.Email;
+                Profile.SoDienThoai = request.SoDienThoai;
+                Profile.GioiTinh = request.GioiTinh;
+                Profile.NgaySinh = request.NgaySinh;
+            }
+
+            isEditingProfile = false;
+
+            await JS.InvokeVoidAsync(
+                "localStorage.setItem",
+                "customerName",
+                Profile.HoTen);
+
+            await JS.InvokeVoidAsync(
+                "alert",
+                "Cập nhật thông tin thành công.");
+        }
+        catch (HttpRequestException)
+        {
+            saveProfileError =
+                "Không thể kết nối đến API để cập nhật hồ sơ.";
+        }
+        finally
+        {
+            isSavingProfile = false;
+        }
+    }
+
+    private async Task LoadAddressesAsync()
+    {
+        if (customerId == Guid.Empty)
+        {
+            return;
+        }
+
+        isLoadingAddress = true;
+
+        try
+        {
+            var response = await Http.GetAsync(
+                $"api/DiaChiKhachHang/khachhang/{customerId}");
+
+            if (response.StatusCode is HttpStatusCode.Unauthorized
+                or HttpStatusCode.Forbidden)
+            {
+                await ClearLoginDataAsync();
+                Nav.NavigateTo("/login", replace: true);
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                addresses = new List<DiaChiKhachHangDto>();
+                return;
+            }
+
+            addresses =
+                await response.Content
+                    .ReadFromJsonAsync<List<DiaChiKhachHangDto>>()
+                ?? new List<DiaChiKhachHangDto>();
+        }
+        catch
+        {
+            addresses = new List<DiaChiKhachHangDto>();
+        }
+        finally
+        {
+            isLoadingAddress = false;
+        }
+    }
+
+    private void AddAddress()
+    {
+        editingAddressId = Guid.Empty;
+
+        addressForm = new AddressFormModel
+            {
+                IsDefault = addresses.Count == 0
+            };
+
+        districts = new List<DiaChi>();
+        wards = new List<DiaChi>();
+
+        addressError = string.Empty;
+        isEditingAddress = true;
+    }
+
+    private void EditAddress(DiaChiKhachHangDto item)
+    {
+        editingAddressId = item.DiaChiKhachHangId;
+
+        districts =
+            provinces.FirstOrDefault(
+                x => x.Ten == item.ThanhPho)?.Con
+            ?? new List<DiaChi>();
+
+        wards =
+            districts.FirstOrDefault(
+                x => x.Ten == item.QuanHuyen)?.Con
+            ?? new List<DiaChi>();
+
+        addressForm = new AddressFormModel
+            {
+                ThanhPho = item.ThanhPho,
+                QuanHuyen = item.QuanHuyen,
+                PhuongXa = item.PhuongXa,
+                DiaChiCuThe = item.DiaChiCuThe,
+                IsDefault = item.IsDefault
+            };
+
+        addressError = string.Empty;
+        isEditingAddress = true;
+    }
+
+    private void CancelAddress()
+    {
+        editingAddressId = Guid.Empty;
+        addressForm = new AddressFormModel();
+
+        districts = new List<DiaChi>();
+        wards = new List<DiaChi>();
+
+        addressError = string.Empty;
+        isEditingAddress = false;
+    }
+
+    private void OnProvinceChanged(string value)
+    {
+        addressForm.ThanhPho = value;
+        addressForm.QuanHuyen = string.Empty;
+        addressForm.PhuongXa = string.Empty;
+
+        districts =
+            provinces.FirstOrDefault(
+                x => x.Ten == value)?.Con
+            ?? new List<DiaChi>();
+
+        wards = new List<DiaChi>();
+    }
+
+    private void OnDistrictChanged(string value)
+    {
+        addressForm.QuanHuyen = value;
+        addressForm.PhuongXa = string.Empty;
+
+        wards =
+            districts.FirstOrDefault(
+                x => x.Ten == value)?.Con
+            ?? new List<DiaChi>();
+    }
+
+    private async Task SaveAddressAsync()
+    {
+        addressError = string.Empty;
+        isSavingAddress = true;
+
+        try
+        {
+            var request = new DiaChiKhachHangDto
+                {
+                    DiaChiKhachHangId = editingAddressId,
+                    KhachHangId = customerId,
+                    DiaChiCuThe = addressForm.DiaChiCuThe.Trim(),
+                    PhuongXa = addressForm.PhuongXa,
+                    QuanHuyen = addressForm.QuanHuyen,
+                    ThanhPho = addressForm.ThanhPho,
+                    TrangThai = true,
+                    IsDefault =
+                        addressForm.IsDefault
+                        || addresses.Count == 0
+                };
+
+            HttpResponseMessage response;
+
+            if (editingAddressId == Guid.Empty)
+            {
+                response = await Http.PostAsJsonAsync(
+                    "api/DiaChiKhachHang",
+                    request);
+            }
+            else
+            {
+                response = await Http.PutAsJsonAsync(
+                    $"api/DiaChiKhachHang/{editingAddressId}",
+                    request);
+            }
+
+            if (response.StatusCode is HttpStatusCode.Unauthorized
+                or HttpStatusCode.Forbidden)
+            {
+                await ClearLoginDataAsync();
+                Nav.NavigateTo("/login", replace: true);
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                addressError =
+                    await ReadErrorAsync(
+                        response,
+                        "Không thể lưu địa chỉ.");
+
+                return;
+            }
+
+            CancelAddress();
+            await LoadAddressesAsync();
+
+            await JS.InvokeVoidAsync(
+                "alert",
+                "Lưu địa chỉ thành công.");
+        }
+        catch (HttpRequestException)
+        {
+            addressError =
+                "Không thể kết nối đến API để lưu địa chỉ.";
+        }
+        finally
+        {
+            isSavingAddress = false;
+        }
+    }
+
+    private async Task SetDefaultAddressAsync(Guid id)
+    {
+        var response = await Http.PutAsync(
+            $"api/DiaChiKhachHang/set-default/{id}",
+            null);
+
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadAddressesAsync();
+        }
+        else
+        {
+            await JS.InvokeVoidAsync(
+                "alert",
+                "Không thể đặt địa chỉ mặc định.");
+        }
+    }
+
+    private async Task DeleteAddressAsync(Guid id)
+    {
+        var confirmed = await JS.InvokeAsync<bool>(
+            "confirm",
+            "Bạn có chắc chắn muốn xóa địa chỉ này?");
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        var response = await Http.DeleteAsync(
+            $"api/DiaChiKhachHang/{id}");
+
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadAddressesAsync();
+        }
+        else
+        {
+            await JS.InvokeVoidAsync(
+                "alert",
+                "Không thể xóa địa chỉ.");
+        }
+    }
+
+    private async Task OnAvatarChanged(
+        InputFileChangeEventArgs args)
+    {
+        var file = args.File;
+
+        if (file.Size > 5 * 1024 * 1024)
+        {
+            await JS.InvokeVoidAsync(
+                "alert",
+                "Ảnh đại diện không được vượt quá 5 MB.");
+
+            return;
+        }
+
+        using var stream =
+            file.OpenReadStream(5 * 1024 * 1024);
+
+        using var memoryStream = new MemoryStream();
+
+        await stream.CopyToAsync(memoryStream);
+
+        avatarImage =
+            $"data:{file.ContentType};base64,"
+            + Convert.ToBase64String(
+                memoryStream.ToArray());
+
+        await JS.InvokeVoidAsync(
+            "localStorage.setItem",
+            "avatarImage",
+            avatarImage);
+    }
+
+    private void SetActiveTab(string tab)
+    {
+        activeTab = tab;
+
+        if (tab != "address")
+        {
+            CancelAddress();
+        }
+    }
+
+    private string GetMenuClass(string tab)
+    {
+        return activeTab == tab ? "active" : string.Empty;
+    }
+
+    private static string DisplayValue(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? "Chưa cập nhật"
+            : value;
+    }
+
+    private static string FormatAddress(
+        DiaChiKhachHangDto item)
+    {
+        return string.Join(
+            ", ",
+            new[]
+            {
+                item.DiaChiCuThe,
+                item.PhuongXa,
+                item.QuanHuyen,
+                item.ThanhPho
+                }
+            .Where(x => !string.IsNullOrWhiteSpace(x)));
+    }
+
+    private static async Task<string> ReadErrorAsync(
+        HttpResponseMessage response,
+        string defaultMessage)
+    {
+        var content =
+            await response.Content.ReadAsStringAsync();
+
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return defaultMessage;
+        }
+
+        return content.Trim().Trim('"');
+    }
+
+    private async Task ClearLoginDataAsync()
+    {
+        await JS.InvokeVoidAsync(
+            "localStorage.removeItem",
+            "authToken");
+
+        await JS.InvokeVoidAsync(
+            "localStorage.removeItem",
+            "khachHangId");
+
+        await JS.InvokeVoidAsync(
+            "localStorage.removeItem",
+            "username");
+
+        await JS.InvokeVoidAsync(
+            "localStorage.removeItem",
+            "currentRole");
+    }
+
+    private sealed class CustomerProfileModel
+    {
+        public Guid KhachHangId { get; set; }
+        public string HoTen { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string SoDienThoai { get; set; } = string.Empty;
+        public string? GioiTinh { get; set; }
+
+        // Bắt buộc nullable để nhận dữ liệu null từ API.
+        public DateTime? NgaySinh { get; set; }
+    }
+
+    private sealed class ProfileFormModel
+    {
+        public string HoTen { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string SoDienThoai { get; set; } = string.Empty;
+        public string GioiTinh { get; set; } = string.Empty;
+
+        // Bắt buộc nullable để InputDate cho phép chưa chọn.
+        public DateTime? NgaySinh { get; set; }
+    }
+
+    private sealed class AddressFormModel
+    {
+        [Required(ErrorMessage = "Vui lòng chọn Tỉnh/Thành phố.")]
+        public string ThanhPho { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Vui lòng chọn Quận/Huyện.")]
+        public string QuanHuyen { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Vui lòng chọn Phường/Xã.")]
+        public string PhuongXa { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Vui lòng nhập địa chỉ cụ thể.")]
+        public string DiaChiCuThe { get; set; } = string.Empty;
+
+        public bool IsDefault { get; set; }
+    }
+}

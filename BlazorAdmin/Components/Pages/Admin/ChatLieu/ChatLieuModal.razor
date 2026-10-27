@@ -1,0 +1,835 @@
+﻿@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Forms
+
+@if (IsOpen && _editContext != null)
+{
+    <div class="material-modal-overlay"
+         @onclick="CloseModal">
+
+        <div class="material-modal"
+             role="dialog"
+             aria-modal="true"
+             @onclick:stopPropagation="true">
+
+            <EditForm EditContext="_editContext"
+                      OnSubmit="HandleSubmit">
+
+                <DataAnnotationsValidator />
+
+                <!-- Tiêu đề -->
+                <header class="material-modal-header">
+                    <div class="modal-header-icon">
+                        @if (IsEdit)
+                        {
+                            <svg viewBox="0 0 24 24">
+                                <path d="M4 20h4L19 9l-4-4L4 16v4Z" />
+                                <path d="m13 7 4 4" />
+                            </svg>
+                        }
+                        else
+                        {
+                            <svg viewBox="0 0 24 24">
+                                <path d="M12 5v14M5 12h14" />
+                            </svg>
+                        }
+                    </div>
+
+                    <div>
+                        <span class="modal-eyebrow">
+                            @(IsEdit
+                                ? "CẬP NHẬT DỮ LIỆU"
+                                : "TẠO MỚI")
+                        </span>
+
+                        <h2>
+                            @(IsEdit
+                                ? "Chỉnh sửa chất liệu"
+                                : "Thêm chất liệu")
+                        </h2>
+
+                        <p>
+                            Điền đầy đủ thông tin chất liệu bên dưới.
+                        </p>
+                    </div>
+
+                    <button type="button"
+                            class="modal-close-button"
+                            title="Đóng"
+                            @onclick="CloseModal">
+                        ×
+                    </button>
+                </header>
+
+                <!-- Nội dung -->
+                <div class="material-modal-body">
+
+                    @if (!string.IsNullOrWhiteSpace(SaveError))
+                    {
+                        <div class="modal-error-message">
+                            @SaveError
+                        </div>
+                    }
+
+                    <!-- Tên chất liệu -->
+                    <div class="modal-form-group">
+                        <div class="form-label-row">
+                            <label for="material-name">
+                                Tên chất liệu
+                                <span>*</span>
+                            </label>
+
+                            <small>
+                                @Model.TenChatLieu.Length/50
+                            </small>
+                        </div>
+
+                        <InputText id="material-name"
+                                   class="@GetInputClass(
+                                       nameof(Model.TenChatLieu))"
+                                   placeholder="Ví dụ: Da bò, Cotton, Vải lưới..."
+                                   maxlength="50"
+                                   @bind-Value="Model.TenChatLieu" />
+
+                        <ValidationMessage For="@(() => Model.TenChatLieu)"
+                                           class="validation-message" />
+                    </div>
+
+                    <!-- Mô tả -->
+                    <div class="modal-form-group">
+                        <div class="form-label-row">
+                            <label for="material-description">
+                                Mô tả
+                            </label>
+
+                            <small>
+                                @Model.MoTa.Length/250
+                            </small>
+                        </div>
+
+                        <InputTextArea id="material-description"
+                                       class="@GetInputClass(nameof(Model.MoTa))"
+                                       placeholder="Nhập mô tả về chất liệu..."
+                                       maxlength="250"
+                                       rows="4"
+                                       @bind-Value="Model.MoTa" />
+
+                        <ValidationMessage For="@(() => Model.MoTa)"
+                                           class="validation-message" />
+                    </div>
+
+                    <!-- Trạng thái -->
+                    <div class="status-form-card">
+                        <div>
+                            <strong>Trạng thái hoạt động</strong>
+
+                            <span>
+                                @(Model.TrangThai
+                                    ? "Chất liệu đang được sử dụng"
+                                    : "Chất liệu đã ngừng sử dụng")
+                            </span>
+                        </div>
+
+                        <label class="material-switch">
+                            <InputCheckbox @bind-Value="Model.TrangThai" />
+
+                            <span class="switch-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Nút thao tác -->
+                <footer class="material-modal-footer">
+                    <button type="button"
+                            class="modal-cancel-button"
+                            disabled="@IsSaving"
+                            @onclick="CloseModal">
+                        Hủy
+                    </button>
+
+                    <button type="submit"
+                            class="modal-save-button"
+                            disabled="@IsSaving">
+
+                        @if (IsSaving)
+                        {
+                            <span class="button-spinner"></span>
+                            <span>Đang lưu...</span>
+                        }
+                        else
+                        {
+                            <svg viewBox="0 0 24 24">
+                                <path d="M5 4h12l2 2v14H5z" />
+                                <path d="M8 4v6h8V4M8 20v-6h8v6" />
+                            </svg>
+
+                            <span>
+                                @(IsEdit
+                                    ? "Lưu thay đổi"
+                                    : "Thêm chất liệu")
+                            </span>
+                        }
+                    </button>
+                </footer>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<style>
+    .material-modal-overlay,
+    .material-modal-overlay * {
+        box-sizing: border-box;
+    }
+
+    .material-modal-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(15, 23, 42, 0.62);
+        backdrop-filter: blur(4px);
+        animation: modalFadeIn 0.2s ease;
+    }
+
+    .material-modal {
+        width: min(560px, 100%);
+        max-height: 94vh;
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        background: #ffffff;
+        box-shadow: 0 25px 70px rgba(15, 23, 42, 0.3);
+        animation: modalSlideUp 0.22s ease;
+    }
+
+        .material-modal form {
+            display: flex;
+            max-height: 94vh;
+            flex-direction: column;
+        }
+
+    /* Tiêu đề modal */
+
+    .material-modal-header {
+        position: relative;
+        display: flex;
+        flex-shrink: 0;
+        align-items: flex-start;
+        gap: 13px;
+        padding: 22px 65px 19px 22px;
+        border-bottom: 1px solid #e8edf3;
+        background: linear-gradient( 135deg, #ffffff, #fff7ed );
+    }
+
+    .modal-header-icon {
+        display: grid;
+        flex: 0 0 43px;
+        width: 43px;
+        height: 43px;
+        place-items: center;
+        border-radius: 12px;
+        background: #f97316;
+        color: #ffffff;
+    }
+
+        .modal-header-icon svg {
+            width: 20px;
+            height: 20px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+    .modal-eyebrow {
+        display: block;
+        margin-bottom: 5px;
+        color: #ea580c;
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 0.13em;
+    }
+
+    .material-modal-header h2 {
+        margin: 0;
+        color: #0f172a;
+        font-size: 19px;
+        font-weight: 800;
+    }
+
+    .material-modal-header p {
+        margin: 5px 0 0;
+        color: #64748b;
+        font-size: 10px;
+    }
+
+    .modal-close-button {
+        position: absolute;
+        top: 18px;
+        right: 18px;
+        display: grid;
+        width: 34px;
+        height: 34px;
+        padding: 0;
+        place-items: center;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+        background: #ffffff;
+        color: #64748b;
+        font-size: 22px;
+        cursor: pointer;
+    }
+
+        .modal-close-button:hover {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+    /* Nội dung form */
+
+    .material-modal-body {
+        flex: 1;
+        min-height: 0;
+        padding: 22px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #94a3b8 #f1f5f9;
+    }
+
+        .material-modal-body::-webkit-scrollbar {
+            width: 9px;
+        }
+
+        .material-modal-body::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        .material-modal-body::-webkit-scrollbar-thumb {
+            border: 2px solid #f1f5f9;
+            border-radius: 10px;
+            background: #94a3b8;
+        }
+
+    .modal-form-group {
+        margin-bottom: 19px;
+    }
+
+    .form-label-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+    }
+
+        .form-label-row label {
+            color: #334155;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+            .form-label-row label span {
+                color: #ef4444;
+            }
+
+        .form-label-row small {
+            color: #94a3b8;
+            font-size: 9px;
+        }
+
+    .modal-form-control {
+        width: 100%;
+        padding: 0 13px;
+        border: 1px solid #dce3ec;
+        border-radius: 10px;
+        outline: none;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 12px;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    input.modal-form-control {
+        height: 43px;
+    }
+
+    textarea.modal-form-control {
+        min-height: 105px;
+        padding-top: 12px;
+        resize: vertical;
+    }
+
+    .modal-form-control:focus {
+        border-color: #fb923c;
+        background: #ffffff;
+        box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.1);
+    }
+
+    .modal-form-control.input-invalid {
+        border-color: #ef4444;
+        background: #fffafa;
+    }
+
+    .validation-message {
+        display: block;
+        margin-top: 6px;
+        color: #dc2626;
+        font-size: 10px;
+    }
+
+    /* Trạng thái */
+
+    .status-form-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 15px;
+        border: 1px solid #e8edf3;
+        border-radius: 11px;
+        background: #f8fafc;
+    }
+
+        .status-form-card strong,
+        .status-form-card span {
+            display: block;
+        }
+
+        .status-form-card strong {
+            color: #334155;
+            font-size: 11px;
+        }
+
+        .status-form-card > div > span {
+            margin-top: 4px;
+            color: #94a3b8;
+            font-size: 9px;
+        }
+
+    /* Công tắc trạng thái */
+
+    .material-switch {
+        position: relative;
+        display: inline-block;
+        flex: 0 0 46px;
+        width: 46px;
+        height: 25px;
+    }
+
+        .material-switch input {
+            width: 0;
+            height: 0;
+            opacity: 0;
+        }
+
+    .switch-slider {
+        position: absolute;
+        inset: 0;
+        border-radius: 999px;
+        background: #cbd5e1;
+        cursor: pointer;
+        transition: background 0.2s ease;
+    }
+
+        .switch-slider::before {
+            position: absolute;
+            bottom: 3px;
+            left: 3px;
+            width: 19px;
+            height: 19px;
+            border-radius: 50%;
+            background: #ffffff;
+            content: "";
+            box-shadow: 0 2px 5px rgba(15, 23, 42, 0.2);
+            transition: transform 0.2s ease;
+        }
+
+    .material-switch input:checked + .switch-slider {
+        background: #22c55e;
+    }
+
+        .material-switch input:checked + .switch-slider::before {
+            transform: translateX(21px);
+        }
+
+    /* Chân modal */
+
+    .material-modal-footer {
+        display: flex;
+        flex-shrink: 0;
+        justify-content: flex-end;
+        gap: 9px;
+        padding: 14px 22px;
+        border-top: 1px solid #e8edf3;
+        background: #fbfcfe;
+    }
+
+    .modal-cancel-button,
+    .modal-save-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        min-height: 40px;
+        padding: 0 16px;
+        border-radius: 9px;
+        font-size: 11px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .modal-cancel-button {
+        border: 1px solid #dce3ec;
+        background: #ffffff;
+        color: #64748b;
+    }
+
+        .modal-cancel-button:hover {
+            border-color: #cbd5e1;
+            background: #f8fafc;
+        }
+
+    .modal-save-button {
+        border: none;
+        background: #f97316;
+        color: #ffffff;
+        box-shadow: 0 5px 12px rgba(249, 115, 22, 0.2);
+    }
+
+        .modal-save-button:hover:not(:disabled) {
+            background: #ea580c;
+        }
+
+        .modal-save-button:disabled,
+        .modal-cancel-button:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+
+        .modal-save-button svg {
+            width: 16px;
+            height: 16px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linejoin: round;
+        }
+
+    .button-spinner {
+        width: 15px;
+        height: 15px;
+        border: 2px solid rgba(255, 255, 255, 0.45);
+        border-top-color: #ffffff;
+        border-radius: 50%;
+        animation: buttonSpin 0.7s linear infinite;
+    }
+
+    .modal-error-message {
+        margin-bottom: 15px;
+        padding: 10px 12px;
+        border: 1px solid #fecaca;
+        border-radius: 9px;
+        background: #fef2f2;
+        color: #b91c1c;
+        font-size: 10px;
+    }
+
+    @@keyframes modalFadeIn {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+
+    @@keyframes modalSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(16px) scale(0.98);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    @@keyframes buttonSpin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @@media (max-width: 600px) {
+        .material-modal-overlay {
+            padding: 10px;
+        }
+
+        .material-modal {
+            border-radius: 14px;
+        }
+
+        .material-modal-header {
+            padding: 18px 55px 16px 17px;
+        }
+
+        .modal-header-icon {
+            flex-basis: 38px;
+            width: 38px;
+            height: 38px;
+        }
+
+        .material-modal-header h2 {
+            font-size: 16px;
+        }
+
+        .material-modal-body {
+            padding: 17px;
+        }
+
+        .status-form-card {
+            align-items: flex-start;
+        }
+
+        .material-modal-footer {
+            padding: 12px 17px;
+        }
+    }
+</style>
+
+@code {
+    [Parameter]
+    public bool IsOpen { get; set; }
+
+    [Parameter]
+    public bool IsEdit { get; set; }
+
+    [Parameter]
+    public string TenChatLieu { get; set; } = string.Empty;
+
+    [Parameter]
+    public string MoTa { get; set; } = string.Empty;
+
+    [Parameter]
+    public bool TrangThai { get; set; } = true;
+
+    [Parameter]
+    public List<string> ExistingNames { get; set; } = new();
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    [Parameter]
+    public EventCallback<(
+        string TenChatLieu,
+        string MoTa,
+        bool TrangThai
+    )> OnSaved
+    { get; set; }
+
+    private ChatLieuInputModel Model { get; set; } = new();
+
+    private EditContext? _editContext;
+    private ValidationMessageStore? _messageStore;
+
+    private bool IsSaving;
+    private string SaveError = string.Empty;
+
+    protected override void OnParametersSet()
+    {
+        if (!IsOpen)
+        {
+            return;
+        }
+
+        Model = new ChatLieuInputModel
+            {
+                TenChatLieu =
+                    TenChatLieu
+                    ?? string.Empty,
+
+                MoTa =
+                    MoTa
+                    ?? string.Empty,
+
+                TrangThai = TrangThai
+            };
+
+        _editContext =
+            new EditContext(Model);
+
+        _messageStore =
+            new ValidationMessageStore(_editContext);
+
+        SaveError = string.Empty;
+        IsSaving = false;
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (_editContext == null ||
+            _messageStore == null)
+        {
+            return;
+        }
+
+        /*
+         * Xóa lỗi trùng tên cũ trước khi
+         * kiểm tra lại dữ liệu.
+         */
+        _messageStore.Clear();
+        _editContext.NotifyValidationStateChanged();
+
+        /*
+         * Kiểm tra Required, StringLength
+         * và RegularExpression.
+         */
+        if (!_editContext.Validate())
+        {
+            return;
+        }
+
+        Model.TenChatLieu =
+            Model.TenChatLieu.Trim();
+
+        Model.MoTa =
+            Model.MoTa?.Trim()
+            ?? string.Empty;
+
+        var originalName =
+            TenChatLieu?.Trim()
+            ?? string.Empty;
+
+        var isDuplicate =
+            ExistingNames.Any(existingName =>
+            {
+                var existing =
+                    existingName?.Trim()
+                    ?? string.Empty;
+
+                /*
+                 * Khi sửa, bỏ qua tên của
+                 * chính chất liệu đang sửa.
+                 */
+                var isCurrentItem =
+                    IsEdit &&
+                    existing.Equals(
+                        originalName,
+                        StringComparison.OrdinalIgnoreCase
+                    );
+
+                return !isCurrentItem &&
+                       existing.Equals(
+                           Model.TenChatLieu,
+                           StringComparison.OrdinalIgnoreCase
+                       );
+            });
+
+        if (isDuplicate)
+        {
+            var fieldIdentifier =
+                new FieldIdentifier(
+                    Model,
+                    nameof(Model.TenChatLieu)
+                );
+
+            _messageStore.Add(
+                fieldIdentifier,
+                "Tên chất liệu đã tồn tại."
+            );
+
+            _editContext.NotifyValidationStateChanged();
+            return;
+        }
+
+        IsSaving = true;
+        SaveError = string.Empty;
+
+        try
+        {
+            await OnSaved.InvokeAsync((
+                Model.TenChatLieu,
+                Model.MoTa,
+                Model.TrangThai
+            ));
+        }
+        catch (Exception ex)
+        {
+            SaveError =
+                "Không thể lưu chất liệu: "
+                + ex.Message;
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+    private async Task CloseModal()
+    {
+        if (!IsSaving)
+        {
+            await OnClose.InvokeAsync();
+        }
+    }
+
+    private bool HasError(string fieldName)
+    {
+        if (_editContext == null)
+        {
+            return false;
+        }
+
+        var fieldIdentifier =
+            new FieldIdentifier(
+                Model,
+                fieldName
+            );
+
+        return _editContext
+            .GetValidationMessages(fieldIdentifier)
+            .Any();
+    }
+
+    private string GetInputClass(string fieldName)
+    {
+        return HasError(fieldName)
+            ? "modal-form-control input-invalid"
+            : "modal-form-control";
+    }
+
+    public class ChatLieuInputModel
+    {
+        [Required(
+            ErrorMessage =
+                "Tên chất liệu không được để trống."
+        )]
+        [StringLength(
+            50,
+            ErrorMessage =
+                "Tên chất liệu không vượt quá 50 ký tự."
+        )]
+        [RegularExpression(
+            @"^(?!\s*$)[a-zA-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠƯàáâãèéêìíòóôõùúăđĩũơưẠ-ỹ\s0-9]+$",
+            ErrorMessage =
+                "Tên chỉ được chứa chữ, số và khoảng trắng."
+        )]
+        public string TenChatLieu { get; set; } =
+            string.Empty;
+
+        [StringLength(
+            250,
+            ErrorMessage =
+                "Mô tả không vượt quá 250 ký tự."
+        )]
+        public string MoTa { get; set; } =
+            string.Empty;
+
+        public bool TrangThai { get; set; } = true;
+    }
+}

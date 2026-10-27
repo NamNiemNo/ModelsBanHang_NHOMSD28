@@ -1,0 +1,43 @@
+﻿@inherits LayoutComponentBase
+@inject NavigationManager NavigationManager
+<div class="page">
+    <div class="sidebar">
+        <NavNhanVien />
+    </div>
+
+    <main>
+        <div class="main">
+            <div class="header">
+                <div class="user-area">
+                    <div class="bell" id="bell">
+                        🔔<span class="badge">2</span>
+                        <div class="dropdown-bell" id="dropdownBell" style="display:none;">
+                            <div class="bell-title">Thông báo mới</div>
+                            <hr>
+                            <div class="dropdown-item">Thông báo 1</div>
+                            <div class="dropdown-item">Thông báo 2</div>
+                        </div>
+                    </div>
+                    <img class="avatar" id="avatar" src="https://randomuser.me/api/portraits/women/44.jpg" alt="user" />
+                    <div class="dropdown-avatar" id="dropdownAvatar" style="display:none;">
+                        <div class="dropdown-item">Thông tin tài khoản</div>
+                        <div class="dropdown-item">Đăng xuất</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>
+
+<div id="blazor-error-ui">
+    An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <a class="dismiss">🗙</a>
+</div>
+
+@code {
+
+}

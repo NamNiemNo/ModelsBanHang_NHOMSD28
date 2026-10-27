@@ -1,0 +1,399 @@
+﻿@page "/donmua"
+@page "/donmua/{HoaDonId:guid}"
+@using API.Models.DTO.BanHang
+@using BlazorKhachHang.Service.IService
+@using Data.Models
+@inject IHoaDonService service
+@inject IJSRuntime JS
+@inject IXuLyDiaChi xuLyDiaChi
+
+<link href="css/Oder.css" rel="stylesheet">
+
+@if (!_loaded)
+{
+    <div class="text-center mt-3">
+        <div class="spinner-border text-primary"></div>
+        <p>Đang tải đơn hàng...</p>
+    </div>
+}
+else if (!Orders.Any())
+{
+    <div class="alert alert-info mt-3">
+        Bạn chưa có đơn hàng nào.
+    </div>
+}
+else
+{
+    @foreach (var order in Orders)
+    {
+        <div class="order-card">
+
+            <!-- ===== THÔNG TIN GIAO HÀNG ===== -->
+          
+            <div class="mb-2 d-flex justify-content-between">
+                <div>
+                    <strong>Người nhận:</strong>
+
+                    @if (editingOrderId == order.HoaDonId && editingField == EditField.Ten)
+                    {
+                        <input class="form-control mt-1"
+                               @bind="editModel.TenNguoiNhan" />
+                    }
+                    else
+                    {
+                        @order.TenNguoiNhan
+                    }
+                </div>
+
+                <a class="btn btn-primary btn-sm me-2 @(ChoPhepSuaDiaChi(order.TrangThai) ? "" : "disabled")"
+                   @onclick="() => StartEdit(order, EditField.Ten)">
+                    Sửa
+                </a>
+            </div>
+
+            <div class="mb-2 d-flex justify-content-between">
+                <div>
+                    <strong>SĐT:</strong>
+
+                    @if (editingOrderId == order.HoaDonId && editingField == EditField.SoDienThoai)
+                    {
+                        <input class="form-control mt-1"
+                               @bind="editModel.SoDienThoai" />
+                    }
+                    else
+                    {
+                        @MaskPhone(order.SoDienThoai)
+                    }
+                </div>
+
+                <a class="btn btn-primary btn-sm me-2 @(ChoPhepSuaDiaChi(order.TrangThai) ? "" : "disabled")"
+                   @onclick="() => StartEdit(order, EditField.SoDienThoai)">
+                    Sửa
+                </a>
+            </div>
+            <div class="d-flex justify-content-between align-items-start">
+                <div style="flex:1">
+                    <strong>Địa chỉ:</strong>
+
+                    @if (editingOrderId == order.HoaDonId && editingField == EditField.DiaChi)
+                    {
+                        <div class="row mt-2">
+                            <div class="col-md-4">
+                                <select class="form-control" @onchange="OnTinhChanged">
+                                    <option value="">Tỉnh / TP</option>
+                                    @foreach (var t in TinhThanh)
+                                    {
+                                        <option value="@t.Ten">@t.Ten</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="col-md-4">
+                                <select class="form-control" @onchange="OnHuyenChanged">
+                                    <option value="">Quận / Huyện</option>
+                                    @foreach (var h in HuyenXa)
+                                    {
+                                        <option value="@h.Ten">@h.Ten</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="col-md-4">
+                                <select class="form-control" @onchange="OnXaChanged">
+                                    <option value="">Phường / Xã</option>
+                                    @foreach (var x in XaPhuong)
+                                    {
+                                        <option value="@x.Ten">@x.Ten</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
+                        <input class="form-control mt-2"
+                               placeholder="Địa chỉ cụ thể"
+                               @bind="editModel.DiaChiCuThe" />
+                    }
+                    else
+                    {
+                        @MaskAddress(order.DiaChi)
+                    }
+                </div>
+
+                <a class="btn btn-primary btn-sm me-2 @(ChoPhepSuaDiaChi(order.TrangThai) ? "" : "disabled")"
+                   @onclick="() => StartEdit(order, EditField.DiaChi)">
+                    Sửa
+                </a>
+            </div>
+            @if (editingOrderId == order.HoaDonId)
+            {
+                <div class="mt-2">
+                    <button class="btn btn-primary btn-sm me-2"
+                            @onclick="SaveEdit">
+                        💾 Lưu
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm"
+                            @onclick="CancelEdit">
+                        ❌ Hủy
+                    </button>
+                    
+                </div>
+            }
+            <strong>Mã đơn:</strong> @order.HoaDonId
+            <hr />
+
+            <!-- ===== SẢN PHẨM ===== -->
+            @foreach (var item in order.ChiTiet)
+            {
+                <div class="order-item">
+                    <div class="product-img-wrapper">
+                        <img src="@GetFullImageUrl(item.Anh)"
+                             alt="@item.TenGiay"
+                             class="order-item-img"
+                             onerror="this.src='img/no-image.png';" />
+                    </div>
+
+                    <div class="order-details">
+                        <h4 class="mb-1">@item.TenGiay</h4>
+
+                        <div class="mb-1">Số lượng: <strong>x@(item.SoLuongSanPham)</strong></div>
+
+                        <div class="mb-1">
+                            Giá: <span>@item.DonGia.ToString("N0") VNĐ</span>
+                        </div>
+
+                        <div>
+                            Thành tiền:
+                            <strong class="text-danger">
+                                @item.Gia.ToString("N0") VNĐ
+                            </strong>
+                        </div>
+                    </div>
+                </div>
+            }
+                          <div class="d-flex justify-content-between align-items-center mt-2">
+
+                <!-- Trạng thái đơn hàng (bên trái) -->
+                <span class="fw-bold @GetTrangThaiClass(order.TrangThai)">
+                    @order.TrangThai
+                </span>
+
+                <!-- Tổng tiền (bên phải) -->
+                <div style="text-align:right">
+
+                    <div>
+                        Phí vận chuyển:
+                        <strong>
+                            + @order.PhiShip.ToString("N0") VNĐ
+                        </strong>
+                    </div>
+
+                    @if (order.GiamGiaVoucher > 0)
+                    {
+                        <div class="text-success">
+                            Voucher giảm:
+                            <strong>
+                                - @order.GiamGiaVoucher.ToString("N0") VNĐ
+                            </strong>
+                        </div>
+                    }
+
+                    <div class="order-price fw-bold text-danger fs-5">
+                        Tổng tiền:
+                        @order.TongTien.ToString("N0") VNĐ
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    }
+}
+
+@code {
+    [Parameter]
+    public Guid? HoaDonId { get; set; }
+    private List<HoaDonKhachHangDTO> Orders = new();
+    private List<DiaChi> TinhThanh = new();
+    private List<DiaChi> HuyenXa = new();
+    private List<DiaChi> XaPhuong = new();
+    private string BaseApiUrl = "https://localhost:7246";
+    private UpdateThongTinGiaoHangDTO editModel = new();
+    private Guid? editingOrderId;
+    private bool _loaded;
+    private enum EditField
+    {
+        None,
+        Ten,
+        SoDienThoai,
+        DiaChi
+    }
+
+    private EditField editingField = EditField.None;
+
+    protected override async Task OnInitializedAsync()
+    {
+        TinhThanh = await xuLyDiaChi.ParseDiaChiAsync("wwwroot/Files/ThanhPho.txt");
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var id = await JS.InvokeAsync<string>("localStorage.getItem", "khachHangId");
+
+            if (!string.IsNullOrEmpty(id))
+            {
+                var khachHangId = Guid.Parse(id);
+
+                if (HoaDonId.HasValue)
+                {
+                    var order = await service.GetHoaDonByIdAsync(HoaDonId.Value);
+
+                    if (order != null)
+                        Orders = new List<HoaDonKhachHangDTO> { order };
+                }
+                else
+                {
+                    Orders = await service.GetDonHangKhachHangAsync(khachHangId);
+                }
+            }
+
+            _loaded = true;
+
+            StateHasChanged();
+        }
+    }
+    private string GetFullImageUrl(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || path == "img/no-image.png")
+            return "img/no-image.png";
+
+        if (path.StartsWith("http"))
+            return path;
+
+        return $"{BaseApiUrl.TrimEnd('/')}/{path.TrimStart('/')}";
+    }
+    private void StartEdit(HoaDonKhachHangDTO order, EditField field)
+    {
+        editingOrderId = order.HoaDonId;
+        editingField = field;
+
+        editModel = new UpdateThongTinGiaoHangDTO
+        {
+            HoaDonId = order.HoaDonId,
+            TenNguoiNhan = field == EditField.Ten ? order.TenNguoiNhan : null,
+            SoDienThoai = field == EditField.SoDienThoai ? "" : null, // 👈 RỖNG
+            DiaChi = field == EditField.DiaChi ? order.DiaChi : null
+        };
+    }
+
+    private async Task SaveAddress()
+    {
+        editModel.DiaChi =
+            $"{editModel.DiaChiCuThe}, {editModel.PhuongXa}, {editModel.QuanHuyen}, {editModel.ThanhPho}";
+
+        await service.CapNhatThongTinGiaoHangAsync(editModel);
+
+        var id = await JS.InvokeAsync<string>("localStorage.getItem", "khachHangId");
+        Orders = await service.GetDonHangKhachHangAsync(Guid.Parse(id));
+
+        editingOrderId = null;
+    }
+
+    private void CancelEdit()
+    {
+        editingOrderId = null;
+        HuyenXa.Clear();
+        XaPhuong.Clear();
+    }
+
+    void OnTinhChanged(ChangeEventArgs e)
+    {
+        var tinh = e.Value?.ToString() ?? "";
+        editModel.ThanhPho = tinh;
+        HuyenXa = TinhThanh.FirstOrDefault(x => x.Ten == tinh)?.Con ?? new();
+        XaPhuong.Clear();
+    }
+
+    void OnHuyenChanged(ChangeEventArgs e)
+    {
+        var huyen = e.Value?.ToString() ?? "";
+        editModel.QuanHuyen = huyen;
+        XaPhuong = HuyenXa.FirstOrDefault(x => x.Ten == huyen)?.Con ?? new();
+    }
+
+    void OnXaChanged(ChangeEventArgs e)
+        => editModel.PhuongXa = e.Value?.ToString() ?? "";
+
+    private bool ChoPhepSuaDiaChi(string status)
+     => status == TrangThaiDonHang.ChoXacNhan
+     || status == TrangThaiDonHang.ChoGiaoHang;
+
+    private string MaskPhone(string phone)
+        => string.IsNullOrWhiteSpace(phone) || phone.Length < 7
+           ? phone
+           : phone[..3] + "****" + phone[^3..];
+
+    private string MaskAddress(string address)
+        => string.IsNullOrWhiteSpace(address) || address.Length <= 15
+           ? address
+           : address[..(address.Length / 3)] + " **** " + address[(address.Length * 2 / 3)..];
+    private async Task SaveEdit()
+    {
+        var dto = new UpdateThongTinGiaoHangDTO
+        {
+            HoaDonId = editModel.HoaDonId
+        };
+
+        if (editingField == EditField.Ten)
+        {
+            if (string.IsNullOrWhiteSpace(editModel.TenNguoiNhan))
+            {
+                await JS.InvokeVoidAsync("alert", "Tên người nhận không được để trống");
+                return;
+            }
+
+            dto.TenNguoiNhan = editModel.TenNguoiNhan.Trim();
+        }
+
+        if (editingField == EditField.SoDienThoai)
+        {
+            if (string.IsNullOrWhiteSpace(editModel.SoDienThoai)
+                || editModel.SoDienThoai.Length != 10
+                || !editModel.SoDienThoai.All(char.IsDigit))
+            {
+                await JS.InvokeVoidAsync("alert", "Số điện thoại phải đúng 10 chữ số");
+                return;
+            }
+
+            dto.SoDienThoai = editModel.SoDienThoai;
+        }
+
+        if (editingField == EditField.DiaChi)
+        {
+            dto.DiaChi =
+                $"{editModel.DiaChiCuThe}, {editModel.PhuongXa}, {editModel.QuanHuyen}, {editModel.ThanhPho}";
+        }
+
+        await service.CapNhatThongTinGiaoHangAsync(dto);
+
+        // 🔥 LOAD LẠI TẤT CẢ ĐƠN
+        var id = await JS.InvokeAsync<string>("localStorage.getItem", "khachHangId");
+        Orders = await service.GetDonHangKhachHangAsync(Guid.Parse(id));
+
+        editingOrderId = null;
+        editingField = EditField.None;
+    }
+
+    private string GetTrangThaiClass(string trangThai)
+    {
+        return trangThai switch
+        {
+            "Chờ xác nhận" => "text-success",  
+            "Chờ giao hàng" => "text-success",      
+            "Đã giao" => "text-success",        
+            "Đã hủy" => "text-danger",         
+            _ => "text-secondary"
+        };
+    }
+
+}

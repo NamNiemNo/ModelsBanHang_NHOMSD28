@@ -1,0 +1,1330 @@
+@page "/KhachHang"
+@rendermode InteractiveServer
+
+@using Data.Models
+@using BlazorAdmin.Service
+@using BlazorAdmin.Service.IService
+@attribute [Authorize(Roles = "Admin")]
+@layout AdminLayout
+
+@inject IKhachHangService service
+@inject NavigationManager manager
+@inject IJSRuntime JS
+
+<PageTitle>Quản lý khách hàng</PageTitle>
+
+<div class="customer-page">
+
+    <!-- Tiêu đề -->
+    <header class="customer-header">
+        <div>
+            <span class="page-eyebrow">KHÁCH HÀNG</span>
+            <h1>Quản lý khách hàng</h1>
+            <p>Quản lý thông tin, tài khoản và trạng thái khách hàng.</p>
+        </div>
+
+        <button type="button"
+                class="add-customer-button"
+                @onclick="NavigateToCreate">
+            <svg viewBox="0 0 24 24">
+                <path d="M12 5v14M5 12h14" />
+            </svg>
+            Tạo khách hàng
+        </button>
+    </header>
+
+    <!-- Thống kê -->
+    <section class="customer-statistics">
+
+        <article class="customer-stat-card stat-total">
+            <div class="stat-icon">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="9" cy="8" r="4" />
+                    <path d="M2 21a7 7 0 0 1 14 0M17 8h5M19.5 5.5v5" />
+                </svg>
+            </div>
+
+            <div>
+                <span>Tổng khách hàng</span>
+                <strong>@khachHangs.Count</strong>
+                <small>Tất cả khách hàng trong hệ thống</small>
+            </div>
+        </article>
+
+        <article class="customer-stat-card stat-active">
+            <div class="stat-icon">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="m8 12 3 3 5-6" />
+                </svg>
+            </div>
+
+            <div>
+                <span>Đang hoạt động</span>
+                <strong>@khachHangs.Count(x => x.TrangThai)</strong>
+                <small>Khách hàng đang hoạt động</small>
+            </div>
+        </article>
+
+        <article class="customer-stat-card stat-disabled">
+            <div class="stat-icon">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="m8 8 8 8M16 8l-8 8" />
+                </svg>
+            </div>
+
+            <div>
+                <span>Ngừng hoạt động</span>
+                <strong>@khachHangs.Count(x => !x.TrangThai)</strong>
+                <small>Tài khoản đã bị ngừng</small>
+            </div>
+        </article>
+
+        <article class="customer-stat-card stat-new">
+            <div class="stat-icon">
+                <svg viewBox="0 0 24 24">
+                    <rect x="3" y="5" width="18" height="16" rx="2" />
+                    <path d="M7 3v4M17 3v4M3 10h18" />
+                </svg>
+            </div>
+
+            <div>
+                <span>Mới trong tháng</span>
+                <strong>@SoKhachHangMoiTrongThang</strong>
+                <small>Khách hàng được tạo tháng này</small>
+            </div>
+        </article>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="page-error">
+            <span>@ErrorMessage</span>
+            <button type="button" @onclick="LoadDataAsync">Thử lại</button>
+        </div>
+    }
+
+    <!-- Danh sách -->
+    <section class="customer-panel">
+
+        <div class="customer-toolbar">
+
+            <div class="customer-search">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="m20 20-4-4" />
+                </svg>
+
+                <input type="text"
+                       value="@searchKeyword"
+                       @oninput="HandleSearch"
+                       placeholder="Tìm họ tên, số điện thoại hoặc email..." />
+
+                @if (!string.IsNullOrWhiteSpace(searchKeyword))
+                {
+                    <button type="button"
+                            title="Xóa tìm kiếm"
+                            @onclick="ClearSearch">
+                        ×
+                    </button>
+                }
+            </div>
+
+            <div class="status-filters">
+                <button type="button"
+                        class="filter-button @(StatusFilter == "all" ? "active" : "")"
+                        @onclick='() => SetStatusFilter("all")'>
+                    Tất cả
+                    <span>@khachHangs.Count</span>
+                </button>
+
+                <button type="button"
+                        class="filter-button @(StatusFilter == "active" ? "active" : "")"
+                        @onclick='() => SetStatusFilter("active")'>
+                    Hoạt động
+                    <span>@khachHangs.Count(x => x.TrangThai)</span>
+                </button>
+
+                <button type="button"
+                        class="filter-button @(StatusFilter == "disabled" ? "active" : "")"
+                        @onclick='() => SetStatusFilter("disabled")'>
+                    Ngừng hoạt động
+                    <span>@khachHangs.Count(x => !x.TrangThai)</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Bảng cuộn -->
+        <div class="customer-table-wrapper">
+            <table class="customer-table">
+                <thead>
+                    <tr>
+                        <th class="number-column">STT</th>
+                        <th>Khách hàng</th>
+                        <th>Số điện thoại</th>
+                        <th>Email</th>
+                        <th>Ngày sinh</th>
+                        <th>Thời gian</th>
+                        <th>Trạng thái</th>
+                        <th class="action-column">Chức năng</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @if (IsLoading)
+                    {
+                        <tr>
+                            <td colspan="8">
+                                <div class="loading-state">
+                                    <span class="loading-spinner"></span>
+                                    <strong>Đang tải khách hàng...</strong>
+                                    <small>Vui lòng chờ trong giây lát</small>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    else if (PagedCustomers.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="8">
+                                <div class="empty-state">
+                                    <div class="empty-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <circle cx="12" cy="8" r="4" />
+                                            <path d="M4 21a8 8 0 0 1 16 0" />
+                                        </svg>
+                                    </div>
+
+                                    <strong>Không tìm thấy khách hàng</strong>
+                                    <small>Hãy thử từ khóa hoặc bộ lọc khác.</small>
+
+                                    <button type="button" @onclick="ResetFilter">
+                                        Đặt lại bộ lọc
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var row in PagedCustomers.Select((item, index) => new
+                        {
+                            Item = item,
+                            Number = (CurrentPage - 1) * PageSize + index + 1
+                        }))
+                        {
+                            <tr>
+                                <td class="table-number">@row.Number</td>
+
+                                <td>
+                                    <div class="customer-name-cell">
+                                        <span class="customer-avatar">
+                                            @GetFirstLetter(row.Item.HoTen)
+                                        </span>
+
+                                        <div>
+                                            <strong>@row.Item.HoTen</strong>
+                                            <small title="@row.Item.KhachHangId">
+                                                #@GetShortId(row.Item.KhachHangId)
+                                            </small>
+                                        </div>
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <span class="phone-value">
+                                        @(string.IsNullOrWhiteSpace(row.Item.SoDienThoai)
+                                            ? "Chưa cập nhật"
+                                            : row.Item.SoDienThoai)
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <span class="email-value" title="@row.Item.Email">
+                                        @(string.IsNullOrWhiteSpace(row.Item.Email)
+                                            ? "Chưa cập nhật"
+                                            : row.Item.Email)
+                                    </span>
+                                </td>
+
+                                <td>
+                                    @(row.Item.NgaySinh?.ToString("dd/MM/yyyy") ?? "Chưa cập nhật")
+                                </td>
+
+                                <td>
+                                    <div class="date-cell">
+                                        <strong>Tạo: @row.Item.NgayTao.ToString("dd/MM/yyyy")</strong>
+                                        <small>
+                                            Cập nhật:
+                                            @(row.Item.NgayCapNhatCuoiCung?.ToString("dd/MM/yyyy") ?? "—")
+                                        </small>
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <span class="customer-status @(row.Item.TrangThai ? "status-active" : "status-disabled")">
+                                        <span class="status-dot"></span>
+
+                                        @(row.Item.TrangThai
+                                            ? "Đang hoạt động"
+                                            : "Ngừng hoạt động")
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <div class="table-actions">
+                                        <button type="button"
+                                                class="action-button edit-button"
+                                                @onclick="() => NavigateToEdit(row.Item.KhachHangId)">
+                                            <svg viewBox="0 0 24 24">
+                                                <path d="M4 20h4L19 9l-4-4L4 16v4Z" />
+                                                <path d="m13 7 4 4" />
+                                            </svg>
+                                            Sửa
+                                        </button>
+
+                                        <button type="button"
+                                                class="action-button toggle-button"
+                                                @onclick="() => ToggleTrangThai(row.Item.KhachHangId)">
+                                            <svg viewBox="0 0 24 24">
+                                                <path d="M20 11a8 8 0 0 0-15-3M4 4v5h5" />
+                                                <path d="M4 13a8 8 0 0 0 15 3M20 20v-5h-5" />
+                                            </svg>
+                                            Trạng thái
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Phân trang -->
+        <footer class="customer-table-footer">
+            <div class="page-size-control">
+                <span>Hiển thị</span>
+
+                <select value="@PageSize" @onchange="ChangePageSize">
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                </select>
+
+                <span>/ @FilteredCustomers.Count khách hàng</span>
+            </div>
+
+            <nav class="customer-pagination">
+                <button type="button"
+                        class="page-button"
+                        disabled="@(CurrentPage == 1)"
+                        @onclick="() => ChangePage(1)">
+                    «
+                </button>
+
+                <button type="button"
+                        class="page-button"
+                        disabled="@(CurrentPage == 1)"
+                        @onclick="() => ChangePage(CurrentPage - 1)">
+                    ‹
+                </button>
+
+                @foreach (var page in VisiblePages)
+                {
+                    <button type="button"
+                            class="page-button @(CurrentPage == page ? "active" : "")"
+                            @onclick="() => ChangePage(page)">
+                    </button>
+                }
+
+                <button type="button"
+                        class="page-button"
+                        disabled="@(CurrentPage == TotalPages)"
+                        @onclick="() => ChangePage(CurrentPage + 1)">
+                    ›
+                </button>
+
+                <button type="button"
+                        class="page-button"
+                        disabled="@(CurrentPage == TotalPages)"
+                        @onclick="() => ChangePage(TotalPages)">
+                    »
+                </button>
+            </nav>
+        </footer>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(ToastMessage))
+    {
+        <div class="customer-toast @(ToastSuccess ? "toast-success" : "toast-error")">
+            <span class="toast-icon">@(ToastSuccess ? "✓" : "!")</span>
+
+            <div>
+                <strong>@(ToastSuccess ? "Thành công" : "Thông báo")</strong>
+                <small>@ToastMessage</small>
+            </div>
+
+            <button type="button" @onclick="CloseToast">×</button>
+        </div>
+    }
+</div>
+
+<style>
+    .customer-page,
+    .customer-page * {
+        box-sizing: border-box;
+    }
+
+    .customer-page {
+        --primary: #f97316;
+        --primary-dark: #ea580c;
+        --primary-soft: #fff7ed;
+        --text-dark: #0f172a;
+        --text: #334155;
+        --muted: #64748b;
+        --border: #e8edf3;
+
+        min-height: 100vh;
+        padding: 28px;
+        background: #f6f8fb;
+        color: var(--text-dark);
+    }
+
+    .customer-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 24px;
+    }
+
+    .page-eyebrow {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--primary-dark);
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: .14em;
+    }
+
+    .customer-header h1 {
+        margin: 0;
+        color: var(--text-dark);
+        font-size: 30px;
+        font-weight: 800;
+        letter-spacing: -.03em;
+    }
+
+    .customer-header p {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+    }
+
+    .add-customer-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 44px;
+        padding: 0 18px;
+        border: 0;
+        border-radius: 11px;
+        background: var(--primary);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+        box-shadow: 0 6px 15px rgba(249,115,22,.22);
+    }
+
+    .add-customer-button:hover {
+        background: var(--primary-dark);
+    }
+
+    .add-customer-button svg {
+        width: 18px;
+        height: 18px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+    }
+
+    .customer-statistics {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0,1fr));
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+
+    .customer-stat-card {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        min-width: 0;
+        padding: 19px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: #fff;
+        box-shadow: 0 6px 24px rgba(15,23,42,.045);
+    }
+
+    .stat-icon {
+        display: grid;
+        flex: 0 0 48px;
+        width: 48px;
+        height: 48px;
+        place-items: center;
+        border-radius: 13px;
+        background: currentColor;
+    }
+
+    .stat-icon svg {
+        width: 23px;
+        height: 23px;
+        fill: none;
+        stroke: #fff;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .customer-stat-card span,
+    .customer-stat-card small {
+        display: block;
+    }
+
+    .customer-stat-card span {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .customer-stat-card strong {
+        display: block;
+        margin: 4px 0 3px;
+        color: var(--text-dark);
+        font-size: 24px;
+    }
+
+    .customer-stat-card small {
+        color: #94a3b8;
+        font-size: 9px;
+    }
+
+    .stat-total { color: #6366f1; }
+    .stat-active { color: #10b981; }
+    .stat-disabled { color: #94a3b8; }
+    .stat-new { color: #0ea5e9; }
+
+    .customer-panel {
+        display: flex;
+        height: 650px;
+        min-height: 500px;
+        flex-direction: column;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: #fff;
+        box-shadow: 0 10px 35px rgba(15,23,42,.05);
+    }
+
+    .customer-toolbar {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 18px 20px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .customer-search {
+        position: relative;
+        width: min(100%,520px);
+    }
+
+    .customer-search > svg {
+        position: absolute;
+        top: 50%;
+        left: 14px;
+        width: 18px;
+        height: 18px;
+        transform: translateY(-50%);
+        fill: none;
+        stroke: #94a3b8;
+        stroke-width: 2;
+        pointer-events: none;
+    }
+
+    .customer-search input {
+        width: 100%;
+        height: 44px;
+        padding: 0 43px;
+        border: 1px solid #dce3ec;
+        border-radius: 11px;
+        outline: none;
+        background: #f8fafc;
+        color: var(--text-dark);
+        font-size: 12px;
+    }
+
+    .customer-search input:focus {
+        border-color: #fb923c;
+        background: #fff;
+        box-shadow: 0 0 0 4px rgba(249,115,22,.1);
+    }
+
+    .customer-search button {
+        position: absolute;
+        top: 50%;
+        right: 10px;
+        display: grid;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        transform: translateY(-50%);
+        place-items: center;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: #94a3b8;
+        font-size: 19px;
+        cursor: pointer;
+    }
+
+    .status-filters {
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+    }
+
+    .filter-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 38px;
+        padding: 0 11px;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+        background: #fff;
+        color: #64748b;
+        font-size: 10px;
+        font-weight: 800;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .filter-button span {
+        min-width: 20px;
+        padding: 2px 6px;
+        border-radius: 999px;
+        background: #f1f5f9;
+        font-size: 9px;
+    }
+
+    .filter-button.active {
+        border-color: #fdba74;
+        background: #fff7ed;
+        color: #ea580c;
+    }
+
+    .customer-table-wrapper {
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #94a3b8 #f1f5f9;
+    }
+
+    .customer-table-wrapper::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    .customer-table-wrapper::-webkit-scrollbar-track {
+        background: #f1f5f9;
+    }
+
+    .customer-table-wrapper::-webkit-scrollbar-thumb {
+        border: 2px solid #f1f5f9;
+        border-radius: 10px;
+        background: #94a3b8;
+    }
+
+    .customer-table {
+        width: 100%;
+        min-width: 1320px;
+        border-collapse: separate;
+        border-spacing: 0;
+        color: #334155;
+        font-size: 11px;
+    }
+
+    .customer-table th {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        padding: 14px;
+        border-bottom: 1px solid var(--border);
+        background: #f8fafc;
+        color: #64748b;
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: .04em;
+        text-align: left;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .customer-table td {
+        padding: 14px;
+        border-bottom: 1px solid #edf1f5;
+        background: #fff;
+        vertical-align: middle;
+    }
+
+    .customer-table tbody tr:hover td {
+        background: #fffaf5;
+    }
+
+    .number-column { width: 65px; text-align: center !important; }
+    .action-column { width: 210px; text-align: center !important; }
+    .table-number { color: #94a3b8; font-weight: 800; text-align: center; }
+
+    .customer-name-cell {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 190px;
+    }
+
+    .customer-avatar {
+        display: grid;
+        flex: 0 0 40px;
+        width: 40px;
+        height: 40px;
+        place-items: center;
+        border-radius: 11px;
+        background: #eef2ff;
+        color: #4f46e5;
+        font-size: 14px;
+        font-weight: 900;
+    }
+
+    .customer-name-cell strong,
+    .customer-name-cell small {
+        display: block;
+    }
+
+    .customer-name-cell strong {
+        color: #1e293b;
+        font-size: 11px;
+    }
+
+    .customer-name-cell small {
+        margin-top: 3px;
+        color: #94a3b8;
+        font-size: 8px;
+    }
+
+    .email-value {
+        display: block;
+        max-width: 190px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .phone-value { white-space: nowrap; }
+
+    .date-cell strong,
+    .date-cell small {
+        display: block;
+        white-space: nowrap;
+    }
+
+    .date-cell strong { color: #475569; font-size: 9px; }
+    .date-cell small { margin-top: 4px; color: #94a3b8; font-size: 8px; }
+
+    .customer-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 28px;
+        padding: 0 10px;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        font-size: 9px;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .status-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: currentColor;
+    }
+
+    .status-active {
+        border-color: #bbf7d0;
+        background: #f0fdf4;
+        color: #15803d;
+    }
+
+    .status-disabled {
+        border-color: #fecaca;
+        background: #fef2f2;
+        color: #b91c1c;
+    }
+
+    .table-actions {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+    }
+
+    .action-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        min-height: 33px;
+        padding: 0 10px;
+        border-radius: 8px;
+        font-size: 9px;
+        font-weight: 800;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .action-button svg {
+        width: 14px;
+        height: 14px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .edit-button {
+        border: 1px solid #c7d2fe;
+        background: #eef2ff;
+        color: #4f46e5;
+    }
+
+    .toggle-button {
+        border: 1px solid #fed7aa;
+        background: #fff7ed;
+        color: #c2410c;
+    }
+
+    .customer-table-footer {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        min-height: 66px;
+        padding: 12px 20px;
+        border-top: 1px solid var(--border);
+        background: #fbfcfe;
+    }
+
+    .page-size-control {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        color: #64748b;
+        font-size: 10px;
+    }
+
+    .page-size-control select {
+        height: 34px;
+        padding: 0 25px 0 9px;
+        border: 1px solid #dce3ec;
+        border-radius: 8px;
+        background: #fff;
+        font-size: 10px;
+    }
+
+    .customer-pagination {
+        display: flex;
+        gap: 5px;
+    }
+
+    .page-button {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        padding: 0;
+        place-items: center;
+        border: 1px solid #dce3ec;
+        border-radius: 9px;
+        background: #fff;
+        color: #475569;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .page-button.active {
+        border-color: #f97316;
+        background: #f97316;
+        color: #fff;
+    }
+
+    .page-button:disabled {
+        opacity: .4;
+        cursor: not-allowed;
+    }
+
+    .loading-state,
+    .empty-state {
+        display: flex;
+        min-height: 320px;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .loading-spinner {
+        width: 36px;
+        height: 36px;
+        margin-bottom: 12px;
+        border: 3px solid #ffedd5;
+        border-top-color: #f97316;
+        border-radius: 50%;
+        animation: customerSpin .8s linear infinite;
+    }
+
+    .loading-state small,
+    .empty-state small {
+        margin-top: 5px;
+        color: #94a3b8;
+        font-size: 9px;
+    }
+
+    .empty-icon {
+        display: grid;
+        width: 60px;
+        height: 60px;
+        margin-bottom: 12px;
+        place-items: center;
+        border-radius: 18px;
+        background: #fff7ed;
+        color: #f97316;
+    }
+
+    .empty-icon svg {
+        width: 28px;
+        height: 28px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.7;
+    }
+
+    .empty-state button {
+        margin-top: 14px;
+        padding: 7px 11px;
+        border: 1px solid #fed7aa;
+        border-radius: 8px;
+        background: #fff7ed;
+        color: #ea580c;
+        font-size: 9px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .page-error {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        padding: 13px 15px;
+        border: 1px solid #fecaca;
+        border-radius: 11px;
+        background: #fef2f2;
+        color: #b91c1c;
+        font-size: 10px;
+    }
+
+    .page-error button {
+        border: 0;
+        background: transparent;
+        color: #991b1b;
+        font-weight: 800;
+        text-decoration: underline;
+        cursor: pointer;
+    }
+
+    .customer-toast {
+        position: fixed;
+        right: 24px;
+        bottom: 24px;
+        z-index: 100000;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: min(380px, calc(100% - 30px));
+        padding: 13px;
+        border: 1px solid;
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: 0 15px 35px rgba(15,23,42,.18);
+    }
+
+    .toast-success { border-color: #bbf7d0; }
+    .toast-error { border-color: #fecaca; }
+
+    .toast-icon {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border-radius: 9px;
+        font-weight: 900;
+    }
+
+    .toast-success .toast-icon { background: #dcfce7; color: #15803d; }
+    .toast-error .toast-icon { background: #fee2e2; color: #dc2626; }
+
+    .customer-toast > div {
+        flex: 1;
+    }
+
+    .customer-toast strong,
+    .customer-toast small {
+        display: block;
+    }
+
+    .customer-toast strong { color: #1e293b; font-size: 10px; }
+    .customer-toast small { margin-top: 3px; color: #64748b; font-size: 9px; }
+
+    .customer-toast > button {
+        border: 0;
+        background: transparent;
+        color: #94a3b8;
+        font-size: 19px;
+        cursor: pointer;
+    }
+
+    @@keyframes customerSpin {
+        to { transform: rotate(360deg); }
+    }
+
+    @@media (max-width: 1200px) {
+        .customer-statistics {
+            grid-template-columns: repeat(2, minmax(0,1fr));
+        }
+
+        .customer-toolbar {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .customer-search {
+            width: 100%;
+        }
+    }
+
+    @@media (max-width: 650px) {
+        .customer-page {
+            padding: 16px 12px;
+        }
+
+        .customer-header {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .add-customer-button {
+            align-self: flex-start;
+        }
+
+        .customer-statistics {
+            grid-template-columns: 1fr;
+        }
+
+        .customer-panel {
+            height: 600px;
+        }
+
+        .customer-table-footer {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .customer-pagination {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+
+@code {
+    private List<KhachHang> khachHangs = new();
+
+    private string searchKeyword = string.Empty;
+    private string StatusFilter = "all";
+    private string ErrorMessage = string.Empty;
+
+    private int CurrentPage = 1;
+    private int PageSize = 10;
+
+    private bool IsLoading;
+
+    private string? ToastMessage;
+    private bool ToastSuccess;
+    private int ToastVersion;
+
+    private int SoKhachHangMoiTrongThang =>
+        khachHangs.Count(x =>
+            x.NgayTao.Month == DateTime.Now.Month &&
+            x.NgayTao.Year == DateTime.Now.Year);
+
+    private List<KhachHang> FilteredCustomers
+    {
+        get
+        {
+            IEnumerable<KhachHang> query = khachHangs;
+
+            if (!string.IsNullOrWhiteSpace(searchKeyword))
+            {
+                var keyword = searchKeyword.Trim();
+
+                query = query.Where(x =>
+                    (x.HoTen ?? string.Empty).Contains(
+                        keyword,
+                        StringComparison.OrdinalIgnoreCase)
+                    ||
+                    (x.SoDienThoai ?? string.Empty).Contains(
+                        keyword,
+                        StringComparison.OrdinalIgnoreCase)
+                    ||
+                    (x.Email ?? string.Empty).Contains(
+                        keyword,
+                        StringComparison.OrdinalIgnoreCase));
+            }
+
+            query = StatusFilter switch
+            {
+                "active" => query.Where(x => x.TrangThai),
+                "disabled" => query.Where(x => !x.TrangThai),
+                _ => query
+            };
+
+            return query
+                .OrderByDescending(x => x.NgayTao)
+                .ToList();
+        }
+    }
+
+    private List<KhachHang> PagedCustomers =>
+        FilteredCustomers
+            .Skip((CurrentPage - 1) * PageSize)
+            .Take(PageSize)
+            .ToList();
+
+    private int TotalPages =>
+        Math.Max(
+            1,
+            (int)Math.Ceiling(
+                FilteredCustomers.Count / (double)PageSize));
+
+    private IEnumerable<int> VisiblePages
+    {
+        get
+        {
+            var start = Math.Max(1, CurrentPage - 2);
+            var end = Math.Min(TotalPages, start + 4);
+            start = Math.Max(1, end - 4);
+
+            return Enumerable.Range(
+                start,
+                end - start + 1);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        IsLoading = true;
+        ErrorMessage = string.Empty;
+
+        try
+        {
+            khachHangs =
+                await service.GetAll()
+                ?? new List<KhachHang>();
+
+            CurrentPage = Math.Clamp(
+                CurrentPage,
+                1,
+                TotalPages);
+        }
+        catch (Exception ex)
+        {
+            khachHangs.Clear();
+
+            ErrorMessage =
+                "Không thể tải danh sách khách hàng: "
+                + ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private void HandleSearch(ChangeEventArgs e)
+    {
+        searchKeyword =
+            e.Value?.ToString()
+            ?? string.Empty;
+
+        CurrentPage = 1;
+    }
+
+    private void ClearSearch()
+    {
+        searchKeyword = string.Empty;
+        CurrentPage = 1;
+    }
+
+    private void SetStatusFilter(string status)
+    {
+        StatusFilter = status;
+        CurrentPage = 1;
+    }
+
+    private void ResetFilter()
+    {
+        searchKeyword = string.Empty;
+        StatusFilter = "all";
+        CurrentPage = 1;
+    }
+
+    private void ChangePage(int page)
+    {
+        if (page >= 1 && page <= TotalPages)
+        {
+            CurrentPage = page;
+        }
+    }
+
+    private void ChangePageSize(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var size))
+        {
+            PageSize = size;
+            CurrentPage = 1;
+        }
+    }
+
+    private void NavigateToCreate()
+    {
+        manager.NavigateTo("/AddKhachHang");
+    }
+
+    private void NavigateToEdit(Guid id)
+    {
+        manager.NavigateTo($"/EditKhachHang/{id}");
+    }
+
+    private async Task ToggleTrangThai(Guid id)
+    {
+        var customer =
+            khachHangs.FirstOrDefault(
+                x => x.KhachHangId == id);
+
+        if (customer == null)
+        {
+            return;
+        }
+
+        var newStatus = !customer.TrangThai;
+
+        var confirmed = await JS.InvokeAsync<bool>(
+            "confirm",
+            newStatus
+                ? "Bạn có chắc muốn kích hoạt khách hàng này?"
+                : "Bạn có chắc muốn ngừng hoạt động khách hàng này?");
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            customer.TrangThai = newStatus;
+            customer.NgayCapNhatCuoiCung = DateTime.Now;
+
+            await service.Update(customer);
+            await LoadDataAsync();
+
+            ShowToast(
+                "Cập nhật trạng thái thành công.",
+                true);
+        }
+        catch (Exception ex)
+        {
+            customer.TrangThai = !newStatus;
+
+            ShowToast(
+                "Không thể cập nhật trạng thái: " + ex.Message,
+                false);
+        }
+    }
+
+    private void ShowToast(string message, bool success)
+    {
+        ToastMessage = message;
+        ToastSuccess = success;
+
+        var version = ++ToastVersion;
+        _ = HideToastAsync(version);
+    }
+
+    private async Task HideToastAsync(int version)
+    {
+        await Task.Delay(3000);
+
+        if (version == ToastVersion)
+        {
+            ToastMessage = null;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void CloseToast()
+    {
+        ToastVersion++;
+        ToastMessage = null;
+    }
+
+    private static string GetFirstLetter(string? name)
+    {
+        return string.IsNullOrWhiteSpace(name)
+            ? "?"
+            : name.Trim()[0].ToString().ToUpperInvariant();
+    }
+
+    private static string GetShortId(Guid id)
+    {
+        var value = id.ToString("N");
+
+        return value[..Math.Min(8, value.Length)]
+            .ToUpperInvariant();
+    }
+}

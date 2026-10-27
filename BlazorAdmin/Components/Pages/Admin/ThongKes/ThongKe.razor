@@ -1,0 +1,1666 @@
+﻿@page "/thongke"
+@attribute [Authorize(Roles = "Admin,NhanVien")]
+@layout AdminLayout
+@using System.Linq
+@using API.Models
+@using API.Models.DTO
+@using Microsoft.JSInterop
+@using static Microsoft.AspNetCore.Components.Web.RenderMode
+@inject IChiTietHoaDonService chiTietHoaDonService
+@inject IHoaDonService hoaDonService
+@inject IGiayChiTietService giayChiTietService
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<link href="/css/Thongke.css" rel="stylesheet" />
+
+<main class="tk-page">
+    <header class="tk-header">
+        <div>
+            <span class="tk-eyebrow">TỔNG QUAN KINH DOANH</span>
+            <h1>Thống kê bán hàng</h1>
+            <p>Theo dõi doanh thu, đơn hàng, sản phẩm bán chạy và tồn kho.</p>
+        </div>
+
+        <button type="button"
+                class="tk-button"
+                @onclick="LoadDataAsync"
+                disabled="@isLoading">
+            Làm mới dữ liệu
+        </button>
+    </header>
+
+    <section class="tk-filter">
+        <div class="tk-filter-top">
+            <div class="tk-filter-title">
+                <span>KHOẢNG THỜI GIAN</span>
+                <strong>@SelectedPeriodLabel</strong>
+            </div>
+
+            <div class="tk-filter-buttons">
+                @foreach (var filter in FilterOptions)
+                {
+                    <button type="button"
+                            class="tk-filter-button @(activeFilter == filter ? "active" : "")"
+                            @onclick="() => SetActiveFilter(filter)">
+                        @filter
+                    </button>
+                }
+            </div>
+        </div>
+
+        @if (activeFilter == "TÙY CHỈNH")
+        {
+            <div class="tk-custom-filter">
+                <label>
+                    Từ ngày
+                    <input type="date"
+                           @bind="StartDate"
+                           @bind:format="yyyy-MM-dd" />
+                </label>
+
+                <label>
+                    Đến ngày
+                    <input type="date"
+                           @bind="EndDate"
+                           @bind:format="yyyy-MM-dd" />
+                </label>
+
+                <button type="button"
+                        class="tk-button primary"
+                        @onclick="ApplyCustomFilter">
+                    Áp dụng
+                </button>
+            </div>
+        }
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="tk-alert">
+            <strong>Lỗi:</strong> @errorMessage
+        </div>
+    }
+
+    @if (isLoading)
+    {
+        <div class="tk-loading">
+            Đang tải dữ liệu thống kê...
+        </div>
+    }
+    else
+    {
+        <section class="tk-summary-grid">
+            <article class="tk-summary-card">
+                <div class="tk-card-title">
+                    <span>Hôm nay</span>
+                    <small>@DateTime.Today.ToString("dd/MM/yyyy")</small>
+                </div>
+
+                <div class="tk-revenue">
+                    @TongSoTienHomNay.ToString("N0")
+                    <small>₫</small>
+                </div>
+
+                <div class="tk-card-detail">
+                    <div>
+                        <span>Thành công</span>
+                        <strong>@DonThanhCongHomNay</strong>
+                    </div>
+
+                    <div>
+                        <span>Sản phẩm</span>
+                        <strong>@SoLuongSanPhamHomNay</strong>
+                    </div>
+
+                    <div>
+                        <span>Hủy / trả</span>
+                        <strong>
+                            @(DonHangHuyHomNay + DonTraHomNay)
+                        </strong>
+                    </div>
+                </div>
+            </article>
+
+            <article class="tk-summary-card violet">
+                <div class="tk-card-title">
+                    <span>Tuần này</span>
+                    <small>Từ thứ Hai</small>
+                </div>
+
+                <div class="tk-revenue">
+                    @TongSoTienTuanNay.ToString("N0")
+                    <small>₫</small>
+                </div>
+
+                <div class="tk-card-detail">
+                    <div>
+                        <span>Thành công</span>
+                        <strong>@DonThanhCongTuanNay</strong>
+                    </div>
+
+                    <div>
+                        <span>Sản phẩm</span>
+                        <strong>@SoLuongSanPhamTuanNay</strong>
+                    </div>
+
+                    <div>
+                        <span>Hủy / trả</span>
+                        <strong>
+                            @(DonHangHuyTuanNay + DonTraTuanNay)
+                        </strong>
+                    </div>
+                </div>
+            </article>
+
+            <article class="tk-summary-card orange">
+                <div class="tk-card-title">
+                    <span>Tháng này</span>
+                    <small>@DateTime.Today.ToString("MM/yyyy")</small>
+                </div>
+
+                <div class="tk-revenue">
+                    @TongSoTienThangNay.ToString("N0")
+                    <small>₫</small>
+                </div>
+
+                <div class="tk-card-detail">
+                    <div>
+                        <span>Thành công</span>
+                        <strong>@DonThanhCongThangNay</strong>
+                    </div>
+
+                    <div>
+                        <span>Sản phẩm</span>
+                        <strong>@SoLuongSanPhamThangNay</strong>
+                    </div>
+
+                    <div>
+                        <span>Hủy / trả</span>
+                        <strong>
+                            @(DonHangHuyThangNay + DonTraThangNay)
+                        </strong>
+                    </div>
+                </div>
+            </article>
+
+            <article class="tk-summary-card green">
+                <div class="tk-card-title">
+                    <span>Năm nay</span>
+                    <small>@DateTime.Today.Year</small>
+                </div>
+
+                <div class="tk-revenue">
+                    @TongSoTienNamNay.ToString("N0")
+                    <small>₫</small>
+                </div>
+
+                <div class="tk-card-detail">
+                    <div>
+                        <span>Thành công</span>
+                        <strong>@DonThanhCongNamNay</strong>
+                    </div>
+
+                    <div>
+                        <span>Sản phẩm</span>
+                        <strong>@SoLuongSanPhamNamNay</strong>
+                    </div>
+
+                    <div>
+                        <span>Hủy / trả</span>
+                        <strong>
+                            @(DonHangHuyNamNay + DonTraNamNay)
+                        </strong>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <section class="tk-overview">
+            <article class="tk-panel">
+                <div class="tk-panel-header">
+                    <div>
+                        <span>KẾT QUẢ ĐANG CHỌN</span>
+                        <h2>@SelectedPeriodLabel</h2>
+                    </div>
+                </div>
+
+                <div class="tk-selected-stats">
+                    <div class="tk-selected-item revenue">
+                        <span>Doanh thu</span>
+                        <strong>
+                            @SelectedRevenue.ToString("N0") ₫
+                        </strong>
+                    </div>
+
+                    <div class="tk-selected-item">
+                        <span>Đơn hoàn thành</span>
+                        <strong>@SelectedSuccessOrders</strong>
+                    </div>
+
+                    <div class="tk-selected-item">
+                        <span>Sản phẩm bán ra</span>
+                        <strong>@SelectedProducts</strong>
+                    </div>
+
+                    <div class="tk-selected-item danger">
+                        <span>Đơn hủy / trả</span>
+                        <strong>
+                            @(SelectedCancelledOrders
+                                + SelectedReturnedOrders)
+                        </strong>
+                    </div>
+                </div>
+            </article>
+
+            <article class="tk-panel">
+                <div class="tk-panel-header">
+                    <div>
+                        <span>TRẠNG THÁI ĐƠN HÀNG</span>
+                        <h2>Phân bổ trong kỳ</h2>
+                    </div>
+
+                    <strong>@SelectedOrderCount đơn</strong>
+                </div>
+
+                <div class="tk-status-list">
+                    <div class="tk-status-row">
+                        <span class="tk-status-name">Đã hủy</span>
+                        <div class="tk-status-track">
+                            <div class="tk-status-fill red"
+                                 style="@GetProgressStyle(PercentDaHuy)">
+                            </div>
+                        </div>
+                        <span class="tk-status-value">
+                            @CountDaHuy - @PercentDaHuy.ToString("0.##")%
+                        </span>
+                    </div>
+
+                    <div class="tk-status-row">
+                        <span class="tk-status-name">Chờ xác nhận</span>
+                        <div class="tk-status-track">
+                            <div class="tk-status-fill yellow"
+                                 style="@GetProgressStyle(PercentChoXacNhan)">
+                            </div>
+                        </div>
+                        <span class="tk-status-value">
+                            @CountChoXacNhan - @PercentChoXacNhan.ToString("0.##")%
+                        </span>
+                    </div>
+
+                    <div class="tk-status-row">
+                        <span class="tk-status-name">Chờ giao hàng</span>
+                        <div class="tk-status-track">
+                            <div class="tk-status-fill violet"
+                                 style="@GetProgressStyle(PercentChoGiaoHang)">
+                            </div>
+                        </div>
+                        <span class="tk-status-value">
+                            @CountChoGiaoHang - @PercentChoGiaoHang.ToString("0.##")%
+                        </span>
+                    </div>
+
+                    <div class="tk-status-row">
+                        <span class="tk-status-name">Đang vận chuyển</span>
+                        <div class="tk-status-track">
+                            <div class="tk-status-fill blue"
+                                 style="@GetProgressStyle(PercentDangVanChuyen)">
+                            </div>
+                        </div>
+                        <span class="tk-status-value">
+                            @CountDangVanChuyen - @PercentDangVanChuyen.ToString("0.##")%
+                        </span>
+                    </div>
+
+                    <div class="tk-status-row">
+                        <span class="tk-status-name">Đã giao hàng</span>
+                        <div class="tk-status-track">
+                            <div class="tk-status-fill cyan"
+                                 style="@GetProgressStyle(PercentDaGiaoHang)">
+                            </div>
+                        </div>
+                        <span class="tk-status-value">
+                            @CountDaGiaoHang - @PercentDaGiaoHang.ToString("0.##")%
+                        </span>
+                    </div>
+
+                    <div class="tk-status-row">
+                        <span class="tk-status-name">Đã thanh toán</span>
+                        <div class="tk-status-track">
+                            <div class="tk-status-fill teal"
+                                 style="@GetProgressStyle(PercentDaThanhToan)">
+                            </div>
+                        </div>
+                        <span class="tk-status-value">
+                            @CountDaThanhToan - @PercentDaThanhToan.ToString("0.##")%
+                        </span>
+                    </div>
+
+                    <div class="tk-status-row">
+                        <span class="tk-status-name">Chờ thanh toán</span>
+                        <div class="tk-status-track">
+                            <div class="tk-status-fill gray"
+                                 style="@GetProgressStyle(PercentChoThanhToan)">
+                            </div>
+                        </div>
+                        <span class="tk-status-value">
+                            @CountChoThanhToan - @PercentChoThanhToan.ToString("0.##")%
+                        </span>
+                    </div>
+
+                    <div class="tk-status-row">
+                        <span class="tk-status-name">Hoàn thành</span>
+                        <div class="tk-status-track">
+                            <div class="tk-status-fill green"
+                                 style="@GetProgressStyle(PercentHoanThanh)">
+                            </div>
+                        </div>
+                        <span class="tk-status-value">
+                            @CountHoanThanh - @PercentHoanThanh.ToString("0.##")%
+                        </span>
+                    </div>
+
+                    <div class="tk-status-row">
+                        <span class="tk-status-name">Trả hàng</span>
+                        <div class="tk-status-track">
+                            <div class="tk-status-fill orange"
+                                 style="@GetProgressStyle(PercentTraHang)">
+                            </div>
+                        </div>
+                        <span class="tk-status-value">
+                            @CountTraHang - @PercentTraHang.ToString("0.##")%
+                        </span>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <section class="tk-chart-panel">
+            <div class="tk-chart-header">
+                <div>
+                    <span>BIỂU ĐỒ SẢN PHẨM BÁN CHẠY</span>
+                    <h2>Top sản phẩm theo @ChartPeriodLabel</h2>
+                </div>
+
+                <div class="tk-chart-filters">
+                    @foreach (var filter in ChartFilterOptions)
+                    {
+                        <button type="button"
+                                class="tk-chart-filter @(chartFilter == filter ? "active" : "")"
+                                @onclick="() => SetChartFilter(filter)">
+                            @filter
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <div class="tk-chart-layout">
+                <div class="tk-chart-canvas-wrap">
+                    <canvas id="bestSellingChart"
+                            aria-label="Biểu đồ sản phẩm bán chạy">
+                    </canvas>
+
+                    @if (!string.IsNullOrWhiteSpace(chartErrorMessage))
+                    {
+                        <div class="tk-chart-error">
+                            @chartErrorMessage
+                        </div>
+                    }
+                </div>
+
+                <div class="tk-ranking">
+                    <div class="tk-ranking-title">
+                        <strong>Bảng xếp hạng</strong>
+                        <small>@ChartDateLabel</small>
+                    </div>
+
+                    @if (chartProducts.Any())
+                    {
+                        <div class="tk-ranking-list">
+                            @for (var i = 0; i < chartProducts.Count; i++)
+                            {
+                                var rank = i + 1;
+                                var product = chartProducts[i];
+
+                                <div class="tk-ranking-item">
+                                    <span class="tk-rank-number">
+                                        @rank
+                                    </span>
+
+                                    <div class="tk-ranking-product">
+                                        <strong>
+                                            @product.TenSanPham
+                                        </strong>
+                                        <small>
+                                            @product.GiaTien.ToString("N0") ₫ doanh thu
+                                        </small>
+                                    </div>
+
+                                    <span class="tk-ranking-value">
+                                        @product.SoLuong SP
+                                    </span>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="tk-ranking-empty">
+                            Chưa có sản phẩm bán ra trong khoảng thời gian này.
+                        </div>
+                    }
+                </div>
+            </div>
+        </section>
+
+        <section class="tk-tables">
+            <article class="tk-table-panel">
+                <div class="tk-table-header">
+                    <div>
+                        <span>HIỆU SUẤT SẢN PHẨM</span>
+                        <h2>Sản phẩm bán chạy</h2>
+                    </div>
+
+                    <div class="tk-count">
+                        @sanPhamBanChays.Count sản phẩm
+                    </div>
+                </div>
+
+                <div class="tk-table-wrap">
+                    <table class="tk-table">
+                        <thead>
+                            <tr>
+                                <th>Sản phẩm</th>
+                                <th>Phân loại</th>
+                                <th class="tk-right">Đã bán</th>
+                                <th class="tk-right">Doanh thu</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @if (VisibleBestSellingProducts.Any())
+                            {
+                                @foreach (var product in VisibleBestSellingProducts)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div class="tk-product">
+                                                <img src="@GetImageUrl(product.Anh)"
+                                                     alt="@product.TenSanPham" />
+
+                                                <div>
+                                                    <strong>
+                                                        @product.TenSanPham
+                                                    </strong>
+                                                    <small>
+                                                        Sản phẩm bán chạy
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </td>
+
+                                        <td>
+                                            <span class="tk-badge">
+                                                Size @product.Size
+                                            </span>
+                                            <span class="tk-badge">
+                                                @product.MauSac
+                                            </span>
+                                        </td>
+
+                                        <td class="tk-right">
+                                            <span class="tk-quantity">
+                                                @product.SoLuong
+                                            </span>
+                                        </td>
+
+                                        <td class="tk-right tk-money">
+                                            @product.GiaTien.ToString("N0") ₫
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="4" class="tk-empty">
+                                        Không có sản phẩm bán ra trong khoảng thời gian này.
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                @if (TotalPages1 > 0)
+                {
+                    <div class="tk-table-footer">
+                        <label>
+                            Hiển thị
+
+                            <select @bind="pageSize1"
+                                    @bind:event="onchange">
+                                <option value="5">5</option>
+                                <option value="10">10</option>
+                                <option value="20">20</option>
+                            </select>
+
+                            dòng
+                        </label>
+
+                        <div class="tk-pages">
+                            <button type="button"
+                                    @onclick="() => SetPage1(CurrentPage1 - 1)"
+                                    disabled="@(CurrentPage1 == 0)">
+                                ‹
+                            </button>
+
+                            @for (var i = 0; i < TotalPages1; i++)
+                            {
+                                var page = i;
+
+                                <button type="button"
+                                        class="@(CurrentPage1 == page ? "active" : "")"
+                                        @onclick="() => SetPage1(page)">
+                                    @(page + 1)
+                                </button>
+                            }
+
+                            <button type="button"
+                                    @onclick="() => SetPage1(CurrentPage1 + 1)"
+                                    disabled="@(CurrentPage1 >= TotalPages1 - 1)">
+                                ›
+                            </button>
+                        </div>
+                    </div>
+                }
+            </article>
+
+            <article class="tk-table-panel">
+                <div class="tk-table-header">
+                    <div>
+                        <span>CẢNH BÁO TỒN KHO</span>
+                        <h2>Sản phẩm sắp hết hàng</h2>
+                    </div>
+
+                    <div class="tk-count">
+                        ≤ @LowStockThreshold sản phẩm
+                    </div>
+                </div>
+
+                <div class="tk-table-wrap">
+                    <table class="tk-table">
+                        <thead>
+                            <tr>
+                                <th>Sản phẩm</th>
+                                <th>Phân loại</th>
+                                <th class="tk-right">Tồn kho</th>
+                                <th class="tk-right">Giá bán</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @if (VisibleLowStockProducts.Any())
+                            {
+                                @foreach (var product in VisibleLowStockProducts)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div class="tk-product">
+                                                <img src="@GetImageUrl(product.Anh)"
+                                                     alt="@product.TenSanPham" />
+
+                                                <div>
+                                                    <strong>
+                                                        @product.TenSanPham
+                                                    </strong>
+                                                    <small>
+                                                        Biến thể sắp hết
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </td>
+
+                                        <td>
+                                            <span class="tk-badge">
+                                                Size @product.Size
+                                            </span>
+                                            <span class="tk-badge">
+                                                @product.MauSac
+                                            </span>
+                                        </td>
+
+                                        <td class="tk-right">
+                                            <span class="tk-quantity low">
+                                                @product.SoLuong
+                                            </span>
+                                        </td>
+
+                                        <td class="tk-right tk-money">
+                                            @product.GiaTien.ToString("N0") ₫
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="4" class="tk-empty">
+                                        Tồn kho đang ổn định.
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                @if (TotalPages2 > 0)
+                {
+                    <div class="tk-table-footer">
+                        <label>
+                            Hiển thị
+
+                            <select @bind="PageSize2"
+                                    @bind:event="onchange">
+                                <option value="5">5</option>
+                                <option value="10">10</option>
+                                <option value="20">20</option>
+                            </select>
+
+                            dòng
+                        </label>
+
+                        <div class="tk-pages">
+                            <button type="button"
+                                    @onclick="() => SetPage2(CurrentPage2 - 1)"
+                                    disabled="@(CurrentPage2 == 0)">
+                                ‹
+                            </button>
+
+                            @for (var i = 0; i < TotalPages2; i++)
+                            {
+                                var page = i;
+
+                                <button type="button"
+                                        class="@(CurrentPage2 == page ? "active" : "")"
+                                        @onclick="() => SetPage2(page)">
+                                    @(page + 1)
+                                </button>
+                            }
+
+                            <button type="button"
+                                    @onclick="() => SetPage2(CurrentPage2 + 1)"
+                                    disabled="@(CurrentPage2 >= TotalPages2 - 1)">
+                                ›
+                            </button>
+                        </div>
+                    </div>
+                }
+            </article>
+        </section>
+    }
+</main>
+
+@code {
+    private const int LowStockThreshold = 10;
+    private const string ApiBaseUrl = "https://localhost:7246";
+
+    private readonly List<string> FilterOptions = new List<string>
+    {
+        "NGÀY",
+        "TUẦN",
+        "THÁNG",
+        "NĂM",
+        "TÙY CHỈNH"
+    };
+
+    private readonly List<string> ChartFilterOptions = new List<string>
+    {
+        "NGÀY",
+        "THÁNG",
+        "NĂM"
+    };
+
+    private List<HoaDon> hoaDons =
+        new List<HoaDon>();
+
+    private List<HoaDonChiTiet> hoaDonChiTiets =
+        new List<HoaDonChiTiet>();
+
+    private List<GiayChiTietDTO> giayChiTiets =
+        new List<GiayChiTietDTO>();
+
+    private List<DanhSachSanPhamBanChay> sanPhamBanChays =
+        new List<DanhSachSanPhamBanChay>();
+
+    private List<DanhSachSanPhamBanChay> sanPhamSapHet =
+        new List<DanhSachSanPhamBanChay>();
+
+    private List<DanhSachSanPhamBanChay> chartProducts =
+        new List<DanhSachSanPhamBanChay>();
+
+    private bool isLoading = true;
+    private bool chartNeedsRender = true;
+
+    private string errorMessage = string.Empty;
+    private string activeFilter = "NGÀY";
+    private string chartFilter = "NGÀY";
+    private string chartErrorMessage = string.Empty;
+
+    private DateTime StartDate { get; set; } =
+        DateTime.Today.AddDays(-6);
+
+    private DateTime EndDate { get; set; } =
+        DateTime.Today;
+
+    private DateTime SelectedStartDate =
+        DateTime.Today;
+
+    private DateTime SelectedEndDate =
+        DateTime.Today;
+
+    private DateTime ChartStartDate =
+        DateTime.Today;
+
+    private DateTime ChartEndDate =
+        DateTime.Today;
+
+    private decimal TongSoTienHomNay;
+    private int SoLuongSanPhamHomNay;
+    private int DonThanhCongHomNay;
+    private int DonHangHuyHomNay;
+    private int DonTraHomNay;
+
+    private decimal TongSoTienTuanNay;
+    private int SoLuongSanPhamTuanNay;
+    private int DonThanhCongTuanNay;
+    private int DonHangHuyTuanNay;
+    private int DonTraTuanNay;
+
+    private decimal TongSoTienThangNay;
+    private int SoLuongSanPhamThangNay;
+    private int DonThanhCongThangNay;
+    private int DonHangHuyThangNay;
+    private int DonTraThangNay;
+
+    private decimal TongSoTienNamNay;
+    private int SoLuongSanPhamNamNay;
+    private int DonThanhCongNamNay;
+    private int DonHangHuyNamNay;
+    private int DonTraNamNay;
+
+    private decimal SelectedRevenue;
+    private int SelectedProducts;
+    private int SelectedSuccessOrders;
+    private int SelectedCancelledOrders;
+    private int SelectedReturnedOrders;
+    private int SelectedOrderCount;
+
+    private int CountDaHuy;
+    private int CountChoXacNhan;
+    private int CountChoGiaoHang;
+    private int CountDangVanChuyen;
+    private int CountDaGiaoHang;
+    private int CountDaThanhToan;
+    private int CountChoThanhToan;
+    private int CountHoanThanh;
+    private int CountTraHang;
+
+    private decimal PercentDaHuy;
+    private decimal PercentChoXacNhan;
+    private decimal PercentChoGiaoHang;
+    private decimal PercentDangVanChuyen;
+    private decimal PercentDaGiaoHang;
+    private decimal PercentDaThanhToan;
+    private decimal PercentChoThanhToan;
+    private decimal PercentHoanThanh;
+    private decimal PercentTraHang;
+
+    private int CurrentPage1;
+    private int CurrentPage2;
+    private int pageSize1 = 5;
+    private int pageSize2 = 5;
+
+    private int PageSize = 5;
+
+    private int Page1
+    {
+        get
+        {
+            return pageSize1;
+        }
+        set
+        {
+            pageSize1 = value;
+            CurrentPage1 = 0;
+        }
+    }
+
+    private int PageSize2
+    {
+        get
+        {
+            return pageSize2;
+        }
+        set
+        {
+            pageSize2 = value;
+            CurrentPage2 = 0;
+        }
+    }
+
+    private int TotalPages1
+    {
+        get
+        {
+            if (sanPhamBanChays.Count == 0)
+            {
+                return 0;
+            }
+
+            return (int)Math.Ceiling(
+                (double)sanPhamBanChays.Count
+                / pageSize1);
+        }
+    }
+
+    private int TotalPages2
+    {
+        get
+        {
+            if (sanPhamSapHet.Count == 0)
+            {
+                return 0;
+            }
+
+            return (int)Math.Ceiling(
+                (double)sanPhamSapHet.Count
+                / PageSize2);
+        }
+    }
+
+    private List<DanhSachSanPhamBanChay>
+        VisibleBestSellingProducts
+    {
+        get
+        {
+            return sanPhamBanChays
+                .Skip(CurrentPage1 * pageSize1)
+                .Take(pageSize1)
+                .ToList();
+        }
+    }
+
+    private List<DanhSachSanPhamBanChay>
+        VisibleLowStockProducts
+    {
+        get
+        {
+            return sanPhamSapHet
+                .Skip(CurrentPage2 * PageSize2)
+                .Take(PageSize2)
+                .ToList();
+        }
+    }
+
+    private string SelectedPeriodLabel
+    {
+        get
+        {
+            if (SelectedStartDate.Date
+                == SelectedEndDate.Date)
+            {
+                return SelectedStartDate
+                    .ToString("dd/MM/yyyy");
+            }
+
+            return SelectedStartDate.ToString("dd/MM/yyyy")
+                   + " - "
+                   + SelectedEndDate.ToString("dd/MM/yyyy");
+        }
+    }
+
+    private string ChartPeriodLabel
+    {
+        get
+        {
+            if (chartFilter == "THÁNG")
+            {
+                return "tháng";
+            }
+
+            if (chartFilter == "NĂM")
+            {
+                return "năm";
+            }
+
+            return "ngày";
+        }
+    }
+
+    private string ChartDateLabel
+    {
+        get
+        {
+            if (ChartStartDate.Date
+                == ChartEndDate.Date)
+            {
+                return ChartStartDate
+                    .ToString("dd/MM/yyyy");
+            }
+
+            return ChartStartDate.ToString("dd/MM/yyyy")
+                   + " - "
+                   + ChartEndDate.ToString("dd/MM/yyyy");
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
+    {
+        if ((firstRender || chartNeedsRender)
+            && !isLoading)
+        {
+            chartNeedsRender = false;
+
+            try
+            {
+                chartErrorMessage = string.Empty;
+
+                await JS.InvokeVoidAsync(
+                    "thongKeChart.draw",
+                    "bestSellingChart",
+                    chartProducts
+                        .Select(x => x.TenSanPham)
+                        .ToArray(),
+                    chartProducts
+                        .Select(x => x.SoLuong)
+                        .ToArray());
+            }
+            catch (Exception ex)
+            {
+                chartErrorMessage =
+                    "Không thể vẽ biểu đồ: "
+                    + ex.Message;
+
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            hoaDons =
+                await hoaDonService.GetAll()
+                ?? new List<HoaDon>();
+
+            hoaDonChiTiets =
+                await chiTietHoaDonService.GetAllHDCTAsync()
+                ?? new List<HoaDonChiTiet>();
+
+            giayChiTiets =
+                await giayChiTietService.GetAllAsync()
+                ?? new List<GiayChiTietDTO>();
+
+            BuildLowStockProducts();
+            CalculateAllSummaryCards();
+            ApplyFilter();
+            BuildBestSellingChart();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                "Không tải được dữ liệu: "
+                + ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+            chartNeedsRender = true;
+        }
+    }
+
+    private void CalculateAllSummaryCards()
+    {
+        DateTime today = DateTime.Today;
+
+        CalculateStatsForPeriod(
+            today,
+            today,
+            out TongSoTienHomNay,
+            out SoLuongSanPhamHomNay,
+            out DonThanhCongHomNay,
+            out DonHangHuyHomNay,
+            out DonTraHomNay);
+
+        DateTime startOfWeek =
+            GetStartOfWeek(today);
+
+        CalculateStatsForPeriod(
+            startOfWeek,
+            today,
+            out TongSoTienTuanNay,
+            out SoLuongSanPhamTuanNay,
+            out DonThanhCongTuanNay,
+            out DonHangHuyTuanNay,
+            out DonTraTuanNay);
+
+        DateTime startOfMonth =
+            new DateTime(
+                today.Year,
+                today.Month,
+                1);
+
+        CalculateStatsForPeriod(
+            startOfMonth,
+            today,
+            out TongSoTienThangNay,
+            out SoLuongSanPhamThangNay,
+            out DonThanhCongThangNay,
+            out DonHangHuyThangNay,
+            out DonTraThangNay);
+
+        DateTime startOfYear =
+            new DateTime(
+                today.Year,
+                1,
+                1);
+
+        CalculateStatsForPeriod(
+            startOfYear,
+            today,
+            out TongSoTienNamNay,
+            out SoLuongSanPhamNamNay,
+            out DonThanhCongNamNay,
+            out DonHangHuyNamNay,
+            out DonTraNamNay);
+    }
+
+    private void CalculateStatsForPeriod(
+        DateTime startDate,
+        DateTime endDate,
+        out decimal totalMoney,
+        out int totalProducts,
+        out int successfulOrders,
+        out int cancelledOrders,
+        out int returnedOrders)
+    {
+        List<HoaDon> invoicesInRange =
+            hoaDons
+                .Where(x =>
+                    x.NgayTao.Date >= startDate.Date
+                    && x.NgayTao.Date <= endDate.Date)
+                .ToList();
+
+        totalMoney =
+            invoicesInRange
+                .Where(x =>
+                    IsStatus(
+                        x.TrangThai,
+                        "đã giao",
+                        "đã giao hàng",
+                        "đã thanh toán",
+                        "hoàn thành"))
+                .Sum(x =>
+                    Convert.ToDecimal(
+                        x.TongTienSauKhiGiam));
+
+        List<Guid> completedIds =
+            invoicesInRange
+                .Where(x =>
+                    IsStatus(
+                        x.TrangThai,
+                        "hoàn thành"))
+                .Select(x => x.HoaDonId)
+                .ToList();
+
+        totalProducts =
+            hoaDonChiTiets
+                .Where(x =>
+                    completedIds.Contains(x.HoaDonId)
+                    && x.TrangThai == true)
+                .Sum(x =>
+                    Convert.ToInt32(
+                        x.SoLuongSanPham));
+
+        successfulOrders =
+            completedIds.Count;
+
+        cancelledOrders =
+            invoicesInRange.Count(x =>
+                IsStatus(
+                    x.TrangThai,
+                    "đã hủy"));
+
+        returnedOrders =
+            hoaDonChiTiets
+                .Where(x =>
+                    x.TrangThai == false
+                    && invoicesInRange.Any(h =>
+                        h.HoaDonId == x.HoaDonId))
+                .Select(x => x.HoaDonId)
+                .Distinct()
+                .Count();
+    }
+
+    private void SetActiveFilter(string filter)
+    {
+        activeFilter = filter;
+        errorMessage = string.Empty;
+
+        if (filter != "TÙY CHỈNH")
+        {
+            ApplyFilter();
+        }
+    }
+
+    private void ApplyCustomFilter()
+    {
+        errorMessage = string.Empty;
+
+        if (StartDate.Date > EndDate.Date)
+        {
+            errorMessage =
+                "Ngày bắt đầu phải nhỏ hơn hoặc bằng ngày kết thúc.";
+
+            return;
+        }
+
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        GetSelectedDateRange(
+            out SelectedStartDate,
+            out SelectedEndDate);
+
+        CalculateStatsForPeriod(
+            SelectedStartDate,
+            SelectedEndDate,
+            out SelectedRevenue,
+            out SelectedProducts,
+            out SelectedSuccessOrders,
+            out SelectedCancelledOrders,
+            out SelectedReturnedOrders);
+
+        BuildBestSellingProducts(
+            SelectedStartDate,
+            SelectedEndDate);
+
+        CalculateOrderStatus(
+            SelectedStartDate,
+            SelectedEndDate);
+
+        CurrentPage1 = 0;
+    }
+
+    private void GetSelectedDateRange(
+        out DateTime startDate,
+        out DateTime endDate)
+    {
+        DateTime today = DateTime.Today;
+
+        switch (activeFilter)
+        {
+            case "TUẦN":
+                startDate =
+                    GetStartOfWeek(today);
+
+                endDate = today;
+                break;
+
+            case "THÁNG":
+                startDate =
+                    new DateTime(
+                        today.Year,
+                        today.Month,
+                        1);
+
+                endDate = today;
+                break;
+
+            case "NĂM":
+                startDate =
+                    new DateTime(
+                        today.Year,
+                        1,
+                        1);
+
+                endDate = today;
+                break;
+
+            case "TÙY CHỈNH":
+                startDate = StartDate.Date;
+                endDate = EndDate.Date;
+                break;
+
+            default:
+                startDate = today;
+                endDate = today;
+                break;
+        }
+    }
+
+    private void BuildBestSellingProducts(
+        DateTime startDate,
+        DateTime endDate)
+    {
+        sanPhamBanChays =
+            GetBestSellingProducts(
+                startDate,
+                endDate);
+    }
+
+    private void SetChartFilter(string filter)
+    {
+        chartFilter = filter;
+        BuildBestSellingChart();
+    }
+
+    private void BuildBestSellingChart()
+    {
+        GetChartDateRange(
+            out ChartStartDate,
+            out ChartEndDate);
+
+        chartProducts =
+            GetBestSellingProducts(
+                ChartStartDate,
+                ChartEndDate)
+            .Take(7)
+            .ToList();
+
+        chartErrorMessage = string.Empty;
+        chartNeedsRender = true;
+    }
+
+    private void GetChartDateRange(
+        out DateTime startDate,
+        out DateTime endDate)
+    {
+        DateTime today = DateTime.Today;
+
+        if (chartFilter == "THÁNG")
+        {
+            startDate =
+                new DateTime(
+                    today.Year,
+                    today.Month,
+                    1);
+
+            endDate = today;
+            return;
+        }
+
+        if (chartFilter == "NĂM")
+        {
+            startDate =
+                new DateTime(
+                    today.Year,
+                    1,
+                    1);
+
+            endDate = today;
+            return;
+        }
+
+        startDate = today;
+        endDate = today;
+    }
+
+    private List<DanhSachSanPhamBanChay>
+        GetBestSellingProducts(
+            DateTime startDate,
+            DateTime endDate)
+    {
+        return
+            (from hd in hoaDons
+             join hdct in hoaDonChiTiets
+                 on hd.HoaDonId
+                 equals hdct.HoaDonId
+             join gct in giayChiTiets
+                 on hdct.GiayChiTietId
+                 equals gct.GiayChiTietId
+             where hd.NgayTao.Date >= startDate.Date
+                   && hd.NgayTao.Date <= endDate.Date
+                   && IsStatus(
+                       hd.TrangThai,
+                       "hoàn thành")
+                   && hdct.TrangThai == true
+             select new
+             {
+                 TenGiay =
+                     gct.TenGiay
+                     ?? "Chưa rõ tên",
+
+                 Anh =
+                     gct.AnhGiay
+                     ?? string.Empty,
+
+                 Gia =
+                     Convert.ToDecimal(
+                         hdct.Gia),
+
+                 KichCo =
+                     Convert.ToString(
+                         gct.size)
+                     ?? "Không rõ",
+
+                 MauSac =
+                     gct.TenMau
+                     ?? "Không rõ",
+
+                 SoLuong =
+                     Convert.ToInt32(
+                         hdct.SoLuongSanPham)
+             })
+            .GroupBy(x => x.TenGiay)
+            .Select(group =>
+                new DanhSachSanPhamBanChay
+                    {
+                        TenSanPham =
+                            group.Key,
+
+                        Anh =
+                            group
+                                .Select(x => x.Anh)
+                                .FirstOrDefault(x =>
+                                    !string.IsNullOrWhiteSpace(x))
+                            ?? string.Empty,
+
+                        GiaTien =
+                            group.Sum(x =>
+                                x.Gia * x.SoLuong),
+
+                        Size =
+                            string.Join(
+                                ", ",
+                                group
+                                    .Select(x => x.KichCo)
+                                    .Distinct()),
+
+                        MauSac =
+                            string.Join(
+                                ", ",
+                                group
+                                    .Select(x => x.MauSac)
+                                    .Distinct()),
+
+                        SoLuong =
+                            group.Sum(x => x.SoLuong)
+                    })
+            .OrderByDescending(x => x.SoLuong)
+            .ThenBy(x => x.TenSanPham)
+            .ToList();
+    }
+
+    private void BuildLowStockProducts()
+    {
+        sanPhamSapHet =
+            giayChiTiets
+                .Where(x =>
+                    Convert.ToInt32(
+                        x.SoLuongCon)
+                    <= LowStockThreshold)
+                .Select(x =>
+                    new DanhSachSanPhamBanChay
+                        {
+                            Anh =
+                                x.AnhGiay
+                                ?? string.Empty,
+
+                            TenSanPham =
+                                x.TenGiay
+                                ?? "Chưa rõ tên",
+
+                            MauSac =
+                                x.TenMau
+                                ?? "Không rõ",
+
+                            Size =
+                                Convert.ToString(x.size)
+                                ?? "Không rõ",
+
+                            SoLuong =
+                                Convert.ToInt32(
+                                    x.SoLuongCon),
+
+                            GiaTien =
+                                Convert.ToDecimal(x.Gia)
+                        })
+                .OrderBy(x => x.SoLuong)
+                .ThenBy(x => x.TenSanPham)
+                .ToList();
+    }
+
+    private void CalculateOrderStatus(
+        DateTime startDate,
+        DateTime endDate)
+    {
+        List<HoaDon> filteredOrders =
+            hoaDons
+                .Where(x =>
+                    x.NgayTao.Date >= startDate.Date
+                    && x.NgayTao.Date <= endDate.Date)
+                .ToList();
+
+        SelectedOrderCount =
+            filteredOrders.Count;
+
+        CountDaHuy =
+            filteredOrders.Count(x =>
+                IsStatus(
+                    x.TrangThai,
+                    "đã hủy"));
+
+        CountChoXacNhan =
+            filteredOrders.Count(x =>
+                IsStatus(
+                    x.TrangThai,
+                    "chờ xác nhận"));
+
+        CountChoGiaoHang =
+            filteredOrders.Count(x =>
+                IsStatus(
+                    x.TrangThai,
+                    "chờ giao hàng"));
+
+        CountDangVanChuyen =
+            filteredOrders.Count(x =>
+                IsStatus(
+                    x.TrangThai,
+                    "đang vận chuyển",
+                    "đang giao hàng"));
+
+        CountDaGiaoHang =
+            filteredOrders.Count(x =>
+                IsStatus(
+                    x.TrangThai,
+                    "đã giao",
+                    "đã giao hàng"));
+
+        CountDaThanhToan =
+            filteredOrders.Count(x =>
+                IsStatus(
+                    x.TrangThai,
+                    "đã thanh toán"));
+
+        CountChoThanhToan =
+            filteredOrders.Count(x =>
+                IsStatus(
+                    x.TrangThai,
+                    "chờ thanh toán"));
+
+        CountHoanThanh =
+            filteredOrders.Count(x =>
+                IsStatus(
+                    x.TrangThai,
+                    "hoàn thành"));
+
+        CountTraHang =
+            filteredOrders.Count(hd =>
+                hoaDonChiTiets.Any(ct =>
+                    ct.HoaDonId == hd.HoaDonId
+                    && ct.TrangThai == false));
+
+        PercentDaHuy =
+            CalculatePercent(
+                CountDaHuy,
+                SelectedOrderCount);
+
+        PercentChoXacNhan =
+            CalculatePercent(
+                CountChoXacNhan,
+                SelectedOrderCount);
+
+        PercentChoGiaoHang =
+            CalculatePercent(
+                CountChoGiaoHang,
+                SelectedOrderCount);
+
+        PercentDangVanChuyen =
+            CalculatePercent(
+                CountDangVanChuyen,
+                SelectedOrderCount);
+
+        PercentDaGiaoHang =
+            CalculatePercent(
+                CountDaGiaoHang,
+                SelectedOrderCount);
+
+        PercentDaThanhToan =
+            CalculatePercent(
+                CountDaThanhToan,
+                SelectedOrderCount);
+
+        PercentChoThanhToan =
+            CalculatePercent(
+                CountChoThanhToan,
+                SelectedOrderCount);
+
+        PercentHoanThanh =
+            CalculatePercent(
+                CountHoanThanh,
+                SelectedOrderCount);
+
+        PercentTraHang =
+            CalculatePercent(
+                CountTraHang,
+                SelectedOrderCount);
+    }
+
+    private decimal CalculatePercent(
+        int value,
+        int total)
+    {
+        if (total <= 0)
+        {
+            return 0;
+        }
+
+        return (decimal)value
+               * 100m
+               / total;
+    }
+
+    private string GetProgressStyle(
+        decimal percent)
+    {
+        if (percent < 0)
+        {
+            percent = 0;
+        }
+
+        if (percent > 100)
+        {
+            percent = 100;
+        }
+
+        return "width:"
+               + percent.ToString(
+                   "0.##",
+                   System.Globalization.CultureInfo.InvariantCulture)
+               + "%;";
+    }
+
+    private DateTime GetStartOfWeek(DateTime date)
+    {
+        int difference =
+            (7 + (
+                date.DayOfWeek
+                - DayOfWeek.Monday)) % 7;
+
+        return date
+            .AddDays(-difference)
+            .Date;
+    }
+
+    private bool IsStatus(
+        string currentStatus,
+        params string[] expectedStatuses)
+    {
+        string normalized =
+            NormalizeStatus(currentStatus);
+
+        return expectedStatuses.Any(x =>
+            normalized == NormalizeStatus(x));
+    }
+
+    private string NormalizeStatus(string status)
+    {
+        return (status ?? string.Empty)
+            .Trim()
+            .ToLowerInvariant()
+            .Replace("huỷ", "hủy");
+    }
+
+    private string GetImageUrl(string imagePath)
+    {
+        if (string.IsNullOrWhiteSpace(imagePath))
+        {
+            return "/images/no-image.png";
+        }
+
+        Uri absoluteUri;
+
+        if (Uri.TryCreate(
+            imagePath,
+            UriKind.Absolute,
+            out absoluteUri))
+        {
+            return absoluteUri.ToString();
+        }
+
+        return ApiBaseUrl.TrimEnd('/')
+               + "/"
+               + imagePath.TrimStart('/');
+    }
+
+    private void SetPage1(int page)
+    {
+        if (page >= 0 && page < TotalPages1)
+        {
+            CurrentPage1 = page;
+        }
+    }
+
+    private void SetPage2(int page)
+    {
+        if (page >= 0 && page < TotalPages2)
+        {
+            CurrentPage2 = page;
+        }
+    }
+}
+<script src="/Js/thongke.js"></script>

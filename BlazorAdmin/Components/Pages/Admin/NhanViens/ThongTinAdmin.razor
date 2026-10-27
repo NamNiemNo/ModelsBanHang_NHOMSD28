@@ -1,0 +1,869 @@
+﻿@page "/ThongTinAdmin"
+@attribute [Authorize(Roles = "Admin")]
+@layout AdminLayout
+@rendermode InteractiveServer
+
+@using Data.Models
+@using Microsoft.JSInterop
+
+@inject INhanVienService service
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JS
+
+<div class="profile-page">
+
+    @if (isLoading)
+    {
+        <div class="profile-state">
+            <div class="profile-spinner"></div>
+            <span>Đang tải thông tin tài khoản...</span>
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="profile-state error-state">
+            <div class="state-icon">!</div>
+            <h3>Không thể tải thông tin</h3>
+            <p>@errorMessage</p>
+
+            <button @onclick="NavigateBack">
+                Quay về trang quản trị
+            </button>
+        </div>
+    }
+    else if (admin != null)
+    {
+        <div class="profile-container">
+
+            <div class="profile-topbar">
+                <button class="back-button" @onclick="NavigateBack">
+                    ← Quay về
+                </button>
+
+                <button class="edit-button"
+                        @onclick="NavigateToEdit">
+                    ✎ Chỉnh sửa thông tin
+                </button>
+            </div>
+
+            <!-- PROFILE HEADER -->
+            <div class="profile-header-card">
+
+                <div class="profile-decoration one"></div>
+                <div class="profile-decoration two"></div>
+
+                <div class="profile-avatar">
+                    @GetInitials(admin.HoTen)
+                </div>
+
+                <div class="profile-heading">
+                    <div class="name-row">
+                        <h2>@admin.HoTen</h2>
+                        <span class="verified-badge">✓</span>
+                    </div>
+
+                    <span class="role-badge">
+                        @(admin.ChucVu?.MotaChucVu ?? "Quản trị viên")
+                    </span>
+
+                    <p>Mã nhân viên: @admin.NhanVienId</p>
+                </div>
+
+                <div class="profile-status">
+                    <span class="status-dot"></span>
+                    @(admin.TrangThai
+                        ? "Đang hoạt động"
+                        : "Ngừng hoạt động")
+                </div>
+
+            </div>
+
+            <!-- THỐNG KÊ NHỎ -->
+            <div class="quick-info-grid">
+
+                <div class="quick-card">
+                    <div class="quick-icon phone">☎</div>
+                    <div>
+                        <span>Số điện thoại</span>
+                        <strong>@admin.SoDienThoai</strong>
+                    </div>
+                </div>
+
+                <div class="quick-card">
+                    <div class="quick-icon email">✉</div>
+                    <div>
+                        <span>Email</span>
+                        <strong>@admin.Email</strong>
+                    </div>
+                </div>
+
+                <div class="quick-card">
+                    <div class="quick-icon date">◷</div>
+                    <div>
+                        <span>Cập nhật gần nhất</span>
+                        <strong>
+                            @admin.NgayCapNhatCuoiCung.ToString("dd/MM/yyyy")
+                        </strong>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="profile-content-grid">
+
+                <!-- THÔNG TIN CÁ NHÂN -->
+                <div class="info-card">
+
+                    <div class="card-heading">
+                        <div class="heading-icon">👤</div>
+                        <div>
+                            <h4>Thông tin cá nhân</h4>
+                            <p>Thông tin cơ bản của quản trị viên</p>
+                        </div>
+                    </div>
+
+                    <div class="info-list">
+
+                        <div class="info-row">
+                            <span>Họ và tên</span>
+                            <strong>@admin.HoTen</strong>
+                        </div>
+
+                        <div class="info-row">
+                            <span>Số điện thoại</span>
+                            <strong>@admin.SoDienThoai</strong>
+                        </div>
+
+                        <div class="info-row">
+                            <span>Email</span>
+                            <strong>@admin.Email</strong>
+                        </div>
+
+                        <div class="info-row">
+                            <span>Ngày sinh</span>
+                            <strong>
+                                @admin.NgaySinh.ToString("dd/MM/yyyy")
+                            </strong>
+                        </div>
+
+                        <div class="info-row">
+                            <span>Chức vụ</span>
+                            <strong class="orange-text">
+                                @(admin.ChucVu?.MotaChucVu
+                                    ?? "Không có chức vụ")
+                            </strong>
+                        </div>
+
+                        <div class="info-row">
+                            <span>Trạng thái</span>
+
+                            <strong class="status-text @(admin.TrangThai ? "active" : "inactive")">
+                                <i></i>
+                                @(admin.TrangThai
+                                    ? "Đang hoạt động"
+                                    : "Ngừng hoạt động")
+                            </strong>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- THÔNG TIN TÀI KHOẢN -->
+                <div class="info-card">
+
+                    <div class="card-heading">
+                        <div class="heading-icon account">🔐</div>
+                        <div>
+                            <h4>Thông tin tài khoản</h4>
+                            <p>Thông tin đăng nhập hệ thống</p>
+                        </div>
+                    </div>
+
+                    <div class="account-box">
+
+                        <div class="account-avatar">
+                            @GetInitials(admin.TaiKhoan?.Username)
+                        </div>
+
+                        <div>
+                            <span>Tên tài khoản</span>
+                            <strong>
+                                @(admin.TaiKhoan?.Username
+                                    ?? "Không có tài khoản")
+                            </strong>
+                        </div>
+
+                    </div>
+
+                    <div class="info-list account-list">
+
+                        <div class="info-row">
+                            <span>Ngày tạo tài khoản</span>
+                            <strong>
+                                @(admin.TaiKhoan != null
+                                    ? admin.TaiKhoan.Ngaytaotaikhoan
+                                    .ToString("dd/MM/yyyy HH:mm")
+                                    : "Không có")
+                            </strong>
+                        </div>
+
+                        <div class="info-row">
+                            <span>Mã tài khoản</span>
+                            <strong class="id-value">
+                                @(admin.TaikhoanId?.ToString()
+                                    ?? "Không có")
+                            </strong>
+                        </div>
+
+                        <div class="info-row">
+                            <span>Quyền truy cập</span>
+                            <strong class="permission-badge">
+                                Toàn quyền quản trị
+                            </strong>
+                        </div>
+
+                    </div>
+
+                    <div class="security-box">
+                        <div>🛡️</div>
+                        <section>
+                            <strong>Tài khoản được bảo vệ</strong>
+                            <p>
+                                Không chia sẻ mật khẩu hoặc thông tin đăng nhập
+                                với người khác.
+                            </p>
+                        </section>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+    }
+
+</div>
+
+@code {
+    private NhanVien? admin;
+
+    private bool isLoading = true;
+    private bool hasLoaded;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || hasLoaded)
+            return;
+
+        hasLoaded = true;
+
+        try
+        {
+            var currentId = await JS.InvokeAsync<string?>(
+                "localStorage.getItem",
+                "currentId");
+
+            if (string.IsNullOrWhiteSpace(currentId))
+            {
+                errorMessage =
+                    "Không tìm thấy thông tin đăng nhập trong trình duyệt.";
+                return;
+            }
+
+            if (!Guid.TryParse(currentId, out var employeeId))
+            {
+                errorMessage = "Mã nhân viên không hợp lệ.";
+                return;
+            }
+
+            admin =
+                await service.GetByIdNhanVienAsync(employeeId);
+
+            if (admin == null)
+            {
+                errorMessage =
+                    "Không tìm thấy thông tin quản trị viên.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                "Không thể tải thông tin: " + ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void NavigateBack()
+    {
+        NavigationManager.NavigateTo("/thongke");
+    }
+
+    private void NavigateToEdit()
+    {
+        if (admin != null)
+        {
+            NavigationManager.NavigateTo(
+                $"/EditNhanVien/{admin.NhanVienId}");
+        }
+    }
+
+    private static string GetInitials(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "AD";
+
+        var words = value.Trim()
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        if (words.Length == 1)
+        {
+            return words[0][0].ToString().ToUpperInvariant();
+        }
+
+        return string.Concat(
+            words.First()[0],
+            words.Last()[0]).ToUpperInvariant();
+    }
+}
+
+<style>
+    .profile-page {
+        --primary: #f97316;
+        --primary-dark: #ea580c;
+        --primary-light: #fff7ed;
+        --text: #172033;
+        --muted: #718096;
+        --border: #e7ebf1;
+        min-height: 100vh;
+        padding: 28px;
+        background: #f6f8fc;
+        color: var(--text);
+    }
+
+    .profile-container {
+        max-width: 1100px;
+        margin: auto;
+    }
+
+    .profile-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 18px;
+    }
+
+    .back-button,
+    .edit-button {
+        min-height: 42px;
+        padding: 0 15px;
+        border-radius: 11px;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: .2s;
+    }
+
+    .back-button {
+        border: 1px solid #dce3ec;
+        background: white;
+        color: #64748b;
+    }
+
+    .edit-button {
+        border: 0;
+        background: linear-gradient(135deg, #fb923c, #ea580c);
+        color: white;
+        box-shadow: 0 7px 17px rgba(249, 115, 22, .22);
+    }
+
+        .back-button:hover,
+        .edit-button:hover {
+            transform: translateY(-2px);
+        }
+
+    .profile-header-card {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        min-height: 190px;
+        overflow: hidden;
+        padding: 32px;
+        border-radius: 22px;
+        background: linear-gradient(135deg, #fff7ed, white 60%);
+        box-shadow: 0 10px 32px rgba(15, 23, 42, .07);
+    }
+
+    .profile-decoration {
+        position: absolute;
+        border-radius: 50%;
+        background: rgba(249, 115, 22, .08);
+    }
+
+        .profile-decoration.one {
+            top: -80px;
+            right: -30px;
+            width: 230px;
+            height: 230px;
+        }
+
+        .profile-decoration.two {
+            right: 150px;
+            bottom: -100px;
+            width: 180px;
+            height: 180px;
+        }
+
+    .profile-avatar {
+        z-index: 1;
+        width: 105px;
+        height: 105px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border: 6px solid white;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #fb923c, #ea580c);
+        color: white;
+        font-size: 30px;
+        font-weight: 800;
+        box-shadow: 0 10px 28px rgba(249, 115, 22, .25);
+    }
+
+    .profile-heading {
+        z-index: 1;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .name-row {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+    }
+
+        .name-row h2 {
+            margin: 0;
+            overflow-wrap: anywhere;
+            font-size: 27px;
+            font-weight: 800;
+        }
+
+    .verified-badge {
+        width: 25px;
+        height: 25px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border-radius: 50%;
+        background: #22c55e;
+        color: white;
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    .role-badge {
+        display: inline-block;
+        margin-top: 9px;
+        padding: 6px 12px;
+        border-radius: 20px;
+        background: #ffedd5;
+        color: var(--primary-dark);
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .profile-heading p {
+        margin: 11px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+    }
+
+    .profile-status {
+        z-index: 1;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 13px;
+        border: 1px solid #bbf7d0;
+        border-radius: 20px;
+        background: #f0fdf4;
+        color: #15803d;
+        font-size: 12px;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: currentColor;
+    }
+
+    .quick-info-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 15px;
+        margin: 18px 0;
+    }
+
+    .quick-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+        padding: 17px;
+        border: 1px solid var(--border);
+        border-radius: 15px;
+        background: white;
+        box-shadow: 0 5px 18px rgba(15, 23, 42, .04);
+    }
+
+    .quick-icon {
+        width: 43px;
+        height: 43px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border-radius: 12px;
+        font-weight: 800;
+    }
+
+        .quick-icon.phone {
+            background: #eff6ff;
+            color: #2563eb;
+        }
+
+        .quick-icon.email {
+            background: #f0fdf4;
+            color: #16a34a;
+        }
+
+        .quick-icon.date {
+            background: var(--primary-light);
+            color: var(--primary-dark);
+        }
+
+    .quick-card span,
+    .quick-card strong {
+        display: block;
+        overflow-wrap: anywhere;
+    }
+
+    .quick-card span {
+        margin-bottom: 4px;
+        color: var(--muted);
+        font-size: 11px;
+    }
+
+    .quick-card strong {
+        color: #334155;
+        font-size: 13px;
+    }
+
+    .profile-content-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .info-card {
+        padding: 24px;
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: white;
+        box-shadow: 0 7px 24px rgba(15, 23, 42, .045);
+    }
+
+    .card-heading {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 21px;
+    }
+
+    .heading-icon {
+        width: 43px;
+        height: 43px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border-radius: 12px;
+        background: #eff6ff;
+    }
+
+        .heading-icon.account {
+            background: var(--primary-light);
+        }
+
+    .card-heading h4 {
+        margin: 0 0 3px;
+        font-size: 17px;
+        font-weight: 800;
+    }
+
+    .card-heading p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 11px;
+    }
+
+    .info-list {
+        border-top: 1px solid var(--border);
+    }
+
+    .info-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 14px 0;
+        border-bottom: 1px solid var(--border);
+    }
+
+        .info-row > span {
+            flex-shrink: 0;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .info-row > strong {
+            overflow-wrap: anywhere;
+            color: #334155;
+            font-size: 13px;
+            text-align: right;
+        }
+
+    .orange-text {
+        color: var(--primary-dark) !important;
+    }
+
+    .status-text {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+    }
+
+        .status-text i {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .status-text.active {
+            color: #15803d !important;
+        }
+
+        .status-text.inactive {
+            color: #dc2626 !important;
+        }
+
+    .account-box {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 15px;
+        border-radius: 13px;
+        background: #f8fafc;
+    }
+
+    .account-avatar {
+        width: 45px;
+        height: 45px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border-radius: 12px;
+        background: #172033;
+        color: white;
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    .account-box span,
+    .account-box strong {
+        display: block;
+    }
+
+    .account-box span {
+        margin-bottom: 3px;
+        color: var(--muted);
+        font-size: 11px;
+    }
+
+    .account-box strong {
+        font-size: 14px;
+    }
+
+    .account-list {
+        margin-top: 16px;
+    }
+
+    .id-value {
+        max-width: 250px;
+        font-size: 11px !important;
+    }
+
+    .permission-badge {
+        display: inline-block;
+        padding: 5px 9px;
+        border-radius: 20px;
+        background: var(--primary-light);
+        color: var(--primary-dark) !important;
+        font-size: 11px !important;
+    }
+
+    .security-box {
+        display: flex;
+        align-items: flex-start;
+        gap: 11px;
+        margin-top: 17px;
+        padding: 14px;
+        border: 1px solid #bbf7d0;
+        border-radius: 12px;
+        background: #f0fdf4;
+    }
+
+        .security-box section {
+            flex: 1;
+        }
+
+        .security-box strong {
+            color: #166534;
+            font-size: 12px;
+        }
+
+        .security-box p {
+            margin: 4px 0 0;
+            color: #4b7c59;
+            font-size: 11px;
+            line-height: 1.55;
+        }
+
+    .profile-state {
+        min-height: calc(100vh - 56px);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 11px;
+        color: #64748b;
+        text-align: center;
+    }
+
+    .profile-spinner {
+        width: 36px;
+        height: 36px;
+        border: 3px solid #fed7aa;
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: profile-spin .7s linear infinite;
+    }
+
+    .error-state .state-icon {
+        width: 52px;
+        height: 52px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: #fff1f2;
+        color: #dc2626;
+        font-size: 23px;
+        font-weight: 800;
+    }
+
+    .error-state h3,
+    .error-state p {
+        margin: 0;
+    }
+
+    .error-state button {
+        margin-top: 8px;
+        padding: 10px 16px;
+        border: 0;
+        border-radius: 10px;
+        background: var(--primary);
+        color: white;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    @@keyframes profile-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @@media (max-width: 850px) {
+        .quick-info-grid,
+        .profile-content-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .profile-header-card {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .profile-status {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+        }
+    }
+
+    @@media (max-width: 560px) {
+        .profile-page {
+            padding: 16px;
+        }
+
+        .profile-topbar {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .back-button,
+        .edit-button {
+            width: 100%;
+        }
+
+        .profile-header-card {
+            padding: 24px 19px;
+            text-align: center;
+        }
+
+        .profile-avatar {
+            margin: auto;
+        }
+
+        .profile-heading {
+            width: 100%;
+        }
+
+        .name-row {
+            justify-content: center;
+        }
+
+        .profile-status {
+            position: static;
+            align-self: center;
+        }
+
+        .info-row {
+            flex-direction: column;
+            gap: 5px;
+        }
+
+            .info-row > strong {
+                text-align: left;
+            }
+    }
+</style>

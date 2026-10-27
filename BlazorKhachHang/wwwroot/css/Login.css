@@ -1,0 +1,166 @@
+﻿* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+body {
+    height: 100vh;
+    background: linear-gradient(135deg, #d18df1, #7080ff, #f3a1b4);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    animation: fadeIn 1s ease-in-out;
+}
+
+.form-container {
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    padding: 40px 30px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    width: 350px;
+    text-align: center;
+    animation: slideUp 1s ease;
+    color: white;
+}
+
+    .form-container .user-icon {
+        background: #1c2b5a;
+        border-radius: 50%;
+        width: 70px;
+        height: 70px;
+        margin: -60px auto 20px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 30px;
+        color: white;
+    }
+
+    .form-container h2 {
+        margin-bottom: 20px;
+    }
+
+.form-group {
+    margin-bottom: 20px;
+    position: relative;
+}
+
+    .form-group input {
+        width: 100%;
+        padding: 12px 40px 12px 40px;
+        border-radius: 10px;
+        border: none;
+        outline: none;
+        background: #f0f4ff;
+        color: #333;
+        font-size: 14px;
+    }
+
+    .form-group i {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #777;
+    }
+
+.options {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    margin-bottom: 20px;
+    color: #f0f0f0;
+}
+
+    .options input {
+        margin-right: 5px;
+    }
+
+.btn-primary {
+    background: #1c2b5a;
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 30px;
+    width: 100%;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+    .btn-primary:hover {
+        background: #31457d;
+    }
+
+.social-login {
+    margin-top: 20px;
+}
+
+.social-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 30px;
+    border: none;
+    width: 100%;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s;
+}
+
+.google-btn {
+    background: #ffffff;
+    color: #444;
+}
+
+.facebook-btn {
+    background: #3b5998;
+    color: white;
+}
+
+.social-btn i {
+    margin-right: 8px;
+}
+
+.toggle-link {
+    margin-top: 20px;
+    font-size: 14px;
+    color: white;
+}
+
+    .toggle-link a {
+        color: #ffdcdc;
+        text-decoration: underline;
+        cursor: pointer;
+    }
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(30px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.hidden {
+    display: none;
+}

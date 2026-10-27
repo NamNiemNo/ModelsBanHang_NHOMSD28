@@ -1,0 +1,1898 @@
+﻿@page "/admin/hoadon"
+@attribute [Authorize(Roles = "Admin")]
+@layout AdminLayout
+@inject IHoaDonService HoaDonService
+@inject IHoaDonChiTietService HoaDonChiTietService
+@inject IJSRuntime JS
+@inject NavigationManager NavigationManager
+
+@using Data.Models
+
+<PageTitle>Quản lý đơn hàng</PageTitle>
+
+<div class="orders-page">
+    <header class="page-header">
+        <div>
+            <div class="page-eyebrow">BÁN HÀNG</div>
+            <h1>Quản lý đơn hàng</h1>
+            <p>Theo dõi, xác nhận và xử lý các đơn hàng tại một nơi.</p>
+        </div>
+
+        <button type="button" class="refresh-button" @onclick="TaiLai" disabled="@DangTai">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5" />
+            </svg>
+            <span>@(DangTai ? "Đang tải..." : "Tải lại dữ liệu")</span>
+        </button>
+    </header>
+
+    <section class="stats-grid" aria-label="Thống kê đơn hàng">
+        <article class="stat-card stat-all">
+            <div class="stat-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 3h10l2 4v14H5V7l2-4Z" />
+                    <path d="M5 8h14M9 12h6" />
+                </svg>
+            </div>
+            <div>
+                <span class="stat-label">Tổng đơn hàng</span>
+                <strong>@TatCaHoaDon.Count</strong>
+                <small>Tất cả đơn trong hệ thống</small>
+            </div>
+        </article>
+
+        <article class="stat-card stat-pending">
+            <div class="stat-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M12 7v5l3 2" />
+                </svg>
+            </div>
+            <div>
+                <span class="stat-label">Chờ xác nhận</span>
+                <strong>@SoDonChoXacNhan</strong>
+                <small>Cần được xử lý sớm</small>
+            </div>
+        </article>
+
+        <article class="stat-card stat-shipping">
+            <div class="stat-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M3 6h11v11H3zM14 10h4l3 3v4h-7z" />
+                    <circle cx="7" cy="18" r="2" />
+                    <circle cx="18" cy="18" r="2" />
+                </svg>
+            </div>
+            <div>
+                <span class="stat-label">Đang giao hàng</span>
+                <strong>@SoDonDangGiao</strong>
+                <small>Đơn đang trên đường giao</small>
+            </div>
+        </article>
+
+        <article class="stat-card stat-revenue">
+            <div class="stat-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3" y="5" width="18" height="14" rx="2" />
+                    <path d="M3 10h18M7 15h2" />
+                </svg>
+            </div>
+            <div>
+                <span class="stat-label">Doanh thu hoàn thành</span>
+                <strong class="revenue-value">@TongDoanhThu.ToString("N0") ₫</strong>
+                <small>Từ các đơn đã hoàn thành</small>
+            </div>
+        </article>
+    </section>
+
+    <section class="content-card">
+        <div class="filter-area">
+            <div class="search-box">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="m20 20-4-4" />
+                </svg>
+                <input value="@TuKhoa"
+                       @oninput="TimKiem"
+                       placeholder="Tìm mã đơn, tên khách, số điện thoại, địa chỉ..."
+                       aria-label="Tìm kiếm đơn hàng" />
+
+                @if (!string.IsNullOrWhiteSpace(TuKhoa))
+                {
+                    <button type="button" class="clear-search" @onclick="XoaTimKiem" title="Xóa nội dung tìm kiếm">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="m7 7 10 10M17 7 7 17" />
+                        </svg>
+                    </button>
+                }
+            </div>
+
+            <div class="result-summary">
+                <span class="result-dot"></span>
+                Hiển thị <strong>@TongKetQua</strong> kết quả
+                @if (LanCapNhat.HasValue)
+                {
+                    <span class="updated-time">· Cập nhật @LanCapNhat.Value.ToString("HH:mm")</span>
+                }
+            </div>
+        </div>
+
+        <div class="status-tabs" role="tablist" aria-label="Lọc theo trạng thái">
+            @foreach (var trangThaiItem in TrangThaiList)
+            {
+                <button type="button"
+                        role="tab"
+                        aria-selected="@(TrangThai == trangThaiItem)"
+                        class="status-tab @(TrangThai == trangThaiItem ? "active" : string.Empty)"
+                        @onclick="() => LocTheoTrangThai(trangThaiItem)">
+                    <span>@trangThaiItem</span>
+                    <span class="tab-count">@DemTheoTrangThai(trangThaiItem)</span>
+                </button>
+            }
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(LoiTaiDuLieu))
+        {
+            <div class="error-message" role="alert">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M12 8v5M12 17h.01" />
+                </svg>
+                <span>@LoiTaiDuLieu</span>
+                <button type="button" @onclick="TaiLai">Thử lại</button>
+            </div>
+        }
+        else if (DangTai)
+        {
+            <div class="loading-state">
+                <span class="spinner"></span>
+                <strong>Đang tải danh sách đơn hàng...</strong>
+                <small>Vui lòng chờ trong giây lát</small>
+            </div>
+        }
+        else if (DanhSachHoaDon.Count == 0)
+        {
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M7 3h10l2 4v14H5V7l2-4Z" />
+                        <path d="M9 13h6M10 17h4" />
+                    </svg>
+                </div>
+                <h3>Không tìm thấy đơn hàng</h3>
+                <p>Hãy thử từ khóa khác hoặc chọn lại trạng thái đơn hàng.</p>
+                @if (!string.IsNullOrWhiteSpace(TuKhoa) || TrangThai != "TẤT CẢ")
+                {
+                    <button type="button" class="reset-filter" @onclick="DatLaiBoLoc">Đặt lại bộ lọc</button>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="table-wrapper">
+                <table class="orders-table">
+                    <thead>
+                        <tr>
+                            <th class="column-number">#</th>
+                            <th>Đơn hàng</th>
+                            <th>Khách hàng</th>
+                            <th class="text-center">Sản phẩm</th>
+                            <th>Tổng tiền</th>
+                            <th>Địa chỉ nhận hàng</th>
+                            <th>Ngày tạo</th>
+                            <th>Thanh toán</th>
+                            <th>Trạng thái</th>
+                            <th class="text-center action-column">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var hoaDon in DanhSachHoaDon.Select((value, index) => new { value, index }))
+                        {
+                            var item = hoaDon.value;
+                            var chiTiets = ChiTietTheoHoaDon.GetValueOrDefault(item.HoaDonId);
+                            var tongSoSP = chiTiets?.Sum(c => c.SoLuongSanPham) ?? 0;
+                            var tongTien = TinhTongTien(item);
+                            var tenKhachHang = string.IsNullOrWhiteSpace(item.khachHang?.HoTen)
+                            ? "Khách lẻ"
+                            : item.khachHang.HoTen;
+
+                            <tr>
+                                <td class="row-number">@((CurrentPage - 1) * PageSize + hoaDon.index + 1)</td>
+                                <td>
+                                    <div class="order-code" title="@item.HoaDonId.ToString()">#@LayMaDon(item.HoaDonId)</div>
+                                    <div class="order-kind">Đơn bán hàng</div>
+                                </td>
+                                <td>
+                                    <div class="customer-cell">
+                                        <span class="customer-avatar">
+                                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                <circle cx="12" cy="8" r="4" />
+                                                <path d="M4 21a8 8 0 0 1 16 0" />
+                                            </svg>
+                                        </span>
+                                        <span>
+                                            <strong>@tenKhachHang</strong>
+                                            <small>@(string.IsNullOrWhiteSpace(item.SoDienThoai) ? "Chưa có SĐT" : item.SoDienThoai)</small>
+                                        </span>
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    <span class="product-count">@tongSoSP</span>
+                                </td>
+                                <td>
+                                    <strong class="money">@tongTien.ToString("N0") ₫</strong>
+                                </td>
+                                <td>
+                                    <div class="address-cell" title="@item.DiaChi">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z" />
+                                            <circle cx="12" cy="10" r="2.5" />
+                                        </svg>
+                                        <span>@(string.IsNullOrWhiteSpace(item.DiaChi) ? "Chưa cập nhật" : item.DiaChi)</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="date-cell">
+                                        <strong>@item.NgayTao.ToString("dd/MM/yyyy")</strong>
+                                        <small>@item.NgayTao.ToString("HH:mm")</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="payment-method">
+                                        @(string.IsNullOrWhiteSpace(item.hinhThucThanhToan?.TenHinhThuc)
+                                            ? "Chưa xác định"
+                                            : item.hinhThucThanhToan.TenHinhThuc)
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="status-cell">
+                                        <span class="status-badge @GetBadgeClass(item.TrangThai)">
+                                            <span class="status-dot"></span>
+                                            @item.TrangThai
+                                        </span>
+                                        <small>@LayThoiGianTrangThai(item)</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="action-group">
+                                        @switch (item.TrangThai)
+                                        {
+                                            case "Chờ xác nhận":
+                                                <button type="button" class="action-button action-confirm"
+                                                        disabled="@(HoaDonDangXuLy == item.HoaDonId)"
+                                                        @onclick="() => XacNhanDon(item.HoaDonId)">
+                                                    Xác nhận
+                                                </button>
+                                                <button type="button" class="action-button action-cancel"
+                                                        disabled="@(HoaDonDangXuLy == item.HoaDonId)"
+                                                        @onclick="() => HuyDon(item.HoaDonId)">
+                                                    Hủy
+                                                </button>
+                                                break;
+
+                                            case "Chờ giao hàng":
+                                                <button type="button" class="action-button action-ship"
+                                                        disabled="@(HoaDonDangXuLy == item.HoaDonId)"
+                                                        @onclick="() => BatDauGiao(item.HoaDonId)">
+                                                    Giao hàng
+                                                </button>
+                                                break;
+
+                                            case "Đang giao hàng":
+                                                <button type="button" class="action-button action-complete"
+                                                        disabled="@(HoaDonDangXuLy == item.HoaDonId)"
+                                                        @onclick="() => GiaoThanhCong(item.HoaDonId)">
+                                                    Hoàn thành
+                                                </button>
+                                                break;
+                                        }
+
+                                        <button type="button" class="action-button action-detail"
+                                                @onclick="() => XemChiTiet(item.HoaDonId)">
+                                            Chi tiết
+                                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                <path d="m9 18 6-6-6-6" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <footer class="table-footer">
+                <div>
+                    Trang <strong>@CurrentPage</strong> / <strong>@TotalPages</strong>
+                    <span>· @TongKetQua đơn hàng</span>
+                </div>
+
+                <nav class="pagination" aria-label="Phân trang">
+                    <button type="button" class="page-button page-arrow"
+                            @onclick="() => ChuyenTrang(1)"
+                            disabled="@(CurrentPage == 1)"
+                            aria-label="Trang đầu">
+                        «
+                    </button>
+                    <button type="button" class="page-button page-arrow"
+                            @onclick="() => ChuyenTrang(CurrentPage - 1)"
+                            disabled="@(CurrentPage == 1)"
+                            aria-label="Trang trước">
+                        ‹
+                    </button>
+
+                    @foreach (var pageNumber in LayDanhSachTrang())
+                    {
+                        <button type="button"
+                                class="page-button @(CurrentPage == pageNumber ? "active" : string.Empty)"
+                                aria-current="@(CurrentPage == pageNumber ? "page" : null)"
+                                @onclick="() => ChuyenTrang(pageNumber)">
+                            @pageNumber
+                        </button>
+                    }
+
+                    <button type="button" class="page-button page-arrow"
+                            @onclick="() => ChuyenTrang(CurrentPage + 1)"
+                            disabled="@(CurrentPage == TotalPages)"
+                            aria-label="Trang sau">
+                        ›
+                    </button>
+                    <button type="button" class="page-button page-arrow"
+                            @onclick="() => ChuyenTrang(TotalPages)"
+                            disabled="@(CurrentPage == TotalPages)"
+                            aria-label="Trang cuối">
+                        »
+                    </button>
+                </nav>
+            </footer>
+        }
+    </section>
+</div>
+
+<style>
+    /* ==============================
+           CẤU HÌNH CHUNG
+        ============================== */
+
+    .orders-page,
+    .orders-page * {
+        box-sizing: border-box;
+    }
+
+    .orders-page {
+        --primary: #f97316;
+        --primary-dark: #ea580c;
+        --primary-soft: #fff7ed;
+        --text-dark: #0f172a;
+        --text: #334155;
+        --text-muted: #64748b;
+        --border: #e8edf3;
+        --background: #f6f8fb;
+        --white: #ffffff;
+        min-height: 100%;
+        padding: 28px;
+        background: var(--background);
+        color: var(--text-dark);
+        font-family: inherit;
+    }
+
+    button,
+    input {
+        font-family: inherit;
+    }
+
+
+    /* ==============================
+           TIÊU ĐỀ TRANG
+        ============================== */
+
+    .page-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 24px;
+    }
+
+    .page-eyebrow {
+        margin-bottom: 7px;
+        color: var(--primary-dark);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.13em;
+    }
+
+    .page-header h1 {
+        margin: 0;
+        color: var(--text-dark);
+        font-size: 30px;
+        font-weight: 800;
+        line-height: 1.2;
+        letter-spacing: -0.03em;
+    }
+
+    .page-header p {
+        margin: 8px 0 0;
+        color: var(--text-muted);
+        font-size: 14px;
+    }
+
+
+    /* ==============================
+           NÚT TẢI LẠI
+        ============================== */
+
+    .refresh-button,
+    .reset-filter {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 42px;
+        padding: 0 16px;
+        border: 1px solid #fed7aa;
+        border-radius: 11px;
+        background: var(--white);
+        color: var(--primary-dark);
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+    }
+
+        .refresh-button:hover:not(:disabled),
+        .reset-filter:hover {
+            border-color: var(--primary);
+            background: var(--primary-soft);
+            transform: translateY(-1px);
+        }
+
+        .refresh-button:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+
+        .refresh-button svg {
+            width: 17px;
+            height: 17px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+
+    /* ==============================
+           THẺ THỐNG KÊ
+        ============================== */
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+
+    .stat-card {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        min-width: 0;
+        padding: 20px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: var(--white);
+        box-shadow: 0 6px 24px rgba(15, 23, 42, 0.045);
+    }
+
+        .stat-card::after {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 74px;
+            height: 74px;
+            border-radius: 0 0 0 74px;
+            background: currentColor;
+            content: "";
+            opacity: 0.055;
+        }
+
+        .stat-card > div:last-child {
+            min-width: 0;
+        }
+
+    .stat-icon {
+        display: grid;
+        place-items: center;
+        flex: 0 0 48px;
+        width: 48px;
+        height: 48px;
+        border-radius: 13px;
+        background: currentColor;
+    }
+
+        .stat-icon svg {
+            width: 23px;
+            height: 23px;
+            fill: none;
+            stroke: #ffffff;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+    .stat-label {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--text-muted);
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .stat-card strong {
+        display: block;
+        margin-bottom: 3px;
+        color: var(--text-dark);
+        font-size: 24px;
+        line-height: 1.15;
+    }
+
+    .stat-card small {
+        display: block;
+        overflow: hidden;
+        color: #94a3b8;
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .stat-card .revenue-value {
+        overflow: hidden;
+        font-size: 21px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .stat-all {
+        color: #6366f1;
+    }
+
+    .stat-pending {
+        color: #f59e0b;
+    }
+
+    .stat-shipping {
+        color: #0ea5e9;
+    }
+
+    .stat-revenue {
+        color: #10b981;
+    }
+
+
+    /* ==============================
+           KHUNG DANH SÁCH CỐ ĐỊNH
+        ============================== */
+
+    .content-card {
+        /* Thay đổi chiều cao khung tại đây */
+        height: 650px;
+        min-height: 500px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: var(--white);
+        box-shadow: 0 10px 35px rgba(15, 23, 42, 0.05);
+    }
+
+
+    /* ==============================
+           KHU VỰC TÌM KIẾM
+        ============================== */
+
+    .filter-area {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 20px 22px 14px;
+        background: var(--white);
+    }
+
+    .search-box {
+        position: relative;
+        width: min(100%, 650px);
+    }
+
+        .search-box > svg {
+            position: absolute;
+            top: 50%;
+            left: 15px;
+            width: 19px;
+            height: 19px;
+            transform: translateY(-50%);
+            fill: none;
+            stroke: #94a3b8;
+            stroke-width: 2;
+            stroke-linecap: round;
+            pointer-events: none;
+        }
+
+        .search-box input {
+            width: 100%;
+            height: 54px;
+            padding: 0 46px;
+            border: 1px solid #dce3ec;
+            border-radius: 15px;
+            outline: none;
+            background: #f8fafc;
+            color: var(--text-dark);
+            font-size: 14px;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+        }
+
+            .search-box input::placeholder {
+                color: #94a3b8;
+            }
+
+            .search-box input:focus {
+                border-color: #fb923c;
+                background: #ffffff;
+                box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.11);
+            }
+
+    .clear-search {
+        position: absolute;
+        top: 50%;
+        right: 12px;
+        display: grid;
+        place-items: center;
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        transform: translateY(-50%);
+        border: none;
+        border-radius: 8px;
+        background: transparent;
+        color: #94a3b8;
+        cursor: pointer;
+    }
+
+        .clear-search:hover {
+            background: #eef2f7;
+            color: #475569;
+        }
+
+        .clear-search svg {
+            width: 15px;
+            height: 15px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+        }
+
+    .result-summary {
+        flex: 0 0 auto;
+        color: var(--text-muted);
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    .result-dot {
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        margin-right: 6px;
+        border-radius: 50%;
+        background: #22c55e;
+        box-shadow: 0 0 0 3px #dcfce7;
+    }
+
+    .updated-time {
+        color: #94a3b8;
+    }
+
+
+    /* ==============================
+           TAB TRẠNG THÁI
+        ============================== */
+
+    .status-tabs {
+        display: flex;
+        flex-shrink: 0;
+        gap: 4px;
+        padding: 0 22px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        border-bottom: 1px solid var(--border);
+        background: var(--white);
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 #f8fafc;
+    }
+
+    .status-tab {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        flex: 0 0 auto;
+        min-height: 56px;
+        padding: 0 14px;
+        border: none;
+        background: transparent;
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+        .status-tab::after {
+            position: absolute;
+            right: 9px;
+            bottom: 0;
+            left: 9px;
+            height: 3px;
+            border-radius: 3px 3px 0 0;
+            background: var(--primary);
+            content: "";
+            opacity: 0;
+            transform: scaleX(0.5);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .status-tab:hover {
+            color: var(--text-dark);
+        }
+
+        .status-tab.active {
+            color: var(--primary-dark);
+        }
+
+            .status-tab.active::after {
+                opacity: 1;
+                transform: scaleX(1);
+            }
+
+    .tab-count {
+        min-width: 22px;
+        padding: 3px 7px;
+        border-radius: 999px;
+        background: #eef2f7;
+        color: #64748b;
+        font-size: 10px;
+        text-align: center;
+    }
+
+    .status-tab.active .tab-count {
+        background: #ffedd5;
+        color: var(--primary-dark);
+    }
+
+
+    /* ==============================
+           KHUNG CUỘN BẢNG
+        ============================== */
+
+    .table-wrapper {
+        position: relative;
+        flex: 1;
+        min-height: 0;
+        width: 100%;
+        /*
+               Cho phép cuộn:
+               - overflow-y: lên xuống
+               - overflow-x: trái phải
+            */
+        overflow-x: auto;
+        overflow-y: auto;
+        background: #ffffff;
+        overscroll-behavior: contain;
+        scrollbar-gutter: stable;
+        scrollbar-width: auto;
+        scrollbar-color: #94a3b8 #f1f5f9;
+    }
+
+        /* Thanh cuộn Chrome, Edge, Safari */
+
+        .table-wrapper::-webkit-scrollbar,
+        .status-tabs::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+
+        .table-wrapper::-webkit-scrollbar-track,
+        .status-tabs::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        .table-wrapper::-webkit-scrollbar-thumb,
+        .status-tabs::-webkit-scrollbar-thumb {
+            border: 2px solid #f1f5f9;
+            border-radius: 10px;
+            background: #94a3b8;
+        }
+
+            .table-wrapper::-webkit-scrollbar-thumb:hover,
+            .status-tabs::-webkit-scrollbar-thumb:hover {
+                background: #64748b;
+            }
+
+        .table-wrapper::-webkit-scrollbar-corner {
+            background: #f1f5f9;
+        }
+
+
+    /* ==============================
+           BẢNG ĐƠN HÀNG
+        ============================== */
+
+    .orders-table {
+        width: 100%;
+        /*
+               Bảng rộng hơn khung để xuất hiện
+               thanh cuộn trái và phải.
+            */
+        min-width: 1500px;
+        border-collapse: separate;
+        border-spacing: 0;
+        background: #ffffff;
+        color: #334155;
+        font-size: 12px;
+    }
+
+        .orders-table th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            padding: 14px 12px;
+            border-bottom: 1px solid var(--border);
+            background: #f8fafc;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.03em;
+            text-align: left;
+            text-transform: uppercase;
+            white-space: nowrap;
+            box-shadow: inset 0 -1px 0 #e8edf3;
+        }
+
+        .orders-table td {
+            padding: 16px 12px;
+            border-bottom: 1px solid #eff3f7;
+            background: #ffffff;
+            vertical-align: middle;
+        }
+
+        .orders-table tbody tr {
+            transition: background 0.15s ease;
+        }
+
+            .orders-table tbody tr:hover td {
+                background: #fffaf5;
+            }
+
+            .orders-table tbody tr:last-child td {
+                border-bottom: none;
+            }
+
+    .column-number {
+        width: 48px;
+        text-align: center !important;
+    }
+
+    .row-number {
+        color: #94a3b8;
+        font-weight: 700;
+        text-align: center;
+    }
+
+    .text-center {
+        text-align: center !important;
+    }
+
+    .action-column {
+        min-width: 220px;
+    }
+
+
+    /* ==============================
+           CỐ ĐỊNH CỘT ĐẦU VÀ CỘT CUỐI
+        ============================== */
+
+    .orders-table th:first-child,
+    .orders-table td:first-child {
+        position: sticky;
+        left: 0;
+    }
+
+    .orders-table th:first-child {
+        z-index: 13;
+        background: #f8fafc;
+    }
+
+    .orders-table td:first-child {
+        z-index: 3;
+        background: #ffffff;
+        box-shadow: 5px 0 10px rgba(15, 23, 42, 0.03);
+    }
+
+    .orders-table th:last-child,
+    .orders-table td:last-child {
+        position: sticky;
+        right: 0;
+    }
+
+    .orders-table th:last-child {
+        z-index: 13;
+        background: #f8fafc;
+    }
+
+    .orders-table td:last-child {
+        z-index: 3;
+        background: #ffffff;
+        box-shadow: -5px 0 10px rgba(15, 23, 42, 0.04);
+    }
+
+    .orders-table tbody tr:hover td:first-child,
+    .orders-table tbody tr:hover td:last-child {
+        background: #fffaf5;
+    }
+
+
+    /* ==============================
+           MÃ ĐƠN HÀNG
+        ============================== */
+
+    .order-code {
+        color: #4f46e5;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+    }
+
+    .order-kind {
+        display: block;
+        margin-top: 5px;
+        color: #94a3b8;
+        font-size: 10px;
+        font-weight: 500;
+    }
+
+
+    /* ==============================
+           KHÁCH HÀNG
+        ============================== */
+
+    .customer-cell {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 190px;
+    }
+
+        .customer-cell > span:last-child {
+            min-width: 0;
+        }
+
+        .customer-cell strong {
+            display: block;
+            max-width: 165px;
+            overflow: hidden;
+            color: #1e293b;
+            font-size: 12px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .customer-cell small {
+            display: block;
+            margin-top: 4px;
+            color: #94a3b8;
+            font-size: 10px;
+        }
+
+    .customer-avatar {
+        display: grid;
+        place-items: center;
+        flex: 0 0 44px;
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: #eef2ff;
+        color: #6366f1;
+    }
+
+        .customer-avatar svg {
+            width: 20px;
+            height: 20px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+        }
+
+
+    /* ==============================
+           SẢN PHẨM
+        ============================== */
+
+    .product-count {
+        display: inline-grid;
+        place-items: center;
+        min-width: 38px;
+        height: 38px;
+        padding: 0 10px;
+        border-radius: 11px;
+        background: #f1f5f9;
+        color: #475569;
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+
+    /* ==============================
+           TỔNG TIỀN
+        ============================== */
+
+    .money {
+        color: var(--primary-dark);
+        font-size: 14px;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+
+    /* ==============================
+           ĐỊA CHỈ
+        ============================== */
+
+    .address-cell {
+        display: flex;
+        align-items: flex-start;
+        gap: 7px;
+        width: 290px;
+        max-width: 290px;
+        color: #64748b;
+        line-height: 1.5;
+    }
+
+        .address-cell svg {
+            flex: 0 0 15px;
+            width: 15px;
+            height: 15px;
+            margin-top: 2px;
+            fill: none;
+            stroke: #94a3b8;
+            stroke-width: 1.8;
+        }
+
+        .address-cell span {
+            display: -webkit-box;
+            overflow: hidden;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+        }
+
+
+    /* ==============================
+           NGÀY TẠO
+        ============================== */
+
+    .date-cell {
+        min-width: 100px;
+    }
+
+        .date-cell strong {
+            display: block;
+            color: #334155;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+
+        .date-cell small {
+            display: block;
+            margin-top: 5px;
+            color: #94a3b8;
+            font-size: 10px;
+        }
+
+
+    /* ==============================
+           THANH TOÁN
+        ============================== */
+
+    .payment-method {
+        display: inline-block;
+        width: 160px;
+        max-width: 160px;
+        overflow: hidden;
+        color: #475569;
+        font-size: 11px;
+        font-weight: 600;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+
+    /* ==============================
+           TRẠNG THÁI
+        ============================== */
+
+    .status-cell {
+        min-width: 145px;
+    }
+
+        .status-cell > small {
+            display: block;
+            margin-top: 6px;
+            color: #94a3b8;
+            font-size: 10px;
+        }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 30px;
+        padding: 0 10px;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .status-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: currentColor;
+    }
+
+    .badge-pending {
+        border-color: #fde68a;
+        background: #fffbeb;
+        color: #b45309;
+    }
+
+    .badge-ready {
+        border-color: #bae6fd;
+        background: #f0f9ff;
+        color: #0369a1;
+    }
+
+    .badge-shipping {
+        border-color: #ddd6fe;
+        background: #f5f3ff;
+        color: #6d28d9;
+    }
+
+    .badge-complete {
+        border-color: #bbf7d0;
+        background: #f0fdf4;
+        color: #15803d;
+    }
+
+    .badge-cancelled {
+        border-color: #fecaca;
+        background: #fef2f2;
+        color: #b91c1c;
+    }
+
+    .badge-default {
+        border-color: #e2e8f0;
+        background: #f8fafc;
+        color: #64748b;
+    }
+
+
+    /* ==============================
+           NÚT THAO TÁC
+        ============================== */
+
+    .action-group {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-width: 210px;
+    }
+
+    .action-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        min-height: 33px;
+        padding: 0 11px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        font-size: 10px;
+        font-weight: 800;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: filter 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+        .action-button:hover:not(:disabled) {
+            filter: brightness(0.97);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
+        }
+
+        .action-button:disabled {
+            opacity: 0.5;
+            cursor: wait;
+        }
+
+    .action-confirm {
+        background: #4f46e5;
+        color: #ffffff;
+    }
+
+    .action-cancel {
+        border-color: #fecaca;
+        background: #ffffff;
+        color: #dc2626;
+    }
+
+    .action-ship {
+        background: #0284c7;
+        color: #ffffff;
+    }
+
+    .action-complete {
+        background: #16a34a;
+        color: #ffffff;
+    }
+
+    .action-detail {
+        border-color: #dce3ec;
+        background: #ffffff;
+        color: #475569;
+    }
+
+        .action-detail svg {
+            width: 13px;
+            height: 13px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+
+    /* ==============================
+           PHÂN TRANG
+        ============================== */
+
+    .table-footer {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        min-height: 66px;
+        padding: 12px 22px;
+        border-top: 1px solid var(--border);
+        background: #fbfcfe;
+        color: #64748b;
+        font-size: 12px;
+    }
+
+    .pagination {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .page-button {
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        padding: 0;
+        border: 1px solid #dce3ec;
+        border-radius: 9px;
+        background: #ffffff;
+        color: #475569;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+        .page-button:hover:not(:disabled) {
+            border-color: #fdba74;
+            color: var(--primary-dark);
+        }
+
+        .page-button.active {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: #ffffff;
+            box-shadow: 0 4px 10px rgba(249, 115, 22, 0.22);
+        }
+
+        .page-button:disabled {
+            opacity: 0.38;
+            cursor: not-allowed;
+        }
+
+    .page-arrow {
+        font-size: 17px;
+        font-weight: 600;
+    }
+
+
+    /* ==============================
+           ĐANG TẢI VÀ KHÔNG CÓ DỮ LIỆU
+        ============================== */
+
+    .loading-state,
+    .empty-state {
+        display: flex;
+        flex: 1;
+        min-height: 0;
+        padding: 45px 20px;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .spinner {
+        width: 38px;
+        height: 38px;
+        margin-bottom: 15px;
+        border: 3px solid #ffedd5;
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: spin 0.75s linear infinite;
+    }
+
+    .loading-state strong {
+        color: #334155;
+        font-size: 14px;
+    }
+
+    .loading-state small {
+        margin-top: 5px;
+        color: #94a3b8;
+        font-size: 11px;
+    }
+
+    .empty-icon {
+        display: grid;
+        place-items: center;
+        width: 68px;
+        height: 68px;
+        margin-bottom: 15px;
+        border-radius: 20px;
+        background: var(--primary-soft);
+        color: var(--primary);
+    }
+
+        .empty-icon svg {
+            width: 31px;
+            height: 31px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 1.7;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+    .empty-state h3 {
+        margin: 0 0 7px;
+        color: #1e293b;
+        font-size: 17px;
+    }
+
+    .empty-state p {
+        margin: 0 0 17px;
+        color: #94a3b8;
+        font-size: 12px;
+    }
+
+
+    /* ==============================
+           THÔNG BÁO LỖI
+        ============================== */
+
+    .error-message {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 20px 22px;
+        padding: 14px 16px;
+        border: 1px solid #fecaca;
+        border-radius: 12px;
+        background: #fef2f2;
+        color: #b91c1c;
+        font-size: 12px;
+    }
+
+        .error-message svg {
+            flex: 0 0 19px;
+            width: 19px;
+            height: 19px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+        }
+
+        .error-message span {
+            flex: 1;
+        }
+
+        .error-message button {
+            border: none;
+            background: transparent;
+            color: #991b1b;
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+
+    /* ==============================
+           HIỆU ỨNG
+        ============================== */
+
+    @@keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+
+    /* ==============================
+           RESPONSIVE
+        ============================== */
+
+    @@media (max-width: 1200px) {
+        .orders-page {
+            padding: 22px;
+        }
+
+        .stats-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .content-card {
+            height: 620px;
+        }
+
+        .orders-table {
+            min-width: 1450px;
+        }
+    }
+
+    @@media (max-width: 720px) {
+        .orders-page {
+            padding: 16px 12px 24px;
+        }
+
+        .page-header {
+            align-items: stretch;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .refresh-button {
+            align-self: flex-start;
+        }
+
+        .stats-grid {
+            gap: 10px;
+        }
+
+        .stat-card {
+            padding: 15px;
+        }
+
+        .stat-icon {
+            flex-basis: 42px;
+            width: 42px;
+            height: 42px;
+        }
+
+        .stat-card strong {
+            font-size: 21px;
+        }
+
+        .content-card {
+            height: 600px;
+            border-radius: 14px;
+        }
+
+        .filter-area {
+            align-items: stretch;
+            padding: 16px 14px 12px;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .search-box {
+            width: 100%;
+        }
+
+            .search-box input {
+                height: 48px;
+            }
+
+        .result-summary {
+            white-space: normal;
+        }
+
+        .status-tabs {
+            padding: 0 10px;
+        }
+
+        .status-tab {
+            min-height: 50px;
+        }
+
+        .table-footer {
+            align-items: flex-start;
+            padding: 14px;
+            flex-direction: column;
+        }
+
+        .pagination {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .orders-table {
+            min-width: 1400px;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .stat-card small {
+            white-space: normal;
+        }
+
+        .updated-time {
+            display: block;
+            margin-top: 4px;
+        }
+
+        .content-card {
+            height: 580px;
+        }
+
+        .page-button {
+            width: 31px;
+            height: 31px;
+        }
+    }
+</style>    
+
+@code {
+    private readonly List<string> TrangThaiList = new()
+    {
+        "TẤT CẢ",
+        "Chờ xác nhận",
+        "Chờ giao hàng",
+        "Đang giao hàng",
+        "Hoàn thành",
+        "Đã hủy"
+    };
+
+    private List<HoaDon> TatCaHoaDon = new();
+    private List<HoaDon> DanhSachHoaDon = new();
+    private List<HoaDonChiTiet> DanhSachChiTiet = new();
+    private Dictionary<Guid, List<HoaDonChiTiet>> ChiTietTheoHoaDon = new();
+
+    private string TuKhoa = string.Empty;
+    private string TrangThai = "TẤT CẢ";
+    private string LoiTaiDuLieu = string.Empty;
+    private bool DangTai;
+    private Guid? HoaDonDangXuLy;
+    private DateTime? LanCapNhat;
+
+    private int CurrentPage = 1;
+    private const int PageSize = 10;
+    private int TotalPages = 1;
+    private int TongKetQua;
+
+    private int SoDonChoXacNhan => TatCaHoaDon.Count(hd => hd.TrangThai == "Chờ xác nhận");
+    private int SoDonDangGiao => TatCaHoaDon.Count(hd => hd.TrangThai == "Đang giao hàng");
+    private decimal TongDoanhThu => TatCaHoaDon
+        .Where(hd => hd.TrangThai == "Hoàn thành")
+        .Sum(TinhTongTien);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await TaiLai();
+    }
+
+    private async Task TaiLai()
+    {
+        DangTai = true;
+        LoiTaiDuLieu = string.Empty;
+
+        try
+        {
+            TatCaHoaDon = await HoaDonService.GetAll() ?? new List<HoaDon>();
+            DanhSachChiTiet = await HoaDonChiTietService.GetAllAsync() ?? new List<HoaDonChiTiet>();
+
+            ChiTietTheoHoaDon = DanhSachChiTiet
+                .GroupBy(ct => ct.HoaDonId)
+                .ToDictionary(group => group.Key, group => group.ToList());
+
+            LanCapNhat = DateTime.Now;
+            ApDungBoLoc();
+        }
+        catch (Exception ex)
+        {
+            TatCaHoaDon.Clear();
+            DanhSachHoaDon.Clear();
+            TongKetQua = 0;
+            TotalPages = 1;
+            LoiTaiDuLieu = "Không thể tải dữ liệu đơn hàng. " + ex.Message;
+        }
+        finally
+        {
+            DangTai = false;
+        }
+    }
+
+    private void ApDungBoLoc()
+    {
+        IEnumerable<HoaDon> query = TatCaHoaDon;
+        var tuKhoa = TuKhoa.Trim();
+
+        if (!string.IsNullOrWhiteSpace(tuKhoa))
+        {
+            query = query.Where(hd =>
+                hd.HoaDonId.ToString().Contains(tuKhoa, StringComparison.OrdinalIgnoreCase) ||
+                (hd.khachHang?.HoTen?.Contains(tuKhoa, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (hd.SoDienThoai?.Contains(tuKhoa, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (hd.DiaChi?.Contains(tuKhoa, StringComparison.OrdinalIgnoreCase) ?? false));
+        }
+
+        if (TrangThai != "TẤT CẢ")
+        {
+            query = query.Where(hd => hd.TrangThai == TrangThai);
+        }
+
+        query = query.OrderByDescending(hd => hd.NgayTao);
+        TongKetQua = query.Count();
+        TotalPages = Math.Max(1, (int)Math.Ceiling(TongKetQua / (double)PageSize));
+        CurrentPage = Math.Clamp(CurrentPage, 1, TotalPages);
+
+        DanhSachHoaDon = query
+            .Skip((CurrentPage - 1) * PageSize)
+            .Take(PageSize)
+            .ToList();
+    }
+
+    private void TimKiem(ChangeEventArgs e)
+    {
+        TuKhoa = e.Value?.ToString() ?? string.Empty;
+        CurrentPage = 1;
+        ApDungBoLoc();
+    }
+
+    private void XoaTimKiem()
+    {
+        TuKhoa = string.Empty;
+        CurrentPage = 1;
+        ApDungBoLoc();
+    }
+
+    private void LocTheoTrangThai(string trangThai)
+    {
+        TrangThai = trangThai;
+        CurrentPage = 1;
+        ApDungBoLoc();
+    }
+
+    private void DatLaiBoLoc()
+    {
+        TuKhoa = string.Empty;
+        TrangThai = "TẤT CẢ";
+        CurrentPage = 1;
+        ApDungBoLoc();
+    }
+
+    private int DemTheoTrangThai(string trangThai)
+    {
+        return trangThai == "TẤT CẢ"
+            ? TatCaHoaDon.Count
+            : TatCaHoaDon.Count(hd => hd.TrangThai == trangThai);
+    }
+
+    private decimal TinhTongTien(HoaDon hoaDon)
+    {
+        if (hoaDon.TongTienSauKhiGiam > 0)
+        {
+            return (decimal)hoaDon.TongTienSauKhiGiam;
+        }
+
+        var tongSanPham = ChiTietTheoHoaDon
+            .GetValueOrDefault(hoaDon.HoaDonId)?
+            .Sum(ct => ct.Gia) ?? 0m;
+
+        return tongSanPham + (decimal)hoaDon.PhiShip;
+    }
+
+    private static string LayMaDon(Guid hoaDonId)
+    {
+        var maDon = hoaDonId.ToString("N");
+        return maDon[..Math.Min(8, maDon.Length)].ToUpperInvariant();
+    }
+
+    private static string GetBadgeClass(string trangThai) => trangThai switch
+    {
+        "Chờ xác nhận" => "badge-pending",
+        "Chờ giao hàng" => "badge-ready",
+        "Đang giao hàng" => "badge-shipping",
+        "Hoàn thành" => "badge-complete",
+        "Đã hủy" => "badge-cancelled",
+        _ => "badge-default"
+    };
+
+    private static string LayThoiGianTrangThai(HoaDon hoaDon)
+    {
+        DateTime? thoiGian = hoaDon.TrangThai switch
+        {
+            "Chờ xác nhận" => hoaDon.NgayTao,
+            "Chờ giao hàng" => hoaDon.TGXacNhan,
+            "Đang giao hàng" => hoaDon.DangGiao,
+            "Hoàn thành" => hoaDon.HoanThanh,
+            "Đã hủy" => hoaDon.NgayHuy,
+            _ => null
+        };
+
+        return thoiGian?.ToString("dd/MM HH:mm") ?? "Chưa cập nhật";
+    }
+
+    private IEnumerable<int> LayDanhSachTrang()
+    {
+        var batDau = Math.Max(1, CurrentPage - 2);
+        var ketThuc = Math.Min(TotalPages, batDau + 4);
+        batDau = Math.Max(1, ketThuc - 4);
+
+        return Enumerable.Range(batDau, ketThuc - batDau + 1);
+    }
+
+    private void XemChiTiet(Guid hoaDonId)
+    {
+        NavigationManager.NavigateTo($"/admin/hoadonchitiet/{hoaDonId}");
+    }
+
+    private void ChuyenTrang(int page)
+    {
+        if (page < 1 || page > TotalPages || page == CurrentPage)
+        {
+            return;
+        }
+
+        CurrentPage = page;
+        ApDungBoLoc();
+    }
+
+    private async Task HuyDon(Guid hoaDonId)
+    {
+        var xacNhan = await JS.InvokeAsync<bool>("confirm", "Bạn có chắc muốn hủy đơn hàng này không?");
+        if (!xacNhan)
+        {
+            return;
+        }
+
+        HoaDonDangXuLy = hoaDonId;
+        try
+        {
+            await HoaDonService.HuyDon(hoaDonId);
+            await TaiLai();
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", "Hủy đơn thất bại: " + ex.Message);
+        }
+        finally
+        {
+            HoaDonDangXuLy = null;
+        }
+    }
+
+    private async Task XacNhanDon(Guid hoaDonId)
+    {
+        var xacNhan = await JS.InvokeAsync<bool>("confirm", "Xác nhận đơn hàng này?");
+        if (!xacNhan)
+        {
+            return;
+        }
+
+        HoaDonDangXuLy = hoaDonId;
+        try
+        {
+            var result = await HoaDonService.XacNhanDon(hoaDonId);
+            await JS.InvokeVoidAsync("alert", result.Message);
+
+            if (result.Success)
+            {
+                await TaiLai();
+            }
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", "Xác nhận đơn thất bại: " + ex.Message);
+        }
+        finally
+        {
+            HoaDonDangXuLy = null;
+        }
+    }
+
+    private async Task BatDauGiao(Guid hoaDonId)
+    {
+        var xacNhan = await JS.InvokeAsync<bool>("confirm", "Bắt đầu giao đơn hàng này?");
+        if (!xacNhan)
+        {
+            return;
+        }
+
+        HoaDonDangXuLy = hoaDonId;
+        try
+        {
+            await HoaDonService.BatDauGiao(hoaDonId);
+            await TaiLai();
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", "Không thể bắt đầu giao hàng: " + ex.Message);
+        }
+        finally
+        {
+            HoaDonDangXuLy = null;
+        }
+    }
+
+    private async Task GiaoThanhCong(Guid hoaDonId)
+    {
+        var xacNhan = await JS.InvokeAsync<bool>("confirm", "Xác nhận đơn đã giao thành công?");
+        if (!xacNhan)
+        {
+            return;
+        }
+
+        HoaDonDangXuLy = hoaDonId;
+        try
+        {
+            await HoaDonService.GiaoThanhCong(hoaDonId);
+            await TaiLai();
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", "Không thể hoàn thành đơn hàng: " + ex.Message);
+        }
+        finally
+        {
+            HoaDonDangXuLy = null;
+        }
+    }
+}

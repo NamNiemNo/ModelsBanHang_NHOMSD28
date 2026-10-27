@@ -1,0 +1,2274 @@
+﻿@page "/ThuongHieu"
+@attribute [Authorize(Roles = "Admin")]
+@layout AdminLayout
+@rendermode InteractiveServer
+
+@using Data.Models
+@using BlazorAdmin.Service.IService
+@using Microsoft.AspNetCore.Components.Forms
+@using System.ComponentModel.DataAnnotations
+@using System.Text.RegularExpressions
+
+@inject IThuongHieuService ThuongHieuService
+
+<div class="brand-page">
+
+    <!-- HEADER -->
+    <div class="page-header">
+
+        <div class="header-left">
+            <div class="header-icon">🏢</div>
+
+            <div>
+                <h2>Quản lý thương hiệu</h2>
+                <p>Quản lý thông tin và trạng thái thương hiệu sản phẩm</p>
+            </div>
+        </div>
+
+        <button class="add-button"
+                @onclick="ShowAddModal">
+            <span>＋</span>
+            Thêm thương hiệu
+        </button>
+
+    </div>
+
+    <!-- THỐNG KÊ -->
+    <div class="stat-grid">
+
+        <div class="stat-card">
+            <div class="stat-icon total">▦</div>
+
+            <div>
+                <span>Tổng thương hiệu</span>
+                <strong>@ThuongHieus.Count</strong>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon active">✓</div>
+
+            <div>
+                <span>Đang hoạt động</span>
+                <strong>
+                    @ThuongHieus.Count(x => x.TrangThai)
+                </strong>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon inactive">⏸</div>
+
+            <div>
+                <span>Ngừng hoạt động</span>
+                <strong>
+                    @ThuongHieus.Count(x => !x.TrangThai)
+                </strong>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- DANH SÁCH -->
+    <div class="brand-panel">
+
+        <!-- TOOLBAR -->
+        <div class="panel-toolbar">
+
+            <div class="search-box">
+                <span>⌕</span>
+
+                <input placeholder="Tìm tên, email, số điện thoại, địa chỉ..."
+                       @bind="SearchText"
+                       @bind:event="oninput" />
+
+                @if (!string.IsNullOrWhiteSpace(SearchText))
+                {
+                    <button @onclick="ClearSearch">
+                        ×
+                    </button>
+                }
+            </div>
+
+            <div class="status-filter">
+
+                <button class="filter-button @(StatusFilter == "all" ? "active" : "")"
+                        @onclick='() => ChangeStatusFilter("all")'>
+                    Tất cả
+                    <span>@ThuongHieus.Count</span>
+                </button>
+
+                <button class="filter-button @(StatusFilter == "active" ? "active" : "")"
+                        @onclick='() => ChangeStatusFilter("active")'>
+                    Hoạt động
+                    <span>@ThuongHieus.Count(x => x.TrangThai)</span>
+                </button>
+
+                <button class="filter-button @(StatusFilter == "inactive" ? "active" : "")"
+                        @onclick='() => ChangeStatusFilter("inactive")'>
+                    Ngừng hoạt động
+                    <span>@ThuongHieus.Count(x => !x.TrangThai)</span>
+                </button>
+
+            </div>
+
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(PageError))
+        {
+            <div class="page-error">
+                <span>!</span>
+                <div>@PageError</div>
+                <button @onclick="() => PageError = string.Empty">×</button>
+            </div>
+        }
+
+        <!-- BẢNG CÓ THANH CUỘN -->
+        <div class="table-wrapper">
+
+            <table class="brand-table">
+                <thead>
+                    <tr>
+                        <th class="col-stt">STT</th>
+                        <th>Thương hiệu</th>
+                        <th>Email</th>
+                        <th>Số điện thoại</th>
+                        <th>Địa chỉ</th>
+                        <th>Trạng thái</th>
+                        <th class="col-action">Chức năng</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @if (IsLoading)
+                    {
+                        <tr>
+                            <td colspan="7">
+                                <div class="loading-state">
+                                    <div class="loading-spinner"></div>
+                                    <span>Đang tải danh sách thương hiệu...</span>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    else if (!PagedBrands.Any())
+                    {
+                        <tr>
+                            <td colspan="7">
+                                <div class="empty-state">
+                                    <div>🔎</div>
+                                    <strong>Không tìm thấy thương hiệu</strong>
+                                    <span>
+                                        Hãy thử thay đổi từ khóa hoặc bộ lọc
+                                    </span>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var row in PagedBrands.Select((item, index) => new
+                        {
+                            Item = item,
+                            Index = index
+                        }))
+                        {
+                            var item = row.Item;
+
+                            <tr>
+                                <td class="stt-cell">
+                                    @((CurrentPage - 1) * PageSize
+                                        + row.Index + 1)
+                                </td>
+
+                                <td>
+                                    <div class="brand-info">
+
+                                        <div class="brand-avatar">
+                                            @GetInitials(item.TenThuongHieu)
+                                        </div>
+
+                                        <div>
+                                            <strong>@item.TenThuongHieu</strong>
+
+                                            <small title="@item.ThuongHieuId">
+                                                @ShortId(item.ThuongHieuId)
+                                            </small>
+
+                                            @if (!string.IsNullOrWhiteSpace(item.MoTa))
+                                            {
+                                                <p title="@item.MoTa">
+                                                    @item.MoTa
+                                                </p>
+                                            }
+                                        </div>
+
+                                    </div>
+                                </td>
+
+                                <td>
+                                    @if (string.IsNullOrWhiteSpace(item.Email))
+                                    {
+                                        <span class="empty-value">
+                                            Chưa cập nhật
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="contact-value">
+                                            ✉ @item.Email
+                                        </span>
+                                    }
+                                </td>
+
+                                <td>
+                                    @if (string.IsNullOrWhiteSpace(item.SDT))
+                                    {
+                                        <span class="empty-value">
+                                            Chưa cập nhật
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="contact-value">
+                                            ☎ @item.SDT
+                                        </span>
+                                    }
+                                </td>
+
+                                <td>
+                                    <div class="address-value"
+                                         title="@item.DiaChi">
+                                        @(string.IsNullOrWhiteSpace(item.DiaChi)
+                                            ? "Chưa cập nhật"
+                                            : item.DiaChi)
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <span class="status-badge @(item.TrangThai ? "status-active" : "status-inactive")">
+                                        <i></i>
+
+                                        @(item.TrangThai
+                                            ? "Đang hoạt động"
+                                            : "Ngừng hoạt động")
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <div class="action-group">
+
+                                        <button class="action-button edit"
+                                                title="Chỉnh sửa thương hiệu"
+                                                @onclick="() => Edit(item)">
+                                            ✎
+                                        </button>
+
+                                        <button class="action-button delete"
+                                                title="Xóa thương hiệu"
+                                                @onclick="() => AskDelete(item)">
+                                            ⌫
+                                        </button>
+
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+
+        </div>
+
+        <!-- PHÂN TRANG -->
+        <div class="pagination-bar">
+
+            <div class="page-size">
+                <span>Hiển thị</span>
+
+                <select value="@PageSize"
+                        @onchange="OnPageSizeChanged">
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                </select>
+
+                <span>thương hiệu</span>
+            </div>
+
+            <div class="result-info">
+                Hiển thị
+                <strong>@FirstDisplayedItem</strong>
+                -
+                <strong>@LastDisplayedItem</strong>
+                trong
+                <strong>@FilteredThuongHieus.Count</strong>
+                kết quả
+            </div>
+
+            <div class="pagination">
+
+                <button disabled="@(CurrentPage == 1)"
+                        @onclick="PreviousPage">
+                    ‹
+                </button>
+
+                @foreach (var page in VisiblePages)
+                {
+                    var pageNumber = page;
+
+                    <button class="@(pageNumber == CurrentPage ? "active" : "")"
+                            @onclick="() => ChangePage(pageNumber)">
+                        @pageNumber
+                    </button>
+                }
+
+                <button disabled="@(CurrentPage == TotalPages)"
+                        @onclick="NextPage">
+                    ›
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- MODAL THÊM/SỬA -->
+    @if (IsModalVisible && FormEditContext != null)
+    {
+        <div class="modal-overlay"
+             @onclick="CloseModal">
+
+            <div class="brand-modal"
+                 @onclick:stopPropagation="true">
+
+                <div class="modal-header">
+
+                    <div class="modal-heading">
+                        <div class="modal-icon">
+                            @(IsEditMode ? "✎" : "＋")
+                        </div>
+
+                        <div>
+                            <span>
+                                @(IsEditMode ? "CHỈNH SỬA" : "THÊM MỚI")
+                            </span>
+
+                            <h3>
+                                @(IsEditMode
+                                    ? "Cập nhật thương hiệu"
+                                    : "Thêm thương hiệu")
+                            </h3>
+
+                            <p>
+                                @(IsEditMode
+                                    ? "Thay đổi thông tin của thương hiệu"
+                                    : "Nhập thông tin thương hiệu mới")
+                            </p>
+                        </div>
+                    </div>
+
+                    <button class="close-modal"
+                            type="button"
+                            disabled="@IsSubmitting"
+                            @onclick="CloseModal">
+                        ×
+                    </button>
+
+                </div>
+
+                <EditForm EditContext="@FormEditContext"
+                          OnValidSubmit="@HandleValidSubmit"
+                          FormName="ThuongHieuForm">
+
+                    <DataAnnotationsValidator />
+
+                    <div class="modal-body">
+
+                        <div class="form-grid">
+
+                            <!-- TÊN THƯƠNG HIỆU -->
+                            <div class="form-group full-width">
+                                <label>
+                                    Tên thương hiệu
+                                    <span>*</span>
+                                </label>
+
+                                <div class="input-with-icon">
+                                    <span>🏢</span>
+
+                                    <InputText class="@GetInputClass(nameof(Model.TenThuongHieu))"
+                                               @bind-Value="Model.TenThuongHieu"
+                                               placeholder="Ví dụ: Nike" />
+                                </div>
+
+                                <ValidationMessage For="@(() => Model.TenThuongHieu)" />
+                            </div>
+
+                            <!-- EMAIL -->
+                            <div class="form-group">
+                                <label>Email</label>
+
+                                <InputText type="email"
+                                           class="@GetInputClass(nameof(Model.Email))"
+                                           @bind-Value="Model.Email"
+                                           placeholder="example@gmail.com" />
+
+                                <ValidationMessage For="@(() => Model.Email)" />
+                            </div>
+
+                            <!-- SỐ ĐIỆN THOẠI -->
+                            <div class="form-group">
+                                <label>Số điện thoại</label>
+
+                                <InputText class="@GetInputClass(nameof(Model.SDT))"
+                                           @bind-Value="Model.SDT"
+                                           placeholder="Ví dụ: 0912345678" />
+
+                                <ValidationMessage For="@(() => Model.SDT)" />
+                            </div>
+
+                            <!-- ĐỊA CHỈ -->
+                            <div class="form-group full-width">
+                                <label>Địa chỉ</label>
+
+                                <InputText class="@GetInputClass(nameof(Model.DiaChi))"
+                                           @bind-Value="Model.DiaChi"
+                                           placeholder="Nhập địa chỉ thương hiệu" />
+
+                                <ValidationMessage For="@(() => Model.DiaChi)" />
+                            </div>
+
+                            <!-- MÔ TẢ -->
+                            <div class="form-group full-width">
+                                <label>Mô tả</label>
+
+                                <InputTextArea class="@GetInputClass(nameof(Model.MoTa), true)"
+                                               @bind-Value="Model.MoTa"
+                                               placeholder="Nhập mô tả thương hiệu..."
+                                               maxlength="500" />
+
+                                <div class="character-count">
+                                    @((Model.MoTa ?? string.Empty).Length)/500 ký tự
+                                </div>
+
+                                <ValidationMessage For="@(() => Model.MoTa)" />
+                            </div>
+
+                        </div>
+
+                        <!-- TRẠNG THÁI -->
+                        <div class="status-section">
+
+                            <div class="status-content">
+                                <div class="status-icon">
+                                    @(Model.TrangThai ? "✓" : "⏸")
+                                </div>
+
+                                <div>
+                                    <strong>
+                                        @(Model.TrangThai
+                                            ? "Đang hoạt động"
+                                            : "Ngừng hoạt động")
+                                    </strong>
+
+                                    <small>
+                                        @(Model.TrangThai
+                                            ? "Thương hiệu được sử dụng khi tạo sản phẩm"
+                                            : "Thương hiệu tạm thời không được sử dụng")
+                                    </small>
+                                </div>
+                            </div>
+
+                            <label class="custom-switch">
+                                <InputCheckbox @bind-Value="Model.TrangThai" />
+                                <span class="switch-slider"></span>
+                            </label>
+
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(FormError))
+                        {
+                            <div class="form-error">
+                                <span>!</span>
+                                <div>@FormError</div>
+                            </div>
+                        }
+
+                    </div>
+
+                    <div class="modal-footer">
+
+                        <button type="button"
+                                class="cancel-modal"
+                                disabled="@IsSubmitting"
+                                @onclick="CloseModal">
+                            Hủy
+                        </button>
+
+                        <button type="submit"
+                                class="save-modal"
+                                disabled="@IsSubmitting">
+
+                            @if (IsSubmitting)
+                            {
+                                <span class="mini-spinner"></span>
+                                <span>Đang lưu...</span>
+                            }
+                            else
+                            {
+                                <span>✓</span>
+                                <span>
+                                    @(IsEditMode
+                                        ? "Lưu thay đổi"
+                                        : "Thêm thương hiệu")
+                                </span>
+                            }
+
+                        </button>
+
+                    </div>
+
+                </EditForm>
+
+            </div>
+
+        </div>
+    }
+
+    <!-- MODAL XÓA -->
+    @if (ShowDeleteModal && SelectedBrand != null)
+    {
+        <div class="delete-overlay"
+             @onclick="CloseDeleteModal">
+
+            <div class="delete-modal"
+                 @onclick:stopPropagation="true">
+
+                <div class="delete-icon">!</div>
+
+                <h3>Xóa thương hiệu?</h3>
+
+                <p>
+                    Bạn có chắc chắn muốn xóa thương hiệu
+                    <strong>@SelectedBrand.TenThuongHieu</strong> không?
+                </p>
+
+                <div class="delete-warning">
+                    Thương hiệu đang được sản phẩm sử dụng có thể không xóa được.
+                </div>
+
+                <div class="delete-actions">
+
+                    <button class="cancel-delete"
+                            disabled="@IsDeleting"
+                            @onclick="CloseDeleteModal">
+                        Hủy
+                    </button>
+
+                    <button class="confirm-delete"
+                            disabled="@IsDeleting"
+                            @onclick="ConfirmDelete">
+
+                        @if (IsDeleting)
+                        {
+                            <span class="mini-spinner"></span>
+                            <span>Đang xóa...</span>
+                        }
+                        else
+                        {
+                            <span>⌫</span>
+                            <span>Xóa thương hiệu</span>
+                        }
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+    }
+
+    <!-- TOAST -->
+    @if (!string.IsNullOrWhiteSpace(ToastMessage))
+    {
+        <div class="custom-toast @(ToastSuccess ? "success" : "error")">
+
+            <span class="toast-icon">
+                @(ToastSuccess ? "✓" : "!")
+            </span>
+
+            <div>
+                <strong>
+                    @(ToastSuccess ? "Thành công" : "Có lỗi xảy ra")
+                </strong>
+
+                <small>@ToastMessage</small>
+            </div>
+
+            <button @onclick="CloseToast">×</button>
+
+        </div>
+    }
+
+</div>
+
+@code {
+    private List<ThuongHieu> ThuongHieus = new();
+
+    private ThuongHieu Model = new();
+
+    private EditContext? FormEditContext;
+    private ValidationMessageStore? MessageStore;
+
+    private bool IsLoading = true;
+    private bool IsModalVisible;
+    private bool IsEditMode;
+    private bool IsSubmitting;
+
+    private bool ShowDeleteModal;
+    private bool IsDeleting;
+    private ThuongHieu? SelectedBrand;
+
+    private string SearchValue = string.Empty;
+    private string StatusFilter = "all";
+
+    private string PageError = string.Empty;
+    private string FormError = string.Empty;
+
+    private string ToastMessage = string.Empty;
+    private bool ToastSuccess;
+
+    private int CurrentPage = 1;
+    private int PageSize = 10;
+
+    private string SearchText
+    {
+        get => SearchValue;
+        set
+        {
+            SearchValue = value;
+            CurrentPage = 1;
+        }
+    }
+
+    private List<ThuongHieu> FilteredThuongHieus =>
+        ThuongHieus
+            .Where(x =>
+                StatusFilter == "all"
+                || (StatusFilter == "active" && x.TrangThai)
+                || (StatusFilter == "inactive" && !x.TrangThai))
+            .Where(x =>
+                string.IsNullOrWhiteSpace(SearchValue)
+                || (x.TenThuongHieu ?? string.Empty)
+                    .Contains(
+                        SearchValue,
+                        StringComparison.OrdinalIgnoreCase)
+                || (x.Email ?? string.Empty)
+                    .Contains(
+                        SearchValue,
+                        StringComparison.OrdinalIgnoreCase)
+                || (x.SDT ?? string.Empty)
+                    .Contains(
+                        SearchValue,
+                        StringComparison.OrdinalIgnoreCase)
+                || (x.DiaChi ?? string.Empty)
+                    .Contains(
+                        SearchValue,
+                        StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+    private List<ThuongHieu> PagedBrands =>
+        FilteredThuongHieus
+            .Skip((CurrentPage - 1) * PageSize)
+            .Take(PageSize)
+            .ToList();
+
+    private int TotalPages =>
+        Math.Max(
+            1,
+            (int)Math.Ceiling(
+                (double)FilteredThuongHieus.Count / PageSize));
+
+    private IEnumerable<int> VisiblePages
+    {
+        get
+        {
+            const int maxVisiblePages = 5;
+
+            var start = Math.Max(
+                1,
+                CurrentPage - maxVisiblePages / 2);
+
+            var end = Math.Min(
+                TotalPages,
+                start + maxVisiblePages - 1);
+
+            start = Math.Max(
+                1,
+                end - maxVisiblePages + 1);
+
+            return Enumerable.Range(
+                start,
+                end - start + 1);
+        }
+    }
+
+    private int FirstDisplayedItem =>
+        FilteredThuongHieus.Count == 0
+            ? 0
+            : (CurrentPage - 1) * PageSize + 1;
+
+    private int LastDisplayedItem =>
+        Math.Min(
+            CurrentPage * PageSize,
+            FilteredThuongHieus.Count);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            IsLoading = true;
+            PageError = string.Empty;
+
+            ThuongHieus =
+                (await ThuongHieuService.GetAllAsync())
+                .OrderBy(x => x.TenThuongHieu)
+                .ToList();
+
+            EnsureValidPage();
+        }
+        catch (Exception ex)
+        {
+            PageError =
+                "Không thể tải danh sách thương hiệu: " + ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private void ShowAddModal()
+    {
+        Model = new ThuongHieu
+            {
+                TrangThai = true
+            };
+
+        IsEditMode = false;
+        FormError = string.Empty;
+
+        CreateEditContext();
+
+        IsModalVisible = true;
+    }
+
+    private void Edit(ThuongHieu item)
+    {
+        Model = new ThuongHieu
+            {
+                ThuongHieuId = item.ThuongHieuId,
+                TenThuongHieu = item.TenThuongHieu,
+                Email = item.Email,
+                SDT = item.SDT,
+                DiaChi = item.DiaChi,
+                MoTa = item.MoTa,
+                TrangThai = item.TrangThai
+            };
+
+        IsEditMode = true;
+        FormError = string.Empty;
+
+        CreateEditContext();
+
+        IsModalVisible = true;
+    }
+
+    private void CreateEditContext()
+    {
+        FormEditContext = new EditContext(Model);
+
+        MessageStore =
+            new ValidationMessageStore(FormEditContext);
+    }
+
+    private void CloseModal()
+    {
+        if (IsSubmitting)
+            return;
+
+        IsModalVisible = false;
+        FormError = string.Empty;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (IsSubmitting
+            || FormEditContext == null
+            || MessageStore == null)
+        {
+            return;
+        }
+
+        try
+        {
+            IsSubmitting = true;
+            FormError = string.Empty;
+
+            NormalizeModel();
+
+            if (!ValidateModel())
+                return;
+
+            // Chỉ await, không gán vào bool để dùng được
+            // với service trả về Task hoặc Task<T>.
+            if (Model.ThuongHieuId == Guid.Empty)
+            {
+                await ThuongHieuService.CreateAsync(Model);
+            }
+            else
+            {
+                await ThuongHieuService.UpdateAsync(Model);
+            }
+
+            var successMessage =
+                Model.ThuongHieuId == Guid.Empty
+                    ? "Thêm thương hiệu thành công."
+                    : "Cập nhật thương hiệu thành công.";
+
+            IsModalVisible = false;
+
+            await LoadDataAsync();
+
+            ShowToast(successMessage, true);
+        }
+        catch (Exception ex)
+        {
+            FormError =
+                "Không thể lưu thương hiệu: " + ex.Message;
+        }
+        finally
+        {
+            IsSubmitting = false;
+        }
+    }
+
+    private void NormalizeModel()
+    {
+        Model.TenThuongHieu =
+            Model.TenThuongHieu?.Trim() ?? string.Empty;
+
+        Model.Email =
+            Model.Email?.Trim() ?? string.Empty;
+
+        Model.SDT =
+            Model.SDT?.Trim() ?? string.Empty;
+
+        Model.DiaChi =
+            Model.DiaChi?.Trim() ?? string.Empty;
+
+        Model.MoTa =
+            Model.MoTa?.Trim() ?? string.Empty;
+    }
+
+    private bool ValidateModel()
+    {
+        if (FormEditContext == null || MessageStore == null)
+            return false;
+
+        MessageStore.Clear();
+
+        var nameField = new FieldIdentifier(
+            Model,
+            nameof(Model.TenThuongHieu));
+
+        var emailField = new FieldIdentifier(
+            Model,
+            nameof(Model.Email));
+
+        var phoneField = new FieldIdentifier(
+            Model,
+            nameof(Model.SDT));
+
+        var addressField = new FieldIdentifier(
+            Model,
+            nameof(Model.DiaChi));
+
+        var descriptionField = new FieldIdentifier(
+            Model,
+            nameof(Model.MoTa));
+
+        if (string.IsNullOrWhiteSpace(Model.TenThuongHieu))
+        {
+            MessageStore.Add(
+                nameField,
+                "Tên thương hiệu không được để trống.");
+        }
+        else
+        {
+            if (Model.TenThuongHieu.Length < 2)
+            {
+                MessageStore.Add(
+                    nameField,
+                    "Tên thương hiệu phải có ít nhất 2 ký tự.");
+            }
+
+            if (Model.TenThuongHieu.Length > 100)
+            {
+                MessageStore.Add(
+                    nameField,
+                    "Tên thương hiệu không vượt quá 100 ký tự.");
+            }
+
+            var duplicatedName = ThuongHieus.Any(x =>
+                x.ThuongHieuId != Model.ThuongHieuId
+                && string.Equals(
+                    x.TenThuongHieu?.Trim(),
+                    Model.TenThuongHieu,
+                    StringComparison.OrdinalIgnoreCase));
+
+            if (duplicatedName)
+            {
+                MessageStore.Add(
+                    nameField,
+                    "Tên thương hiệu đã tồn tại.");
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(Model.Email))
+        {
+            var emailValidator = new EmailAddressAttribute();
+
+            if (!emailValidator.IsValid(Model.Email))
+            {
+                MessageStore.Add(
+                    emailField,
+                    "Email không đúng định dạng.");
+            }
+
+            var duplicatedEmail = ThuongHieus.Any(x =>
+                x.ThuongHieuId != Model.ThuongHieuId
+                && string.Equals(
+                    x.Email?.Trim(),
+                    Model.Email,
+                    StringComparison.OrdinalIgnoreCase));
+
+            if (duplicatedEmail)
+            {
+                MessageStore.Add(
+                    emailField,
+                    "Email đã được thương hiệu khác sử dụng.");
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(Model.SDT))
+        {
+            if (!Regex.IsMatch(
+                Model.SDT,
+                @"^(0\d{9}|\+84\d{9})$"))
+            {
+                MessageStore.Add(
+                    phoneField,
+                    "Số điện thoại phải gồm 10 số hoặc bắt đầu bằng +84.");
+            }
+
+            var duplicatedPhone = ThuongHieus.Any(x =>
+                x.ThuongHieuId != Model.ThuongHieuId
+                && string.Equals(
+                    x.SDT?.Trim(),
+                    Model.SDT,
+                    StringComparison.OrdinalIgnoreCase));
+
+            if (duplicatedPhone)
+            {
+                MessageStore.Add(
+                    phoneField,
+                    "Số điện thoại đã được thương hiệu khác sử dụng.");
+            }
+        }
+
+        if (Model.DiaChi.Length > 250)
+        {
+            MessageStore.Add(
+                addressField,
+                "Địa chỉ không vượt quá 250 ký tự.");
+        }
+
+        if (Model.MoTa.Length > 500)
+        {
+            MessageStore.Add(
+                descriptionField,
+                "Mô tả không vượt quá 500 ký tự.");
+        }
+
+        FormEditContext.NotifyValidationStateChanged();
+
+        return !FormEditContext
+            .GetValidationMessages()
+            .Any();
+    }
+
+    private string GetInputClass(
+        string fieldName,
+        bool isTextarea = false)
+    {
+        var baseClass = isTextarea
+            ? "form-control-custom textarea-control"
+            : "form-control-custom";
+
+        if (FormEditContext == null)
+            return baseClass;
+
+        var fieldIdentifier = new FieldIdentifier(
+            Model,
+            fieldName);
+
+        var hasError = FormEditContext
+            .GetValidationMessages(fieldIdentifier)
+            .Any();
+
+        return hasError
+            ? baseClass + " invalid"
+            : baseClass;
+    }
+
+    private void AskDelete(ThuongHieu item)
+    {
+        SelectedBrand = item;
+        ShowDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        if (IsDeleting)
+            return;
+
+        SelectedBrand = null;
+        ShowDeleteModal = false;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (SelectedBrand == null || IsDeleting)
+            return;
+
+        try
+        {
+            IsDeleting = true;
+
+            await ThuongHieuService.DeleteAsync(
+                SelectedBrand.ThuongHieuId);
+
+            SelectedBrand = null;
+            ShowDeleteModal = false;
+
+            await LoadDataAsync();
+
+            ShowToast(
+                "Xóa thương hiệu thành công.",
+                true);
+        }
+        catch (Exception ex)
+        {
+            ShowToast(
+                "Không thể xóa thương hiệu: " + ex.Message,
+                false);
+        }
+        finally
+        {
+            IsDeleting = false;
+        }
+    }
+
+    private void ChangeStatusFilter(string value)
+    {
+        StatusFilter = value;
+        CurrentPage = 1;
+    }
+
+    private void ClearSearch()
+    {
+        SearchText = string.Empty;
+    }
+
+    private void ChangePage(int page)
+    {
+        if (page >= 1 && page <= TotalPages)
+        {
+            CurrentPage = page;
+        }
+    }
+
+    private void PreviousPage()
+    {
+        ChangePage(CurrentPage - 1);
+    }
+
+    private void NextPage()
+    {
+        ChangePage(CurrentPage + 1);
+    }
+
+    private void OnPageSizeChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(
+            e.Value?.ToString(),
+            out var newSize))
+        {
+            PageSize = newSize;
+            CurrentPage = 1;
+        }
+    }
+
+    private void EnsureValidPage()
+    {
+        if (CurrentPage > TotalPages)
+        {
+            CurrentPage = TotalPages;
+        }
+
+        if (CurrentPage < 1)
+        {
+            CurrentPage = 1;
+        }
+    }
+
+    private static string ShortId(Guid id)
+    {
+        return "#" + id
+            .ToString()[..8]
+            .ToUpperInvariant();
+    }
+
+    private static string GetInitials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return "TH";
+
+        var words = name.Trim()
+            .Split(
+                ' ',
+                StringSplitOptions.RemoveEmptyEntries);
+
+        if (words.Length == 1)
+        {
+            return words[0][0]
+                .ToString()
+                .ToUpperInvariant();
+        }
+
+        return string.Concat(
+            words.First()[0],
+            words.Last()[0])
+            .ToUpperInvariant();
+    }
+
+    private void ShowToast(string message, bool success)
+    {
+        ToastMessage = message;
+        ToastSuccess = success;
+    }
+
+    private void CloseToast()
+    {
+        ToastMessage = string.Empty;
+    }
+}
+
+<style>
+    .brand-page {
+        --primary: #f97316;
+        --primary-dark: #ea580c;
+        --primary-light: #fff7ed;
+        --text: #172033;
+        --muted: #718096;
+        --border: #e7ebf1;
+        min-height: 100vh;
+        padding: 28px;
+        background: #f6f8fc;
+        color: var(--text);
+    }
+
+    .page-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 22px;
+    }
+
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+    }
+
+    .header-icon {
+        width: 50px;
+        height: 50px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #fb923c, #ea580c);
+        font-size: 21px;
+        box-shadow: 0 8px 20px rgba(249, 115, 22, .24);
+    }
+
+    .page-header h2 {
+        margin: 0 0 4px;
+        font-size: 25px;
+        font-weight: 800;
+    }
+
+    .page-header p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+    }
+
+    .add-button {
+        min-height: 43px;
+        padding: 0 17px;
+        border: 0;
+        border-radius: 11px;
+        background: linear-gradient(135deg, #fb923c, #ea580c);
+        color: white;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+        box-shadow: 0 8px 18px rgba(249, 115, 22, .23);
+        transition: .2s;
+    }
+
+        .add-button:hover {
+            transform: translateY(-2px);
+        }
+
+    .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 15px;
+        margin-bottom: 19px;
+    }
+
+    .stat-card {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+        min-height: 100px;
+        padding: 17px;
+        border: 1px solid var(--border);
+        border-radius: 15px;
+        background: white;
+        box-shadow: 0 5px 18px rgba(15, 23, 42, .04);
+    }
+
+    .stat-icon {
+        width: 47px;
+        height: 47px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border-radius: 13px;
+        font-size: 18px;
+        font-weight: 800;
+    }
+
+        .stat-icon.total {
+            background: #eff6ff;
+            color: #2563eb;
+        }
+
+        .stat-icon.active {
+            background: #ecfdf5;
+            color: #059669;
+        }
+
+        .stat-icon.inactive {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+
+    .stat-card span,
+    .stat-card strong {
+        display: block;
+    }
+
+    .stat-card span {
+        margin-bottom: 5px;
+        color: var(--muted);
+        font-size: 12px;
+    }
+
+    .stat-card strong {
+        font-size: 24px;
+    }
+
+    .brand-panel {
+        display: flex;
+        flex-direction: column;
+        height: 620px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 17px;
+        background: white;
+        box-shadow: 0 8px 27px rgba(15, 23, 42, .05);
+    }
+
+    .panel-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+        flex-shrink: 0;
+        padding: 18px 20px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .search-box {
+        position: relative;
+        width: min(480px, 100%);
+    }
+
+        .search-box > span {
+            position: absolute;
+            top: 50%;
+            left: 14px;
+            color: #94a3b8;
+            font-size: 20px;
+            transform: translateY(-50%);
+        }
+
+        .search-box input {
+            width: 100%;
+            height: 43px;
+            padding: 0 42px;
+            border: 1px solid #dce3ec;
+            border-radius: 11px;
+            outline: none;
+            font-size: 12px;
+        }
+
+            .search-box input:focus,
+            .form-control-custom:focus {
+                border-color: var(--primary);
+                box-shadow: 0 0 0 4px rgba(249, 115, 22, .1);
+            }
+
+        .search-box button {
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            width: 26px;
+            height: 26px;
+            padding: 0;
+            border: 0;
+            border-radius: 50%;
+            background: #f1f5f9;
+            color: #64748b;
+            transform: translateY(-50%);
+        }
+
+    .status-filter {
+        display: flex;
+        gap: 7px;
+        overflow-x: auto;
+    }
+
+    .filter-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 37px;
+        padding: 0 11px;
+        border: 1px solid var(--border);
+        border-radius: 9px;
+        background: white;
+        color: #64748b;
+        font-size: 11px;
+        font-weight: 800;
+        white-space: nowrap;
+        cursor: pointer;
+    }
+
+        .filter-button span {
+            padding: 2px 6px;
+            border-radius: 20px;
+            background: #f1f5f9;
+            font-size: 9px;
+        }
+
+        .filter-button.active {
+            border-color: #fed7aa;
+            background: var(--primary-light);
+            color: var(--primary-dark);
+        }
+
+    .table-wrapper {
+        flex: 1;
+        min-height: 0;
+        overflow-x: auto;
+        overflow-y: auto;
+    }
+
+    .brand-table {
+        width: 100%;
+        min-width: 1120px;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+        .brand-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 4;
+            padding: 14px 15px;
+            border-bottom: 1px solid var(--border);
+            background: #f8fafc;
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 800;
+            text-align: left;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .brand-table tbody td {
+            padding: 14px 15px;
+            border-bottom: 1px solid #edf1f6;
+            color: #334155;
+            font-size: 12px;
+            vertical-align: middle;
+        }
+
+        .brand-table tbody tr:hover {
+            background: #fffaf5;
+        }
+
+    .col-stt {
+        width: 65px;
+        text-align: center !important;
+    }
+
+    .col-action {
+        width: 125px;
+        text-align: center !important;
+    }
+
+    .stt-cell {
+        color: #94a3b8 !important;
+        font-weight: 800;
+        text-align: center;
+    }
+
+    .brand-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 200px;
+    }
+
+    .brand-avatar {
+        width: 43px;
+        height: 43px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border: 1px solid #fed7aa;
+        border-radius: 12px;
+        background: var(--primary-light);
+        color: var(--primary-dark);
+        font-size: 11px;
+        font-weight: 800;
+    }
+
+    .brand-info strong,
+    .brand-info small,
+    .brand-info p {
+        display: block;
+    }
+
+    .brand-info strong {
+        color: #172033;
+    }
+
+    .brand-info small {
+        margin-top: 2px;
+        color: #94a3b8;
+        font-size: 9px;
+    }
+
+    .brand-info p {
+        max-width: 210px;
+        margin: 3px 0 0;
+        overflow: hidden;
+        color: #94a3b8;
+        font-size: 9px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .contact-value {
+        white-space: nowrap;
+    }
+
+    .empty-value {
+        color: #94a3b8;
+        font-style: italic;
+    }
+
+    .address-value {
+        max-width: 240px;
+        overflow: hidden;
+        color: #64748b;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 10px;
+        border-radius: 20px;
+        font-size: 10px;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+        .status-badge i {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+    .status-active {
+        background: #ecfdf5;
+        color: #15803d;
+    }
+
+    .status-inactive {
+        background: #f1f5f9;
+        color: #64748b;
+    }
+
+    .action-group {
+        display: flex;
+        justify-content: center;
+        gap: 7px;
+    }
+
+    .action-button {
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+        cursor: pointer;
+        transition: .2s;
+    }
+
+        .action-button:hover {
+            transform: translateY(-2px);
+        }
+
+        .action-button.edit {
+            border: 1px solid #fed7aa;
+            background: var(--primary-light);
+            color: var(--primary-dark);
+        }
+
+        .action-button.delete {
+            border: 1px solid #fecaca;
+            background: #fff1f2;
+            color: #dc2626;
+        }
+
+    .loading-state,
+    .empty-state {
+        min-height: 280px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        color: #94a3b8;
+    }
+
+        .empty-state > div {
+            font-size: 34px;
+        }
+
+        .empty-state strong {
+            color: #475569;
+        }
+
+    .loading-spinner,
+    .mini-spinner {
+        display: inline-block;
+        border-style: solid;
+        border-radius: 50%;
+        animation: brand-spin .7s linear infinite;
+    }
+
+    .loading-spinner {
+        width: 34px;
+        height: 34px;
+        border-width: 3px;
+        border-color: #fed7aa;
+        border-top-color: var(--primary);
+    }
+
+    .mini-spinner {
+        width: 13px;
+        height: 13px;
+        border-width: 2px;
+        border-color: currentColor;
+        border-top-color: transparent;
+    }
+
+    .pagination-bar {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 14px;
+        flex-shrink: 0;
+        min-height: 65px;
+        padding: 11px 19px;
+        border-top: 1px solid var(--border);
+    }
+
+    .page-size {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        color: #64748b;
+        font-size: 11px;
+    }
+
+        .page-size select {
+            height: 34px;
+            padding: 0 27px 0 9px;
+            border: 1px solid #dce3ec;
+            border-radius: 8px;
+            background: white;
+        }
+
+    .result-info {
+        color: #64748b;
+        font-size: 11px;
+        text-align: center;
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: flex-end;
+        gap: 5px;
+    }
+
+        .pagination button {
+            min-width: 33px;
+            height: 33px;
+            padding: 0 8px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: white;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+            .pagination button.active {
+                border-color: var(--primary);
+                background: var(--primary);
+                color: white;
+            }
+
+            .pagination button:disabled {
+                cursor: not-allowed;
+                opacity: .45;
+            }
+
+    .page-error,
+    .form-error {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 10px 12px;
+        border: 1px solid #fecaca;
+        border-radius: 10px;
+        background: #fff1f2;
+        color: #b91c1c;
+        font-size: 10px;
+    }
+
+    .page-error {
+        flex-shrink: 0;
+        margin: 10px 18px 0;
+    }
+
+    .form-error {
+        margin-top: 15px;
+    }
+
+        .page-error > span,
+        .form-error > span {
+            width: 21px;
+            height: 21px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border-radius: 50%;
+            background: #dc2626;
+            color: white;
+            font-weight: 800;
+        }
+
+        .page-error div,
+        .form-error div {
+            flex: 1;
+        }
+
+    .page-error button {
+        border: 0;
+        background: transparent;
+        color: #b91c1c;
+        font-size: 18px;
+    }
+
+    .modal-overlay,
+    .delete-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 3000;
+        display: grid;
+        place-items: center;
+        padding: 18px;
+        background: rgba(15, 23, 42, .58);
+        backdrop-filter: blur(3px);
+    }
+
+    .brand-modal {
+        width: min(650px, 100%);
+        max-height: 92vh;
+        overflow-y: auto;
+        border-radius: 18px;
+        background: white;
+        box-shadow: 0 25px 65px rgba(15, 23, 42, .28);
+        animation: brand-modal-show .2s ease-out;
+    }
+
+    .modal-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 15px;
+        padding: 21px 23px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .modal-heading {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+    }
+
+    .modal-icon {
+        width: 43px;
+        height: 43px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border-radius: 12px;
+        background: var(--primary-light);
+        color: var(--primary-dark);
+        font-size: 18px;
+        font-weight: 800;
+    }
+
+    .modal-heading span {
+        color: var(--primary-dark);
+        font-size: 8px;
+        font-weight: 800;
+        letter-spacing: .7px;
+    }
+
+    .modal-heading h3 {
+        margin: 2px 0;
+        font-size: 18px;
+        font-weight: 800;
+    }
+
+    .modal-heading p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 10px;
+    }
+
+    .close-modal {
+        width: 34px;
+        height: 34px;
+        border: 0;
+        border-radius: 9px;
+        background: #f1f5f9;
+        color: #64748b;
+        font-size: 19px;
+        cursor: pointer;
+    }
+
+    .modal-body {
+        padding: 22px 23px;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 7px;
+        color: #334155;
+        font-size: 11px;
+        font-weight: 800;
+    }
+
+        .form-group label span {
+            color: #dc2626;
+        }
+
+    .form-control-custom {
+        width: 100%;
+        min-height: 42px;
+        padding: 0 11px;
+        border: 1px solid #dce3ec;
+        border-radius: 9px;
+        outline: none;
+        background: white;
+        font-size: 11px;
+    }
+
+        .form-control-custom.invalid {
+            border-color: #dc2626;
+            box-shadow: 0 0 0 3px rgba(220, 38, 38, .08);
+        }
+
+    .textarea-control {
+        min-height: 90px;
+        padding-top: 10px;
+        resize: vertical;
+    }
+
+    .input-with-icon {
+        position: relative;
+    }
+
+        .input-with-icon > span {
+            position: absolute;
+            top: 50%;
+            left: 11px;
+            z-index: 1;
+            transform: translateY(-50%);
+        }
+
+        .input-with-icon .form-control-custom {
+            padding-left: 39px;
+        }
+
+    .validation-message {
+        display: block;
+        margin-top: 5px;
+        color: #dc2626;
+        font-size: 9px;
+    }
+
+    .character-count {
+        margin-top: 4px;
+        color: #94a3b8;
+        font-size: 8px;
+        text-align: right;
+    }
+
+    .status-section {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        margin-top: 17px;
+        padding: 12px;
+        border-radius: 10px;
+        background: #f8fafc;
+    }
+
+    .status-content {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+    }
+
+    .status-icon {
+        width: 35px;
+        height: 35px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border-radius: 9px;
+        background: #ecfdf5;
+        color: #059669;
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .status-content strong,
+    .status-content small {
+        display: block;
+    }
+
+    .status-content strong {
+        color: #334155;
+        font-size: 10px;
+    }
+
+    .status-content small {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 8px;
+    }
+
+    .custom-switch {
+        position: relative;
+        width: 43px;
+        height: 23px;
+        flex-shrink: 0;
+    }
+
+        .custom-switch input {
+            width: 0;
+            height: 0;
+            opacity: 0;
+        }
+
+    .switch-slider {
+        position: absolute;
+        inset: 0;
+        border-radius: 30px;
+        background: #cbd5e1;
+        cursor: pointer;
+        transition: .25s;
+    }
+
+        .switch-slider::before {
+            position: absolute;
+            bottom: 3px;
+            left: 3px;
+            width: 17px;
+            height: 17px;
+            border-radius: 50%;
+            background: white;
+            content: "";
+            transition: .25s;
+        }
+
+    .custom-switch input:checked + .switch-slider {
+        background: #22c55e;
+    }
+
+        .custom-switch input:checked + .switch-slider::before {
+            transform: translateX(20px);
+        }
+
+    .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 9px;
+        padding: 15px 23px;
+        border-top: 1px solid var(--border);
+    }
+
+    .cancel-modal,
+    .save-modal {
+        min-height: 40px;
+        padding: 0 15px;
+        border-radius: 9px;
+        font-size: 10px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .cancel-modal {
+        border: 1px solid #dce3ec;
+        background: white;
+        color: #64748b;
+    }
+
+    .save-modal {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        border: 0;
+        background: linear-gradient(135deg, #fb923c, #ea580c);
+        color: white;
+    }
+
+        .cancel-modal:disabled,
+        .save-modal:disabled,
+        .close-modal:disabled {
+            cursor: not-allowed;
+            opacity: .65;
+        }
+
+    .delete-modal {
+        width: min(420px, 100%);
+        padding: 26px;
+        border-radius: 17px;
+        background: white;
+        text-align: center;
+        box-shadow: 0 25px 65px rgba(15, 23, 42, .28);
+    }
+
+    .delete-icon {
+        width: 54px;
+        height: 54px;
+        display: grid;
+        place-items: center;
+        margin: auto;
+        border-radius: 50%;
+        background: #fff1f2;
+        color: #dc2626;
+        font-size: 24px;
+        font-weight: 800;
+    }
+
+    .delete-modal h3 {
+        margin: 14px 0 7px;
+        font-size: 19px;
+        font-weight: 800;
+    }
+
+    .delete-modal p {
+        margin: 0;
+        color: #64748b;
+        font-size: 12px;
+        line-height: 1.6;
+    }
+
+        .delete-modal p strong {
+            color: #172033;
+        }
+
+    .delete-warning {
+        margin-top: 13px;
+        padding: 10px;
+        border-radius: 9px;
+        background: var(--primary-light);
+        color: #c2410c;
+        font-size: 10px;
+    }
+
+    .delete-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 9px;
+        margin-top: 20px;
+    }
+
+        .delete-actions button {
+            min-height: 41px;
+            border-radius: 9px;
+            font-size: 11px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+    .cancel-delete {
+        border: 1px solid #dce3ec;
+        background: white;
+        color: #64748b;
+    }
+
+    .confirm-delete {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        border: 0;
+        background: #dc2626;
+        color: white;
+    }
+
+    .delete-actions button:disabled {
+        cursor: not-allowed;
+        opacity: .65;
+    }
+
+    .custom-toast {
+        position: fixed;
+        right: 25px;
+        bottom: 25px;
+        z-index: 4000;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 315px;
+        max-width: 430px;
+        padding: 14px;
+        border-radius: 12px;
+        color: white;
+        box-shadow: 0 14px 35px rgba(15, 23, 42, .22);
+    }
+
+        .custom-toast.success {
+            background: #059669;
+        }
+
+        .custom-toast.error {
+            background: #dc2626;
+        }
+
+    .toast-icon {
+        width: 30px;
+        height: 30px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, .18);
+        font-weight: 800;
+    }
+
+    .custom-toast div {
+        flex: 1;
+    }
+
+    .custom-toast strong,
+    .custom-toast small {
+        display: block;
+    }
+
+    .custom-toast small {
+        margin-top: 2px;
+        opacity: .9;
+    }
+
+    .custom-toast button {
+        border: 0;
+        background: transparent;
+        color: white;
+        font-size: 19px;
+        cursor: pointer;
+    }
+
+    @@keyframes brand-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @@keyframes brand-modal-show {
+        from {
+            opacity: 0;
+            transform: translateY(12px) scale(.97);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    @@media (max-width: 850px) {
+        .panel-toolbar {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .search-box {
+            width: 100%;
+            max-width: none;
+        }
+
+        .pagination-bar {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .result-info {
+            display: none;
+        }
+    }
+
+    @@media (max-width: 600px) {
+        .brand-page {
+            padding: 16px;
+        }
+
+        .page-header {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .add-button {
+            width: 100%;
+        }
+
+        .stat-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .brand-panel {
+            height: 690px;
+        }
+
+        .pagination-bar {
+            grid-template-columns: 1fr;
+        }
+
+        .pagination {
+            justify-content: flex-start;
+            overflow-x: auto;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .form-group.full-width {
+            grid-column: auto;
+        }
+
+        .delete-actions {
+            grid-template-columns: 1fr;
+        }
+
+        .modal-footer {
+            flex-direction: column-reverse;
+        }
+
+        .cancel-modal,
+        .save-modal {
+            width: 100%;
+        }
+
+        .custom-toast {
+            right: 15px;
+            bottom: 15px;
+            left: 15px;
+            min-width: 0;
+        }
+    }
+</style>

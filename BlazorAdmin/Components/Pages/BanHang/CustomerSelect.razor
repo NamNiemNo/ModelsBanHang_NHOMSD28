@@ -1,0 +1,319 @@
+﻿@using Data.Models
+@inject IKhachHangService KhachHangService
+<link href="/css/CustomerSelect.css" rel="stylesheet" />
+@if (Visible)
+{
+    <button type="button"
+            class="bh-modal-backdrop"
+            aria-label="Đóng cửa sổ chọn khách hàng"
+            @onclick="Close">
+    </button>
+
+    <section class="bh-modal bh-customer-modal"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="customer-modal-title">
+
+        <header class="bh-modal-header">
+            <div class="bh-modal-heading">
+                <span class="bh-modal-icon"
+                      aria-hidden="true">
+                    ◎
+                </span>
+
+                <div>
+                    <span class="bh-modal-eyebrow">
+                        KHÁCH HÀNG
+                    </span>
+
+                    <h3 id="customer-modal-title">
+                        Chọn khách hàng
+                    </h3>
+
+                    <p>
+                        Tìm theo tên hoặc số điện thoại để gắn khách vào đơn.
+                    </p>
+                </div>
+            </div>
+
+            <button type="button"
+                    class="bh-modal-close"
+                    title="Đóng"
+                    aria-label="Đóng"
+                    @onclick="Close">
+                ×
+            </button>
+        </header>
+
+        <div class="bh-customer-toolbar">
+            <label class="bh-search-box">
+                <span aria-hidden="true">⌕</span>
+
+                <input type="search"
+                       placeholder="Nhập tên hoặc số điện thoại..."
+                       autocomplete="off"
+                       @bind="searchTerm"
+                       @bind:event="oninput" />
+
+                @if (!string.IsNullOrWhiteSpace(searchTerm))
+                {
+                    <button type="button"
+                            title="Xóa tìm kiếm"
+                            aria-label="Xóa nội dung tìm kiếm"
+                            @onclick="ClearSearch">
+                        ×
+                    </button>
+                }
+            </label>
+
+            <span class="bh-count-badge">
+                @FilteredCustomers.Count kết quả
+            </span>
+        </div>
+
+        <div class="bh-modal-body">
+            @if (isLoading)
+            {
+                <div class="bh-loading-state">
+                    <span class="bh-spinner"></span>
+                    <span>
+                        Đang tải danh sách khách hàng...
+                    </span>
+                </div>
+            }
+            else if (!string.IsNullOrWhiteSpace(errorMessage))
+            {
+                <div class="bh-error-state">
+                    <strong>
+                        Không tải được khách hàng
+                    </strong>
+
+                    <p>@errorMessage</p>
+
+                    <button type="button"
+                            class="bh-primary-button"
+                            @onclick="LoadCustomersAsync">
+                        Thử lại
+                    </button>
+                </div>
+            }
+            else if (FilteredCustomers.Count == 0)
+            {
+                <div class="bh-empty-state">
+                    <span class="bh-empty-icon"
+                          aria-hidden="true">
+                        ⌕
+                    </span>
+
+                    <strong>
+                        Không tìm thấy khách hàng
+                    </strong>
+
+                    <p>
+                        Hãy thử tìm bằng tên khác hoặc kiểm tra lại số điện thoại.
+                    </p>
+                </div>
+            }
+            else
+            {
+                <div class="bh-customer-list">
+                    @foreach (var customer in FilteredCustomers)
+                    {
+                        <button type="button"
+                                class="bh-customer-card @(customer.TrangThai ? "" : "is-disabled")"
+                                disabled="@(!customer.TrangThai)"
+                                @key="customer.KhachHangId"
+                                @onclick="() => SelectCustomer(customer)">
+
+                            <span class="bh-customer-avatar">
+                                @GetInitials(customer.HoTen)
+                            </span>
+
+                            <span class="bh-customer-content">
+                                <span class="bh-customer-name">
+                                    @GetCustomerName(customer)
+                                </span>
+
+                                <span class="bh-customer-phone">
+                                    @GetPhone(customer.SoDienThoai)
+                                </span>
+
+                                <span class="bh-customer-meta">
+                                    @(customer.DiaChiKhachHangs?.Count ?? 0)
+                                    địa chỉ đã lưu
+                                </span>
+                            </span>
+
+                            <span class="bh-customer-status @(customer.TrangThai ? "is-active" : "is-inactive")">
+                                <span></span>
+
+                                @(customer.TrangThai
+                                    ? "Hoạt động"
+                                    : "Đã khóa")
+                            </span>
+
+                            <span class="bh-card-arrow"
+                                  aria-hidden="true">
+                                ›
+                            </span>
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+
+        <footer class="bh-modal-footer">
+            <span>
+                Chỉ khách hàng đang hoạt động mới có thể được chọn.
+            </span>
+
+            <button type="button"
+                    class="bh-secondary-button"
+                    @onclick="Close">
+                Đóng cửa sổ
+            </button>
+        </footer>
+    </section>
+}
+
+@code {
+    [Parameter]
+    public bool Visible { get; set; }
+
+    [Parameter]
+    public EventCallback<KhachHang> OnCustomerSelected { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private List<KhachHang> Customers { get; set; } = new();
+
+    private string searchTerm = "";
+    private string errorMessage = "";
+
+    private bool isLoading;
+    private bool wasVisible;
+
+    private List<KhachHang> FilteredCustomers =>
+        Customers
+            .Where(MatchesSearch)
+            .OrderByDescending(customer => customer.TrangThai)
+            .ThenBy(customer => customer.HoTen ?? "")
+            .ToList();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Visible && !wasVisible)
+        {
+            searchTerm = "";
+            await LoadCustomersAsync();
+        }
+
+        wasVisible = Visible;
+    }
+
+    private async Task LoadCustomersAsync()
+    {
+        isLoading = true;
+        errorMessage = "";
+
+        try
+        {
+            Customers =
+                await KhachHangService.GetAll()
+                ?? new List<KhachHang>();
+        }
+        catch (Exception ex)
+        {
+            Customers = new List<KhachHang>();
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private bool MatchesSearch(
+        KhachHang customer)
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            return true;
+        }
+
+        var keyword = searchTerm.Trim();
+
+        return (customer.HoTen ?? "")
+                   .Contains(
+                       keyword,
+                       StringComparison.OrdinalIgnoreCase)
+               || (customer.SoDienThoai ?? "")
+                   .Contains(
+                       keyword,
+                       StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task SelectCustomer(
+        KhachHang customer)
+    {
+        if (!customer.TrangThai)
+        {
+            return;
+        }
+
+        await OnCustomerSelected.InvokeAsync(customer);
+        await OnClose.InvokeAsync();
+    }
+
+    private Task Close()
+    {
+        return OnClose.InvokeAsync();
+    }
+
+    private void ClearSearch()
+    {
+        searchTerm = "";
+    }
+
+    private static string GetCustomerName(
+        KhachHang customer)
+    {
+        return string.IsNullOrWhiteSpace(customer.HoTen)
+            ? "Khách hàng chưa có tên"
+            : customer.HoTen;
+    }
+
+    private static string GetPhone(
+        string? phone)
+    {
+        return string.IsNullOrWhiteSpace(phone)
+            ? "Chưa có số điện thoại"
+            : phone;
+    }
+
+    private static string GetInitials(
+        string? fullName)
+    {
+        if (string.IsNullOrWhiteSpace(fullName))
+        {
+            return "KH";
+        }
+
+        var words = fullName.Split(
+            ' ',
+            StringSplitOptions.RemoveEmptyEntries);
+
+        if (words.Length == 1)
+        {
+            return words[0]
+                .Substring(0, 1)
+                .ToUpperInvariant();
+        }
+
+        return (
+            words[0].Substring(0, 1)
+            + words[words.Length - 1].Substring(0, 1)
+        ).ToUpperInvariant();
+    }
+}

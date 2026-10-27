@@ -1,0 +1,1323 @@
+﻿@page "/Admin/updatevoucher/{Id:guid}"
+@rendermode InteractiveServer
+
+@using Data.Models
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Forms
+
+@inject IVoucherService service
+@inject NavigationManager manager
+
+<div class="voucher-edit-page">
+
+    <!-- HEADER -->
+    <div class="page-header">
+        <div>
+            <button type="button"
+                    class="back-button"
+                    @onclick="GoBack">
+                <i class="bi bi-arrow-left"></i>
+                Quay lại
+            </button>
+
+            <h2>
+                <span class="title-icon">
+                    <i class="bi bi-ticket-perforated"></i>
+                </span>
+                Cập nhật Voucher
+            </h2>
+
+            <p>Chỉnh sửa thông tin và điều kiện áp dụng Voucher.</p>
+        </div>
+
+        @if (!isLoading && string.IsNullOrWhiteSpace(loadError))
+        {
+            <span class="preview-status @VoucherStatusClass">
+                <span class="status-dot"></span>
+                @VoucherStatusText
+            </span>
+        }
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="loading-card">
+            <div class="spinner-border text-warning" role="status"></div>
+            <span>Đang tải thông tin Voucher...</span>
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(loadError))
+    {
+        <div class="error-card">
+            <div class="error-icon">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+
+            <div>
+                <h5>Không thể tải Voucher</h5>
+                <p>@loadError</p>
+
+                <button type="button"
+                        class="retry-button"
+                        @onclick="LoadVoucherAsync">
+                    <i class="bi bi-arrow-clockwise"></i>
+                    Thử lại
+                </button>
+            </div>
+        </div>
+    }
+    else if (editContext != null)
+    {
+        <EditForm EditContext="editContext"
+                  OnValidSubmit="HandleValidSubmit">
+
+            <DataAnnotationsValidator />
+
+            @if (!string.IsNullOrWhiteSpace(errorMessage))
+            {
+                <div class="custom-alert alert-error">
+                    <i class="bi bi-exclamation-circle-fill"></i>
+                    <span>@errorMessage</span>
+
+                    <button type="button"
+                            @onclick="() => errorMessage = string.Empty">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(successMessage))
+            {
+                <div class="custom-alert alert-success">
+                    <i class="bi bi-check-circle-fill"></i>
+                    <span>@successMessage</span>
+                </div>
+            }
+
+            <div class="form-layout">
+
+                <!-- CỘT TRÁI -->
+                <div class="form-content">
+
+                    <!-- THÔNG TIN CƠ BẢN -->
+                    <section class="form-section">
+                        <div class="section-header">
+                            <span class="section-icon">
+                                <i class="bi bi-info-circle"></i>
+                            </span>
+
+                            <div>
+                                <h5>Thông tin Voucher</h5>
+                                <p>Tên và thời gian áp dụng Voucher.</p>
+                            </div>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="form-group full-width">
+                                <label>
+                                    Tên Voucher
+                                    <span class="required">*</span>
+                                </label>
+
+                                <div class="input-wrapper">
+                                    <i class="bi bi-ticket-perforated input-icon"></i>
+
+                                    <InputText class="custom-input has-icon"
+                                               @bind-Value="voucher.TenVoucher"
+                                               placeholder="Nhập tên Voucher..." />
+                                </div>
+
+                                <ValidationMessage For="@(() => voucher.TenVoucher)"
+                                                   class="validation-message" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>
+                                    Ngày bắt đầu
+                                    <span class="required">*</span>
+                                </label>
+
+                                <div class="input-wrapper">
+                                    <InputDate class="custom-input"
+                                               @bind-Value="voucher.NgayBatDau" />
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>
+                                    Ngày kết thúc
+                                    <span class="required">*</span>
+                                </label>
+
+                                <div class="input-wrapper">
+                                    <InputDate class="custom-input"
+                                               @bind-Value="voucher.NgayKetThuc" />
+                                </div>
+
+                                <ValidationMessage For="@(() => voucher.NgayKetThuc)"
+                                                   class="validation-message" />
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- GIÁ TRỊ GIẢM -->
+                    <section class="form-section">
+                        <div class="section-header">
+                            <span class="section-icon">
+                                <i class="bi bi-percent"></i>
+                            </span>
+
+                            <div>
+                                <h5>Giá trị giảm</h5>
+                                <p>Chọn giảm theo phần trăm hoặc số tiền.</p>
+                            </div>
+                        </div>
+
+                        <div class="discount-type">
+                            <button type="button"
+                                    class="discount-type-button @(IsPhanTram ? "active" : "")"
+                                    @onclick="() => DoiKieuGiamGia(true)">
+                                <span class="discount-type-icon">%</span>
+
+                                <span>
+                                    <strong>Theo phần trăm</strong>
+                                    <small>Giảm theo tỷ lệ đơn hàng</small>
+                                </span>
+                            </button>
+
+                            <button type="button"
+                                    class="discount-type-button @(!IsPhanTram ? "active" : "")"
+                                    @onclick="() => DoiKieuGiamGia(false)">
+                                <span class="discount-type-icon">₫</span>
+
+                                <span>
+                                    <strong>Theo số tiền</strong>
+                                    <small>Giảm một khoản tiền cố định</small>
+                                </span>
+                            </button>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>
+                                    @(IsPhanTram ? "Phần trăm giảm" : "Số tiền giảm")
+                                    <span class="required">*</span>
+                                </label>
+
+                                <div class="input-with-suffix">
+                                    <InputNumber class="custom-input"
+                                                 @bind-Value="GiaTriGiam" />
+
+                                    <span class="input-suffix">
+                                        @(IsPhanTram ? "%" : "₫")
+                                    </span>
+                                </div>
+
+                                @if (IsPhanTram)
+                                {
+                                    <ValidationMessage For="@(() => voucher.PhanTram)"
+                                                       class="validation-message" />
+                                }
+                                else
+                                {
+                                    <ValidationMessage For="@(() => voucher.SoTienGiam)"
+                                                       class="validation-message" />
+                                }
+                            </div>
+
+                            <div class="form-group">
+                                <label>
+                                    Số lượng Voucher
+                                    <span class="required">*</span>
+                                </label>
+
+                                <div class="input-with-suffix">
+                                    <InputNumber class="custom-input"
+                                                 @bind-Value="voucher.SoLuong" />
+
+                                    <span class="input-suffix">Voucher</span>
+                                </div>
+
+                                <ValidationMessage For="@(() => voucher.SoLuong)"
+                                                   class="validation-message" />
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ĐIỀU KIỆN ÁP DỤNG -->
+                    <section class="form-section">
+                        <div class="section-header">
+                            <span class="section-icon">
+                                <i class="bi bi-sliders"></i>
+                            </span>
+
+                            <div>
+                                <h5>Điều kiện áp dụng</h5>
+                                <p>Thiết lập giá trị đơn hàng và mức giảm tối đa.</p>
+                            </div>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>
+                                    Giá trị đơn hàng tối thiểu
+                                    <span class="required">*</span>
+                                </label>
+
+                                <div class="input-with-suffix">
+                                    <InputNumber class="custom-input"
+                                                 @bind-Value="voucher.DieuKienToiThieu" />
+
+                                    <span class="input-suffix">₫</span>
+                                </div>
+
+                                <ValidationMessage For="@(() => voucher.DieuKienToiThieu)"
+                                                   class="validation-message" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>
+                                    Giảm tối đa
+                                    <span class="required">*</span>
+                                </label>
+
+                                <div class="input-with-suffix">
+                                    <InputNumber class="custom-input"
+                                                 @bind-Value="voucher.GiamToiDa" />
+
+                                    <span class="input-suffix">₫</span>
+                                </div>
+
+                                <ValidationMessage For="@(() => voucher.GiamToiDa)"
+                                                   class="validation-message" />
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- CỘT PHẢI: XEM TRƯỚC -->
+                <aside class="preview-column">
+                    <div class="preview-sticky">
+                        <div class="preview-title">
+                            <i class="bi bi-eye"></i>
+                            Xem trước Voucher
+                        </div>
+
+                        <div class="voucher-preview">
+                            <div class="voucher-decoration decoration-one"></div>
+                            <div class="voucher-decoration decoration-two"></div>
+
+                            <div class="voucher-preview-top">
+                                <span class="voucher-logo">
+                                    <i class="bi bi-ticket-perforated-fill"></i>
+                                </span>
+
+                                <span class="voucher-label">
+                                    VOUCHER
+                                </span>
+                            </div>
+
+                            <div class="voucher-name">
+                                @(string.IsNullOrWhiteSpace(voucher.TenVoucher)
+                                    ? "Tên Voucher"
+                                    : voucher.TenVoucher)
+                            </div>
+
+                            <div class="voucher-value">
+                                @DiscountPreview
+                            </div>
+
+                            <div class="voucher-condition">
+                                Cho đơn hàng từ
+                                <strong>
+                                    @voucher.DieuKienToiThieu.ToString("N0") ₫
+                                </strong>
+                            </div>
+
+                            <div class="voucher-divider">
+                                <span></span>
+                            </div>
+
+                            <div class="voucher-footer">
+                                <div>
+                                    <small>Hiệu lực</small>
+                                    <strong>
+                                        @voucher.NgayBatDau.ToString("dd/MM/yyyy")
+                                        -
+                                        @voucher.NgayKetThuc.ToString("dd/MM/yyyy")
+                                    </strong>
+                                </div>
+
+                                <span class="voucher-quantity">
+                                    x@voucher.SoLuong
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="summary-card">
+                            <h6>Thông tin áp dụng</h6>
+
+                            <div class="summary-row">
+                                <span>Hình thức giảm</span>
+                                <strong>
+                                    @(IsPhanTram ? "Phần trăm" : "Số tiền")
+                                </strong>
+                            </div>
+
+                            <div class="summary-row">
+                                <span>Giá trị giảm</span>
+                                <strong class="orange-text">
+                                    @DiscountPreview
+                                </strong>
+                            </div>
+
+                            <div class="summary-row">
+                                <span>Giảm tối đa</span>
+                                <strong>
+                                    @voucher.GiamToiDa.ToString("N0") ₫
+                                </strong>
+                            </div>
+
+                            <div class="summary-row">
+                                <span>Số lượng</span>
+                                <strong>@voucher.SoLuong</strong>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button"
+                                    class="cancel-button"
+                                    disabled="@isSaving"
+                                    @onclick="GoBack">
+                                Hủy
+                            </button>
+
+                            <button type="submit"
+                                    class="save-button"
+                                    disabled="@isSaving">
+                                @if (isSaving)
+                                {
+                                    <span class="spinner-border spinner-border-sm"></span>
+                                    <span>Đang lưu...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-check2-circle"></i>
+                                    <span>Lưu thay đổi</span>
+                                }
+                            </button>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </EditForm>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private Voucher voucher = new();
+
+    private bool IsPhanTram = true;
+    private bool isLoading = true;
+    private bool isSaving;
+
+    private string loadError = string.Empty;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+
+    private EditContext? editContext;
+    private ValidationMessageStore? messageStore;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadVoucherAsync();
+    }
+
+    private async Task LoadVoucherAsync()
+    {
+        isLoading = true;
+        loadError = string.Empty;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        try
+        {
+            var result = await service.GetById(Id);
+
+            if (result == null)
+            {
+                loadError = "Không tìm thấy Voucher cần cập nhật.";
+                return;
+            }
+
+            voucher = result;
+            IsPhanTram = voucher.PhanTram > 0;
+
+            editContext = new EditContext(voucher);
+            messageStore = new ValidationMessageStore(editContext);
+        }
+        catch
+        {
+            loadError = "Đã xảy ra lỗi trong quá trình tải dữ liệu.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (editContext == null || messageStore == null)
+            return;
+
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+        messageStore.Clear();
+
+        voucher.TenVoucher = voucher.TenVoucher?.Trim() ?? string.Empty;
+
+        var isInvalid = false;
+
+        if (string.IsNullOrWhiteSpace(voucher.TenVoucher))
+        {
+            AddValidationError(
+                nameof(Voucher.TenVoucher),
+                "Tên Voucher không được để trống.");
+
+            isInvalid = true;
+        }
+
+        if (voucher.NgayKetThuc < voucher.NgayBatDau)
+        {
+            AddValidationError(
+                nameof(Voucher.NgayKetThuc),
+                "Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu.");
+
+            isInvalid = true;
+        }
+
+        if (voucher.SoLuong <= 0)
+        {
+            AddValidationError(
+                nameof(Voucher.SoLuong),
+                "Số lượng Voucher phải lớn hơn 0.");
+
+            isInvalid = true;
+        }
+
+        if (voucher.DieuKienToiThieu < 0)
+        {
+            AddValidationError(
+                nameof(Voucher.DieuKienToiThieu),
+                "Điều kiện tối thiểu không được nhỏ hơn 0.");
+
+            isInvalid = true;
+        }
+
+        if (voucher.GiamToiDa <= 0)
+        {
+            AddValidationError(
+                nameof(Voucher.GiamToiDa),
+                "Số tiền giảm tối đa phải lớn hơn 0.");
+
+            isInvalid = true;
+        }
+
+        if (IsPhanTram)
+        {
+            voucher.SoTienGiam = 0;
+
+            if (voucher.PhanTram <= 0 || voucher.PhanTram > 100)
+            {
+                AddValidationError(
+                    nameof(Voucher.PhanTram),
+                    "Phần trăm giảm phải lớn hơn 0 và không vượt quá 100%.");
+
+                isInvalid = true;
+            }
+        }
+        else
+        {
+            voucher.PhanTram = 0;
+
+            if (voucher.SoTienGiam <= 0)
+            {
+                AddValidationError(
+                    nameof(Voucher.SoTienGiam),
+                    "Số tiền giảm phải lớn hơn 0.");
+
+                isInvalid = true;
+            }
+            else if (voucher.SoTienGiam > voucher.GiamToiDa)
+            {
+                AddValidationError(
+                    nameof(Voucher.SoTienGiam),
+                    "Số tiền giảm không được lớn hơn mức giảm tối đa.");
+
+                isInvalid = true;
+            }
+        }
+
+        if (isInvalid)
+        {
+            editContext.NotifyValidationStateChanged();
+            errorMessage = "Vui lòng kiểm tra lại các thông tin chưa hợp lệ.";
+            return;
+        }
+
+        isSaving = true;
+
+        try
+        {
+            await service.Update(voucher);
+
+            successMessage = "Cập nhật Voucher thành công.";
+
+            await Task.Delay(700);
+
+            manager.NavigateTo("/Admin/voucher");
+        }
+        catch
+        {
+            errorMessage = "Không thể cập nhật Voucher. Vui lòng thử lại.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void AddValidationError(string propertyName, string message)
+    {
+        messageStore?.Add(
+            new FieldIdentifier(voucher, propertyName),
+            message);
+    }
+
+    private float? GiaTriGiam
+    {
+        get => IsPhanTram
+            ? voucher.PhanTram
+            : voucher.SoTienGiam;
+
+        set
+        {
+            if (IsPhanTram)
+            {
+                voucher.PhanTram = value ?? 0;
+                voucher.SoTienGiam = 0;
+            }
+            else
+            {
+                voucher.SoTienGiam = value ?? 0;
+                voucher.PhanTram = 0;
+            }
+        }
+    }
+
+    private void DoiKieuGiamGia(bool laPhanTram)
+    {
+        if (IsPhanTram == laPhanTram)
+            return;
+
+        IsPhanTram = laPhanTram;
+
+        voucher.PhanTram = 0;
+        voucher.SoTienGiam = 0;
+
+        messageStore?.Clear();
+        editContext?.NotifyValidationStateChanged();
+    }
+
+    private string DiscountPreview =>
+        IsPhanTram
+            ? $"{voucher.PhanTram:0.##}%"
+            : $"{voucher.SoTienGiam:N0} ₫";
+
+    private string VoucherStatusText
+    {
+        get
+        {
+            if (!voucher.TrangThai)
+                return "Ngừng hoạt động";
+
+            if (voucher.NgayKetThuc < DateTime.Now)
+                return "Đã hết hạn";
+
+            if (voucher.NgayBatDau > DateTime.Now)
+                return "Chưa bắt đầu";
+
+            return "Đang hoạt động";
+        }
+    }
+
+    private string VoucherStatusClass
+    {
+        get
+        {
+            if (!voucher.TrangThai)
+                return "status-inactive";
+
+            if (voucher.NgayKetThuc < DateTime.Now)
+                return "status-expired";
+
+            if (voucher.NgayBatDau > DateTime.Now)
+                return "status-upcoming";
+
+            return "status-active";
+        }
+    }
+
+    private void GoBack()
+    {
+        manager.NavigateTo("/Admin/voucher");
+    }
+}
+
+<style>
+    .voucher-edit-page {
+        --primary: #f97316;
+        --primary-dark: #ea580c;
+        --primary-light: #fff7ed;
+        --border: #e5e7eb;
+        --text: #111827;
+        --muted: #6b7280;
+        min-height: 100vh;
+        padding: 28px;
+        background: #f6f8fc;
+        color: var(--text);
+    }
+
+    .page-header {
+        max-width: 1400px;
+        margin: 0 auto 24px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 20px;
+    }
+
+        .page-header h2 {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 14px 0 5px;
+            font-size: 27px;
+            font-weight: 800;
+        }
+
+        .page-header p {
+            margin: 0;
+            color: var(--muted);
+        }
+
+    .title-icon {
+        width: 46px;
+        height: 46px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 14px;
+        background: var(--primary-light);
+        color: var(--primary);
+    }
+
+    .back-button {
+        border: 0;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        background: transparent;
+        color: #64748b;
+        font-weight: 600;
+    }
+
+        .back-button:hover {
+            color: var(--primary);
+        }
+
+    .preview-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 14px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: currentColor;
+    }
+
+    .status-active {
+        color: #15803d;
+        background: #dcfce7;
+    }
+
+    .status-inactive,
+    .status-expired {
+        color: #b91c1c;
+        background: #fee2e2;
+    }
+
+    .status-upcoming {
+        color: #a16207;
+        background: #fef3c7;
+    }
+
+    .form-layout {
+        max-width: 1400px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 390px;
+        gap: 24px;
+        align-items: start;
+    }
+
+    .form-content {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .form-section,
+    .summary-card {
+        padding: 25px;
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: #fff;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+    }
+
+    .section-header {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+        padding-bottom: 19px;
+        margin-bottom: 21px;
+        border-bottom: 1px solid #edf0f4;
+    }
+
+        .section-header h5 {
+            margin: 0 0 3px;
+            font-size: 17px;
+            font-weight: 750;
+        }
+
+        .section-header p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+    .section-icon {
+        width: 42px;
+        height: 42px;
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        background: var(--primary-light);
+        color: var(--primary);
+        font-size: 18px;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px;
+    }
+
+    .full-width {
+        grid-column: 1 / -1;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        color: #374151;
+        font-size: 14px;
+        font-weight: 650;
+    }
+
+    .required {
+        color: #ef4444;
+    }
+
+    .input-wrapper,
+    .input-with-suffix {
+        position: relative;
+    }
+
+    .input-icon {
+        position: absolute;
+        top: 50%;
+        left: 14px;
+        z-index: 2;
+        transform: translateY(-50%);
+        color: #94a3b8;
+    }
+
+    .custom-input {
+        width: 100%;
+        min-height: 47px;
+        padding: 10px 14px;
+        border: 1px solid #dce1e8;
+        border-radius: 11px;
+        background: #fff;
+        color: var(--text);
+        outline: none;
+        transition: all .2s ease;
+    }
+
+        .custom-input.has-icon {
+            padding-left: 42px;
+        }
+
+        .custom-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.11);
+        }
+
+    .input-with-suffix .custom-input {
+        padding-right: 88px;
+    }
+
+    .input-suffix {
+        position: absolute;
+        top: 50%;
+        right: 13px;
+        transform: translateY(-50%);
+        padding-left: 12px;
+        border-left: 1px solid var(--border);
+        color: #64748b;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .validation-message {
+        display: block;
+        margin-top: 6px;
+        color: #dc2626;
+        font-size: 13px;
+    }
+
+    .discount-type {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 13px;
+        margin-bottom: 21px;
+    }
+
+    .discount-type-button {
+        min-height: 78px;
+        padding: 13px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border: 1px solid var(--border);
+        border-radius: 13px;
+        background: #fff;
+        color: #475569;
+        text-align: left;
+        transition: all .2s ease;
+    }
+
+        .discount-type-button:hover {
+            border-color: #fdba74;
+            background: #fffaf5;
+        }
+
+        .discount-type-button.active {
+            border-color: var(--primary);
+            background: var(--primary-light);
+            box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.09);
+            color: var(--primary-dark);
+        }
+
+        .discount-type-button strong,
+        .discount-type-button small {
+            display: block;
+        }
+
+        .discount-type-button small {
+            margin-top: 3px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+    .discount-type-icon {
+        width: 40px;
+        height: 40px;
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 11px;
+        background: #f1f5f9;
+        font-size: 18px;
+        font-weight: 800;
+    }
+
+    .discount-type-button.active .discount-type-icon {
+        background: var(--primary);
+        color: #fff;
+    }
+
+    .preview-sticky {
+        position: sticky;
+        top: 20px;
+    }
+
+    .preview-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+        color: #475569;
+        font-size: 14px;
+        font-weight: 700;
+    }
+
+    .voucher-preview {
+        position: relative;
+        min-height: 278px;
+        padding: 25px;
+        overflow: hidden;
+        border-radius: 20px;
+        background: linear-gradient(135deg, #fb923c, #ea580c);
+        color: #fff;
+        box-shadow: 0 20px 40px rgba(234, 88, 12, 0.23);
+    }
+
+    .voucher-decoration {
+        position: absolute;
+        border-radius: 50%;
+        background: rgba(255,255,255,.1);
+    }
+
+    .decoration-one {
+        width: 180px;
+        height: 180px;
+        top: -85px;
+        right: -60px;
+    }
+
+    .decoration-two {
+        width: 110px;
+        height: 110px;
+        bottom: -50px;
+        left: -35px;
+    }
+
+    .voucher-preview-top,
+    .voucher-footer {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .voucher-logo {
+        width: 43px;
+        height: 43px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 13px;
+        background: rgba(255,255,255,.18);
+        font-size: 21px;
+    }
+
+    .voucher-label {
+        letter-spacing: 2px;
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .voucher-name {
+        position: relative;
+        z-index: 1;
+        margin-top: 25px;
+        font-size: 17px;
+        font-weight: 700;
+    }
+
+    .voucher-value {
+        position: relative;
+        z-index: 1;
+        margin-top: 5px;
+        font-size: 38px;
+        line-height: 1.15;
+        font-weight: 850;
+    }
+
+    .voucher-condition {
+        position: relative;
+        z-index: 1;
+        margin-top: 8px;
+        color: rgba(255,255,255,.85);
+        font-size: 13px;
+    }
+
+        .voucher-condition strong {
+            color: #fff;
+        }
+
+    .voucher-divider {
+        position: relative;
+        margin: 21px -25px 17px;
+        border-top: 1px dashed rgba(255,255,255,.45);
+    }
+
+    .voucher-footer small,
+    .voucher-footer strong {
+        display: block;
+    }
+
+    .voucher-footer small {
+        margin-bottom: 2px;
+        color: rgba(255,255,255,.72);
+        font-size: 11px;
+    }
+
+    .voucher-footer strong {
+        font-size: 12px;
+    }
+
+    .voucher-quantity {
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(255,255,255,.17);
+        font-size: 12px;
+        font-weight: 750;
+    }
+
+    .summary-card {
+        margin-top: 18px;
+        padding: 19px;
+    }
+
+        .summary-card h6 {
+            margin-bottom: 15px;
+            font-weight: 750;
+        }
+
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 15px;
+        padding: 10px 0;
+        border-bottom: 1px solid #f0f2f5;
+        color: var(--muted);
+        font-size: 13px;
+    }
+
+        .summary-row:last-child {
+            border-bottom: 0;
+        }
+
+        .summary-row strong {
+            color: var(--text);
+            text-align: right;
+        }
+
+        .summary-row .orange-text {
+            color: var(--primary-dark);
+        }
+
+    .form-actions {
+        display: grid;
+        grid-template-columns: 115px 1fr;
+        gap: 11px;
+        margin-top: 18px;
+    }
+
+    .cancel-button,
+    .save-button,
+    .retry-button {
+        min-height: 47px;
+        border-radius: 11px;
+        font-weight: 700;
+        transition: all .2s ease;
+    }
+
+    .cancel-button {
+        border: 1px solid var(--border);
+        background: #fff;
+        color: #475569;
+    }
+
+        .cancel-button:hover {
+            background: #f8fafc;
+        }
+
+    .save-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border: 0;
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        color: #fff;
+        box-shadow: 0 9px 18px rgba(249,115,22,.2);
+    }
+
+        .save-button:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 22px rgba(249,115,22,.27);
+        }
+
+        .save-button:disabled,
+        .cancel-button:disabled {
+            cursor: not-allowed;
+            opacity: .65;
+        }
+
+    .custom-alert {
+        max-width: 1400px;
+        margin: 0 auto 18px;
+        padding: 13px 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+        .custom-alert span {
+            flex: 1;
+        }
+
+        .custom-alert button {
+            border: 0;
+            background: transparent;
+            color: inherit;
+            font-size: 19px;
+        }
+
+    .alert-error {
+        border: 1px solid #fecaca;
+        background: #fef2f2;
+        color: #b91c1c;
+    }
+
+    .alert-success {
+        border: 1px solid #bbf7d0;
+        background: #f0fdf4;
+        color: #15803d;
+    }
+
+    .loading-card,
+    .error-card {
+        max-width: 1400px;
+        min-height: 240px;
+        margin: 0 auto;
+        padding: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: #fff;
+        box-shadow: 0 8px 24px rgba(15,23,42,.04);
+    }
+
+    .error-card {
+        align-items: flex-start;
+        justify-content: flex-start;
+    }
+
+        .error-card h5 {
+            margin: 0 0 6px;
+        }
+
+        .error-card p {
+            color: var(--muted);
+        }
+
+    .error-icon {
+        width: 46px;
+        height: 46px;
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 13px;
+        background: #fee2e2;
+        color: #dc2626;
+        font-size: 20px;
+    }
+
+    .retry-button {
+        padding: 0 18px;
+        border: 0;
+        background: var(--primary);
+        color: #fff;
+    }
+
+    @@media (max-width: 1050px) {
+        .form-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .preview-sticky {
+            position: static;
+        }
+
+        .preview-column {
+            max-width: 600px;
+            width: 100%;
+            margin: 0 auto;
+        }
+    }
+
+    @@media (max-width: 700px) {
+        .voucher-edit-page {
+            padding: 18px 12px;
+        }
+
+        .page-header {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+            .page-header h2 {
+                font-size: 22px;
+            }
+
+        .form-section {
+            padding: 18px;
+        }
+
+        .form-grid,
+        .discount-type {
+            grid-template-columns: 1fr;
+        }
+
+        .full-width {
+            grid-column: auto;
+        }
+
+        .form-actions {
+            grid-template-columns: 1fr;
+        }
+
+        .voucher-value {
+            font-size: 32px;
+        }
+    }
+</style>

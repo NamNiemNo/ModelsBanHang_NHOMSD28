@@ -1,0 +1,2089 @@
+﻿@page "/Admin/AddVoucher"
+@rendermode InteractiveServer
+
+@using Data.Models
+@using BlazorAdmin.Service.IService
+@using System.ComponentModel.DataAnnotations
+
+@inject IVoucherService service
+@inject IKhachHangService khachHangService
+@inject IKhachHangVoucherService khachHangVoucherService
+@inject NavigationManager manager
+
+<div class="voucher-form-page">
+
+    <!-- HEADER -->
+    <div class="page-header">
+
+        <div class="header-left">
+            <button type="button"
+                    class="back-button"
+                    @onclick="NavigateBack">
+                ←
+            </button>
+
+            <div class="header-icon">🎁</div>
+
+            <div>
+                <h2>Thêm Voucher mới</h2>
+                <p>Tạo mã giảm giá và phân phối cho khách hàng</p>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- CÁC BƯỚC -->
+    <div class="step-bar">
+
+        <div class="step-item active">
+            <span>1</span>
+            <div>
+                <strong>Thông tin Voucher</strong>
+                <small>Thời gian và giá trị giảm</small>
+            </div>
+        </div>
+
+        <div class="step-line"></div>
+
+        <div class="step-item @(Input.KhachHangIds.Any() ? "active" : "")">
+            <span>2</span>
+            <div>
+                <strong>Chọn khách hàng</strong>
+                <small>Phân phối Voucher</small>
+            </div>
+        </div>
+
+        <div class="step-line"></div>
+
+        <div class="step-item @(CanPreviewComplete ? "active" : "")">
+            <span>3</span>
+            <div>
+                <strong>Hoàn tất</strong>
+                <small>Kiểm tra và lưu</small>
+            </div>
+        </div>
+
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="global-error">
+            <span>!</span>
+
+            <div>
+                <strong>Không thể tạo Voucher</strong>
+                <small>@ErrorMessage</small>
+            </div>
+
+            <button type="button"
+                    @onclick="CloseError">
+                ×
+            </button>
+        </div>
+    }
+
+    @if (IsLoading)
+    {
+        <div class="loading-card">
+            <div class="loading-spinner"></div>
+            <strong>Đang tải danh sách khách hàng...</strong>
+        </div>
+    }
+    else
+    {
+        <EditForm Model="@Input"
+                  OnValidSubmit="@SubmitFormCreate"
+                  FormName="AddVoucherForm">
+
+            <DataAnnotationsValidator />
+
+            <div class="form-layout">
+
+                <!-- CỘT THÔNG TIN VOUCHER -->
+                <div class="main-form">
+
+                    <div class="form-card">
+
+                        <div class="card-heading">
+                            <div class="card-icon">🎟️</div>
+
+                            <div>
+                                <h4>Thông tin Voucher</h4>
+                                <p>Thiết lập tên, thời gian và số lượng</p>
+                            </div>
+                        </div>
+
+                        <div class="form-grid">
+
+                            <!-- TÊN -->
+                            <div class="form-group full-width">
+                                <label>
+                                    Tên Voucher
+                                    <span>*</span>
+                                </label>
+
+                                <div class="input-with-icon">
+                                    <span>🎟️</span>
+
+                                    <InputText class="form-control-custom"
+                                               @bind-Value="Input.TenVoucher"
+                                               placeholder="Ví dụ: Giảm giá mùa hè" />
+                                </div>
+
+                                <ValidationMessage For="@(() => Input.TenVoucher)" />
+                            </div>
+
+                            <!-- NGÀY BẮT ĐẦU -->
+                            <div class="form-group">
+                                <label>
+                                    Ngày bắt đầu
+                                    <span>*</span>
+                                </label>
+
+                                <InputDate class="form-control-custom"
+                                           @bind-Value="Input.NgayBatDau" />
+
+                                <ValidationMessage For="@(() => Input.NgayBatDau)" />
+                            </div>
+
+                            <!-- NGÀY KẾT THÚC -->
+                            <div class="form-group">
+                                <label>
+                                    Ngày kết thúc
+                                    <span>*</span>
+                                </label>
+
+                                <InputDate class="form-control-custom"
+                                           @bind-Value="Input.NgayKetThuc" />
+
+                                <ValidationMessage For="@(() => Input.NgayKetThuc)" />
+                            </div>
+
+                            <!-- SỐ LƯỢNG -->
+                            <div class="form-group full-width">
+                                <label>
+                                    Số lượng Voucher
+                                    <span>*</span>
+                                </label>
+
+                                <InputNumber class="form-control-custom"
+                                             @bind-Value="VoucherQuantity"
+                                             min="1"
+                                             placeholder="Nhập số lượng Voucher" />
+
+                                <ValidationMessage For="@(() => Input.SoLuong)" />
+
+                                <small class="field-note">
+                                    Số khách được gán không được vượt quá số lượng Voucher.
+                                </small>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <!-- GIÁ TRỊ GIẢM -->
+                    <div class="form-card">
+
+                        <div class="card-heading">
+                            <div class="card-icon discount">%</div>
+
+                            <div>
+                                <h4>Giá trị giảm</h4>
+                                <p>Chọn giảm theo phần trăm hoặc số tiền</p>
+                            </div>
+                        </div>
+
+                        <div class="discount-type">
+
+                            <button type="button"
+                                    class="discount-type-button @(IsPhanTram ? "active" : "")"
+                                    @onclick="() => DoiKieuGiamGia(true)">
+
+                                <span class="discount-type-icon">%</span>
+
+                                <div>
+                                    <strong>Giảm phần trăm</strong>
+                                    <small>Giảm theo tỷ lệ đơn hàng</small>
+                                </div>
+
+                                <i>@(IsPhanTram ? "✓" : "")</i>
+                            </button>
+
+                            <button type="button"
+                                    class="discount-type-button @(!IsPhanTram ? "active" : "")"
+                                    @onclick="() => DoiKieuGiamGia(false)">
+
+                                <span class="discount-type-icon">₫</span>
+
+                                <div>
+                                    <strong>Giảm tiền trực tiếp</strong>
+                                    <small>Trừ một số tiền cố định</small>
+                                </div>
+
+                                <i>@(!IsPhanTram ? "✓" : "")</i>
+                            </button>
+
+                        </div>
+
+                        <div class="form-grid discount-input-grid">
+
+                            <!-- GIÁ TRỊ GIẢM -->
+                            <div class="form-group full-width">
+                                <label>
+                                    @(IsPhanTram
+                                        ? "Phần trăm giảm"
+                                        : "Số tiền giảm")
+                                    <span>*</span>
+                                </label>
+
+                                <div class="money-input">
+                                    <InputNumber class="form-control-custom"
+                                                 @bind-Value="GiaTriGiam"
+                                                 min="0"
+                                                 step="1"
+                                                 placeholder="Nhập giá trị giảm" />
+
+                                    <span>
+                                        @(IsPhanTram ? "%" : "₫")
+                                    </span>
+                                </div>
+
+                                @if (IsPhanTram)
+                                {
+                                    <ValidationMessage For="@(() => Input.PhanTram)" />
+                                }
+                                else
+                                {
+                                    <ValidationMessage For="@(() => Input.SoTienGiam)" />
+                                }
+                            </div>
+
+                            <!-- ĐIỀU KIỆN TỐI THIỂU -->
+                            <div class="form-group">
+                                <label>Giá trị đơn tối thiểu</label>
+
+                                <div class="money-input">
+                                    <InputNumber class="form-control-custom"
+                                                 @bind-Value="Input.DieuKienToiThieu"
+                                                 min="0"
+                                                 step="1000" />
+
+                                    <span>₫</span>
+                                </div>
+
+                                <ValidationMessage For="@(() => Input.DieuKienToiThieu)" />
+                            </div>
+
+                            <!-- GIẢM TỐI ĐA -->
+                            <div class="form-group">
+                                <label>Giảm tối đa</label>
+
+                                <div class="money-input">
+                                    <InputNumber class="form-control-custom"
+                                                 @bind-Value="Input.GiamToiDa"
+                                                 min="0"
+                                                 step="1000" />
+
+                                    <span>₫</span>
+                                </div>
+
+                                <ValidationMessage For="@(() => Input.GiamToiDa)" />
+                            </div>
+
+                        </div>
+
+                        <div class="discount-note">
+                            <span>💡</span>
+
+                            <p>
+                                Nếu giảm theo phần trăm, mức giảm thực tế
+                                sẽ không vượt quá giá trị “Giảm tối đa”.
+                            </p>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <!-- CỘT KHÁCH HÀNG -->
+                <div class="side-content">
+
+                    <div class="customer-card">
+
+                        <div class="customer-heading">
+                            <div>
+                                <h4>Gán cho khách hàng</h4>
+                                <p>Chọn khách hàng nhận Voucher</p>
+                            </div>
+
+                            <span class="selected-count">
+                                @Input.KhachHangIds.Count/@Input.SoLuong
+                            </span>
+                        </div>
+
+                        <div class="customer-search">
+                            <span>⌕</span>
+
+                            <input placeholder="Tìm tên, email, số điện thoại..."
+                                   @bind="CustomerSearch"
+                                   @bind:event="oninput" />
+
+                            @if (!string.IsNullOrWhiteSpace(CustomerSearch))
+                            {
+                                <button type="button"
+                                        @onclick="() => CustomerSearch = string.Empty">
+                                    ×
+                                </button>
+                            }
+                        </div>
+
+                        <div class="select-all-row">
+
+                            <label>
+                                <input type="checkbox"
+                                       @bind="IsAllChecked" />
+
+                                <span class="custom-checkbox"></span>
+
+                                <div>
+                                    <strong>Chọn tối đa có thể</strong>
+
+                                    <small>
+                                        Tối đa @MaximumSelectableCustomers khách
+                                    </small>
+                                </div>
+                            </label>
+
+                            @if (Input.KhachHangIds.Any())
+                            {
+                                <button type="button"
+                                        @onclick="ClearSelectedCustomers">
+                                    Bỏ chọn
+                                </button>
+                            }
+
+                        </div>
+
+                        <!-- THANH TIẾN ĐỘ -->
+                        <div class="selection-progress">
+
+                            <div>
+                                <span>Đã phân phối</span>
+
+                                <strong>
+                                    @Input.KhachHangIds.Count /
+                                    @(Input.SoLuong <= 0 ? 0 : Input.SoLuong)
+                                </strong>
+                            </div>
+
+                            <div class="progress-track">
+                                <div class="progress-value"
+                                     style="@($"width:{SelectionPercentage}%")">
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- DANH SÁCH KHÁCH -->
+                        <div class="customer-list">
+
+                            @if (!FilteredCustomers.Any())
+                            {
+                                <div class="empty-customer">
+                                    <span>🔎</span>
+                                    <strong>Không tìm thấy khách hàng</strong>
+                                </div>
+                            }
+                            else
+                            {
+                                @foreach (var customer in FilteredCustomers)
+                                {
+                                    var isSelected =
+                                    Input.KhachHangIds.Contains(
+                                    customer.KhachHangId);
+
+                                    <label class="customer-item @(isSelected ? "selected" : "") @(!customer.TrangThai ? "disabled" : "")">
+
+                                        <input type="checkbox"
+                                               checked="@isSelected"
+                                               disabled="@(!customer.TrangThai)"
+                                               @onchange="e => ToggleKhachHang(
+                                                   customer.KhachHangId,
+                                                   e.Value is bool value && value)" />
+
+                                        <span class="customer-checkbox">
+                                            @(isSelected ? "✓" : "")
+                                        </span>
+
+                                        <span class="customer-avatar">
+                                            @GetInitials(customer.HoTen)
+                                        </span>
+
+                                        <span class="customer-details">
+                                            <strong>
+                                                @(string.IsNullOrWhiteSpace(customer.HoTen)
+                                                    ? "Khách hàng"
+                                                    : customer.HoTen)
+                                            </strong>
+
+                                            <small>
+                                                @(string.IsNullOrWhiteSpace(customer.Email)
+                                                    ? "Chưa có email"
+                                                    : customer.Email)
+                                            </small>
+
+                                            <small>
+                                                @(string.IsNullOrWhiteSpace(customer.SoDienThoai)
+                                                    ? "Chưa có số điện thoại"
+                                                    : customer.SoDienThoai)
+                                            </small>
+                                        </span>
+
+                                        @if (!customer.TrangThai)
+                                        {
+                                            <span class="inactive-label">
+                                                Đã khóa
+                                            </span>
+                                        }
+
+                                    </label>
+                                }
+                            }
+
+                        </div>
+
+                    </div>
+
+                    <!-- XEM TRƯỚC -->
+                    <div class="preview-card">
+
+                        <div class="preview-title">
+                            <span>◉</span>
+                            Xem trước Voucher
+                        </div>
+
+                        <div class="voucher-preview">
+
+                            <div class="voucher-preview-left">
+                                <span>VOUCHER</span>
+                                <strong>@DiscountDisplay</strong>
+                                <small>
+                                    Đơn tối thiểu
+                                    @Input.DieuKienToiThieu.ToString("N0") ₫
+                                </small>
+                            </div>
+
+                            <div class="voucher-preview-right">
+                                <strong>
+                                    @(string.IsNullOrWhiteSpace(Input.TenVoucher)
+                                        ? "TÊN VOUCHER"
+                                        : Input.TenVoucher)
+                                </strong>
+
+                                <small>
+                                    HSD:
+                                    @Input.NgayKetThuc.ToString("dd/MM/yyyy")
+                                </small>
+
+                                <span>
+                                    SL: @Input.SoLuong
+                                </span>
+                            </div>
+
+                        </div>
+
+                        <div class="preview-information">
+
+                            <div>
+                                <span>Thời gian</span>
+                                <strong>
+                                    @Input.NgayBatDau.ToString("dd/MM/yyyy")
+                                    -
+                                    @Input.NgayKetThuc.ToString("dd/MM/yyyy")
+                                </strong>
+                            </div>
+
+                            <div>
+                                <span>Giảm tối đa</span>
+                                <strong>
+                                    @Input.GiamToiDa.ToString("N0") ₫
+                                </strong>
+                            </div>
+
+                            <div>
+                                <span>Khách được chọn</span>
+                                <strong>
+                                    @Input.KhachHangIds.Count khách
+                                </strong>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- BUTTON -->
+            <div class="bottom-actions">
+
+                <div>
+                    <strong>Sẵn sàng tạo Voucher?</strong>
+
+                    <span>
+                        @Input.SoLuong Voucher,
+                        @Input.KhachHangIds.Count khách hàng
+                    </span>
+                </div>
+
+                <section>
+                    <button type="button"
+                            class="cancel-button"
+                            disabled="@IsSubmitting"
+                            @onclick="NavigateBack">
+                        Hủy
+                    </button>
+
+                    <button type="submit"
+                            class="save-button"
+                            disabled="@IsSubmitting">
+
+                        @if (IsSubmitting)
+                        {
+                            <span class="button-spinner"></span>
+                            <span>Đang tạo Voucher...</span>
+                        }
+                        else
+                        {
+                            <span>✓</span>
+                            <span>Tạo Voucher</span>
+                        }
+
+                    </button>
+                </section>
+
+            </div>
+
+        </EditForm>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(SuccessMessage))
+    {
+        <div class="success-toast">
+            <span>✓</span>
+
+            <div>
+                <strong>Thành công</strong>
+                <small>@SuccessMessage</small>
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+    private InputModel Input { get; set; } = new();
+
+    private bool IsPhanTram = true;
+    private bool IsLoading = true;
+    private bool IsSubmitting;
+
+    private List<KhachHang> DanhSachKhachHang = new();
+
+    private bool _isAllChecked;
+
+    private string CustomerSearch = string.Empty;
+    private string ErrorMessage = string.Empty;
+    private string SuccessMessage = string.Empty;
+
+    private float? GiaTriGiam
+    {
+        get => IsPhanTram
+            ? Input.PhanTram
+            : Input.SoTienGiam;
+
+        set
+        {
+            if (IsPhanTram)
+            {
+                Input.PhanTram = value ?? 0;
+                Input.SoTienGiam = 0;
+            }
+            else
+            {
+                Input.SoTienGiam = value ?? 0;
+                Input.PhanTram = 0;
+            }
+        }
+    }
+
+    // Dùng property này thay cho @bind-Value + @onchange.
+    private int VoucherQuantity
+    {
+        get => Input.SoLuong;
+        set
+        {
+            Input.SoLuong = Math.Max(0, value);
+
+            AdjustCustomerSelectionToQuantity();
+        }
+    }
+
+    private List<KhachHang> ActiveCustomers =>
+        DanhSachKhachHang
+            .Where(x => x.TrangThai)
+            .ToList();
+
+    private List<KhachHang> FilteredCustomers =>
+        DanhSachKhachHang
+            .Where(x =>
+                string.IsNullOrWhiteSpace(CustomerSearch)
+                || (x.HoTen ?? string.Empty)
+                    .Contains(
+                        CustomerSearch,
+                        StringComparison.OrdinalIgnoreCase)
+                || (x.Email ?? string.Empty)
+                    .Contains(
+                        CustomerSearch,
+                        StringComparison.OrdinalIgnoreCase)
+                || (x.SoDienThoai ?? string.Empty)
+                    .Contains(
+                        CustomerSearch,
+                        StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(x => x.TrangThai)
+            .ThenBy(x => x.HoTen)
+            .ToList();
+
+    private int MaximumSelectableCustomers =>
+        Math.Min(
+            Math.Max(Input.SoLuong, 0),
+            ActiveCustomers.Count);
+
+    private bool IsAllChecked
+    {
+        get
+        {
+            var maximum = MaximumSelectableCustomers;
+
+            return maximum > 0
+                   && Input.KhachHangIds.Count == maximum;
+        }
+
+        set
+        {
+            _isAllChecked = value;
+
+            ToggleAllKhachHang(value);
+        }
+    }
+
+    private int SelectionPercentage
+    {
+        get
+        {
+            if (Input.SoLuong <= 0)
+                return 0;
+
+            return Math.Min(
+                100,
+                (int)Math.Round(
+                    (double)Input.KhachHangIds.Count
+                    / Input.SoLuong
+                    * 100));
+        }
+    }
+
+    private bool CanPreviewComplete =>
+        !string.IsNullOrWhiteSpace(Input.TenVoucher)
+        && Input.SoLuong > 0
+        && GiaTriGiam > 0;
+
+    private string DiscountDisplay =>
+        IsPhanTram
+            ? $"{Input.PhanTram:N0}%"
+            : $"{Input.SoTienGiam:N0} ₫";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCustomers();
+    }
+
+    private async Task LoadCustomers()
+    {
+        try
+        {
+            IsLoading = true;
+            ErrorMessage = string.Empty;
+
+            DanhSachKhachHang =
+                (await khachHangService.GetAll())
+                .OrderBy(x => x.HoTen)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage =
+                "Không thể tải danh sách khách hàng: " + ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private void DoiKieuGiamGia(bool percentage)
+    {
+        if (IsPhanTram == percentage)
+            return;
+
+        IsPhanTram = percentage;
+
+        Input.PhanTram = 0;
+        Input.SoTienGiam = 0;
+
+        ErrorMessage = string.Empty;
+    }
+
+    private void ToggleKhachHang(
+        Guid customerId,
+        bool isChecked)
+    {
+        ErrorMessage = string.Empty;
+
+        if (isChecked)
+        {
+            if (Input.SoLuong <= 0)
+            {
+                ErrorMessage =
+                    "Vui lòng nhập số lượng Voucher trước.";
+                return;
+            }
+
+            if (Input.KhachHangIds.Count >= Input.SoLuong)
+            {
+                ErrorMessage =
+                    $"Chỉ được chọn tối đa {Input.SoLuong} khách hàng.";
+                return;
+            }
+
+            if (!Input.KhachHangIds.Contains(customerId))
+            {
+                Input.KhachHangIds.Add(customerId);
+            }
+        }
+        else
+        {
+            Input.KhachHangIds.Remove(customerId);
+        }
+
+        _isAllChecked = IsAllChecked;
+    }
+
+    private void ToggleAllKhachHang(bool isChecked)
+    {
+        ErrorMessage = string.Empty;
+
+        if (!isChecked)
+        {
+            Input.KhachHangIds.Clear();
+            return;
+        }
+
+        if (Input.SoLuong <= 0)
+        {
+            _isAllChecked = false;
+
+            ErrorMessage =
+                "Vui lòng nhập số lượng Voucher trước.";
+            return;
+        }
+
+        Input.KhachHangIds = ActiveCustomers
+            .Take(MaximumSelectableCustomers)
+            .Select(x => x.KhachHangId)
+            .ToList();
+    }
+
+    private void ClearSelectedCustomers()
+    {
+        Input.KhachHangIds.Clear();
+        _isAllChecked = false;
+    }
+
+    private void AdjustCustomerSelectionToQuantity()
+    {
+        var validIds = ActiveCustomers
+            .Select(x => x.KhachHangId)
+            .ToHashSet();
+
+        Input.KhachHangIds = Input.KhachHangIds
+            .Where(validIds.Contains)
+            .Take(Math.Max(Input.SoLuong, 0))
+            .ToList();
+
+        _isAllChecked = IsAllChecked;
+    }
+
+    private async Task SubmitFormCreate()
+    {
+        if (IsSubmitting)
+            return;
+
+        try
+        {
+            IsSubmitting = true;
+            ErrorMessage = string.Empty;
+            SuccessMessage = string.Empty;
+
+            Input.TenVoucher =
+                Input.TenVoucher?.Trim() ?? string.Empty;
+
+            if (!ValidateBusinessRules())
+                return;
+
+            var allVoucher =
+                await service.GetAll();
+
+            var exists = allVoucher.Any(x =>
+                string.Equals(
+                    x.TenVoucher?.Trim(),
+                    Input.TenVoucher,
+                    StringComparison.OrdinalIgnoreCase));
+
+            if (exists)
+            {
+                ErrorMessage =
+                    "Tên Voucher đã tồn tại.";
+                return;
+            }
+
+            var newVoucher = new Voucher
+                {
+                    VoucherId = Guid.NewGuid(),
+                    TenVoucher = Input.TenVoucher,
+                    NgayBatDau = Input.NgayBatDau,
+                    NgayKetThuc = Input.NgayKetThuc,
+                    PhanTram = Input.PhanTram,
+                    SoTienGiam = Input.SoTienGiam,
+                    GiamToiDa = Input.GiamToiDa,
+                    DieuKienToiThieu = Input.DieuKienToiThieu,
+                    TrangThai = true,
+                    SoLuong = Input.SoLuong
+                };
+
+            // Chỉ await, không gán kết quả vào bool.
+            await service.Add(newVoucher);
+
+            if (Input.KhachHangIds.Any())
+            {
+                await khachHangVoucherService.AssignMultipleAsync(
+                    newVoucher.VoucherId,
+                    Input.KhachHangIds);
+            }
+
+            SuccessMessage =
+                "Voucher đã được tạo thành công.";
+
+            await InvokeAsync(StateHasChanged);
+            await Task.Delay(700);
+
+            manager.NavigateTo("/Admin/voucher");
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage =
+                "Không thể tạo Voucher: " + ex.Message;
+        }
+        finally
+        {
+            IsSubmitting = false;
+        }
+    }
+
+    private bool ValidateBusinessRules()
+    {
+        if (string.IsNullOrWhiteSpace(Input.TenVoucher))
+        {
+            ErrorMessage =
+                "Tên Voucher không được để trống.";
+            return false;
+        }
+
+        if (Input.NgayBatDau.Date < DateTime.Today)
+        {
+            ErrorMessage =
+                "Ngày bắt đầu không được nhỏ hơn hôm nay.";
+            return false;
+        }
+
+        if (Input.NgayKetThuc <= Input.NgayBatDau)
+        {
+            ErrorMessage =
+                "Ngày kết thúc phải lớn hơn ngày bắt đầu.";
+            return false;
+        }
+
+        if (Input.SoLuong <= 0)
+        {
+            ErrorMessage =
+                "Số lượng Voucher phải lớn hơn 0.";
+            return false;
+        }
+
+        if (Input.DieuKienToiThieu < 0)
+        {
+            ErrorMessage =
+                "Điều kiện tối thiểu không hợp lệ.";
+            return false;
+        }
+
+        if (Input.GiamToiDa < 0)
+        {
+            ErrorMessage =
+                "Giảm tối đa không hợp lệ.";
+            return false;
+        }
+
+        if (IsPhanTram)
+        {
+            if (Input.PhanTram <= 0
+                || Input.PhanTram > 100)
+            {
+                ErrorMessage =
+                    "Phần trăm giảm phải từ 1 đến 100.";
+                return false;
+            }
+
+            Input.SoTienGiam = 0;
+        }
+        else
+        {
+            if (Input.SoTienGiam <= 0)
+            {
+                ErrorMessage =
+                    "Số tiền giảm phải lớn hơn 0.";
+                return false;
+            }
+
+            if (Input.GiamToiDa > 0
+                && Input.SoTienGiam > Input.GiamToiDa)
+            {
+                ErrorMessage =
+                    "Số tiền giảm không được vượt quá giảm tối đa.";
+                return false;
+            }
+
+            Input.PhanTram = 0;
+        }
+
+        if (Input.KhachHangIds.Count > Input.SoLuong)
+        {
+            ErrorMessage =
+                $"Có {Input.SoLuong} Voucher nhưng đã chọn " +
+                $"{Input.KhachHangIds.Count} khách hàng.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private void NavigateBack()
+    {
+        manager.NavigateTo("/Admin/voucher");
+    }
+
+    private void CloseError()
+    {
+        ErrorMessage = string.Empty;
+    }
+
+    private static string GetInitials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return "KH";
+
+        var words = name.Trim()
+            .Split(
+                ' ',
+                StringSplitOptions.RemoveEmptyEntries);
+
+        if (words.Length == 1)
+        {
+            return words[0][0]
+                .ToString()
+                .ToUpperInvariant();
+        }
+
+        return string.Concat(
+            words.First()[0],
+            words.Last()[0])
+            .ToUpperInvariant();
+    }
+
+    private sealed class InputModel
+    {
+        [Required(ErrorMessage = "Tên Voucher không được để trống")]
+        [StringLength(
+            100,
+            ErrorMessage = "Tên Voucher tối đa 100 ký tự")]
+        public string TenVoucher { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Ngày bắt đầu không được để trống")]
+        public DateTime NgayBatDau { get; set; } = DateTime.Today;
+
+        [Required(ErrorMessage = "Ngày kết thúc không được để trống")]
+        public DateTime NgayKetThuc { get; set; }
+            = DateTime.Today.AddDays(7);
+
+        [Range(
+            0,
+            100,
+            ErrorMessage = "Phần trăm giảm phải từ 0 đến 100")]
+        public float PhanTram { get; set; }
+
+        [Range(
+            0,
+            double.MaxValue,
+            ErrorMessage = "Số tiền giảm không hợp lệ")]
+        public float SoTienGiam { get; set; }
+
+        [Range(
+            0,
+            double.MaxValue,
+            ErrorMessage = "Giảm tối đa không hợp lệ")]
+        public float GiamToiDa { get; set; }
+
+        [Range(
+            0,
+            double.MaxValue,
+            ErrorMessage = "Điều kiện tối thiểu không hợp lệ")]
+        public float DieuKienToiThieu { get; set; }
+
+        [Range(
+            1,
+            int.MaxValue,
+            ErrorMessage = "Số lượng phải lớn hơn 0")]
+        public int SoLuong { get; set; } = 1;
+
+        public List<Guid> KhachHangIds { get; set; } = new();
+    }
+}
+
+<style>
+    .voucher-form-page {
+        --primary: #f97316;
+        --primary-dark: #ea580c;
+        --primary-light: #fff7ed;
+        --text: #172033;
+        --muted: #718096;
+        --border: #e7ebf1;
+        min-height: 100vh;
+        padding: 28px;
+        background: #f6f8fc;
+        color: var(--text);
+    }
+
+    .page-header {
+        max-width: 1250px;
+        margin: 0 auto 19px;
+    }
+
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .back-button {
+        width: 43px;
+        height: 43px;
+        flex-shrink: 0;
+        border: 1px solid var(--border);
+        border-radius: 11px;
+        background: white;
+        color: #64748b;
+        font-size: 20px;
+        cursor: pointer;
+    }
+
+    .header-icon {
+        width: 47px;
+        height: 47px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border-radius: 13px;
+        background: linear-gradient(135deg, #fb923c, #ea580c);
+        font-size: 20px;
+        box-shadow: 0 7px 18px rgba(249, 115, 22, .23);
+    }
+
+    .page-header h2 {
+        margin: 0 0 3px;
+        font-size: 24px;
+        font-weight: 800;
+    }
+
+    .page-header p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+    }
+
+    .step-bar {
+        display: flex;
+        align-items: center;
+        max-width: 1250px;
+        margin: 0 auto 19px;
+        padding: 15px 19px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: white;
+    }
+
+    .step-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #94a3b8;
+    }
+
+        .step-item > span {
+            width: 30px;
+            height: 30px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border-radius: 50%;
+            background: #f1f5f9;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .step-item strong,
+        .step-item small {
+            display: block;
+            white-space: nowrap;
+        }
+
+        .step-item strong {
+            font-size: 11px;
+        }
+
+        .step-item small {
+            margin-top: 2px;
+            font-size: 9px;
+        }
+
+        .step-item.active {
+            color: var(--primary-dark);
+        }
+
+            .step-item.active > span {
+                background: var(--primary);
+                color: white;
+            }
+
+    .step-line {
+        flex: 1;
+        height: 2px;
+        margin: 0 17px;
+        background: #e2e8f0;
+    }
+
+    .form-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 390px;
+        gap: 19px;
+        max-width: 1250px;
+        margin: auto;
+    }
+
+    .main-form,
+    .side-content {
+        min-width: 0;
+    }
+
+    .form-card,
+    .customer-card,
+    .preview-card,
+    .bottom-actions,
+    .loading-card {
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: white;
+        box-shadow: 0 7px 24px rgba(15, 23, 42, .045);
+    }
+
+    .form-card {
+        padding: 23px;
+        margin-bottom: 18px;
+    }
+
+    .card-heading {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        margin-bottom: 20px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .card-icon {
+        width: 41px;
+        height: 41px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border-radius: 11px;
+        background: var(--primary-light);
+        font-size: 17px;
+    }
+
+        .card-icon.discount {
+            color: var(--primary-dark);
+            font-weight: 800;
+        }
+
+    .card-heading h4 {
+        margin: 0 0 3px;
+        font-size: 16px;
+        font-weight: 800;
+    }
+
+    .card-heading p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 10px;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 7px;
+        color: #334155;
+        font-size: 11px;
+        font-weight: 800;
+    }
+
+        .form-group label span {
+            color: #dc2626;
+        }
+
+    .form-control-custom {
+        width: 100%;
+        min-height: 42px;
+        padding: 0 11px;
+        border: 1px solid #dce3ec;
+        border-radius: 9px;
+        outline: none;
+        background: white;
+        font-size: 11px;
+    }
+
+        .form-control-custom:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(249, 115, 22, .1);
+        }
+
+    .input-with-icon,
+    .money-input {
+        position: relative;
+    }
+
+        .input-with-icon > span {
+            position: absolute;
+            top: 50%;
+            left: 11px;
+            z-index: 1;
+            transform: translateY(-50%);
+        }
+
+        .input-with-icon .form-control-custom {
+            padding-left: 39px;
+        }
+
+        .money-input .form-control-custom {
+            padding-right: 34px;
+        }
+
+        .money-input > span {
+            position: absolute;
+            top: 50%;
+            right: 11px;
+            color: #94a3b8;
+            font-size: 11px;
+            transform: translateY(-50%);
+        }
+
+    .validation-message {
+        display: block;
+        margin-top: 5px;
+        color: #dc2626;
+        font-size: 9px;
+    }
+
+    .field-note {
+        display: block;
+        margin-top: 5px;
+        color: #94a3b8;
+        font-size: 9px;
+    }
+
+    .discount-type {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .discount-type-button {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 67px;
+        padding: 11px;
+        border: 1px solid var(--border);
+        border-radius: 11px;
+        background: white;
+        text-align: left;
+        cursor: pointer;
+    }
+
+        .discount-type-button.active {
+            border-color: #fdba74;
+            background: var(--primary-light);
+        }
+
+    .discount-type-icon {
+        width: 36px;
+        height: 36px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border-radius: 10px;
+        background: #f1f5f9;
+        color: #64748b;
+        font-weight: 800;
+    }
+
+    .discount-type-button.active .discount-type-icon {
+        background: var(--primary);
+        color: white;
+    }
+
+    .discount-type-button div {
+        flex: 1;
+    }
+
+    .discount-type-button strong,
+    .discount-type-button small {
+        display: block;
+    }
+
+    .discount-type-button strong {
+        color: #334155;
+        font-size: 10px;
+    }
+
+    .discount-type-button small {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 8px;
+    }
+
+    .discount-type-button > i {
+        width: 17px;
+        color: var(--primary-dark);
+        font-style: normal;
+        font-weight: 800;
+    }
+
+    .discount-input-grid {
+        margin-top: 16px;
+    }
+
+    .discount-note {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        margin-top: 15px;
+        padding: 11px;
+        border-radius: 9px;
+        background: #f8fafc;
+    }
+
+        .discount-note p {
+            margin: 0;
+            color: #718096;
+            font-size: 9px;
+            line-height: 1.5;
+        }
+
+    .side-content {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+    }
+
+    .customer-card,
+    .preview-card {
+        padding: 19px;
+    }
+
+    .customer-heading {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 13px;
+    }
+
+        .customer-heading h4 {
+            margin: 0 0 3px;
+            font-size: 15px;
+            font-weight: 800;
+        }
+
+        .customer-heading p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 9px;
+        }
+
+    .selected-count {
+        padding: 5px 8px;
+        border-radius: 20px;
+        background: var(--primary-light);
+        color: var(--primary-dark);
+        font-size: 9px;
+        font-weight: 800;
+    }
+
+    .customer-search {
+        position: relative;
+    }
+
+        .customer-search > span {
+            position: absolute;
+            top: 50%;
+            left: 11px;
+            color: #94a3b8;
+            font-size: 17px;
+            transform: translateY(-50%);
+        }
+
+        .customer-search input {
+            width: 100%;
+            height: 38px;
+            padding: 0 36px;
+            border: 1px solid #dce3ec;
+            border-radius: 9px;
+            outline: none;
+            font-size: 9px;
+        }
+
+            .customer-search input:focus {
+                border-color: var(--primary);
+            }
+
+        .customer-search button {
+            position: absolute;
+            top: 50%;
+            right: 8px;
+            width: 23px;
+            height: 23px;
+            padding: 0;
+            border: 0;
+            border-radius: 50%;
+            background: #f1f5f9;
+            color: #64748b;
+            transform: translateY(-50%);
+        }
+
+    .select-all-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 9px;
+        margin-top: 11px;
+        padding: 10px;
+        border-radius: 9px;
+        background: #f8fafc;
+    }
+
+        .select-all-row > label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .select-all-row input {
+            display: none;
+        }
+
+    .custom-checkbox {
+        width: 18px;
+        height: 18px;
+        border: 1px solid #cbd5e1;
+        border-radius: 5px;
+        background: white;
+    }
+
+    .select-all-row input:checked + .custom-checkbox {
+        border-color: var(--primary);
+        background: var(--primary);
+        box-shadow: inset 0 0 0 4px white;
+    }
+
+    .select-all-row strong,
+    .select-all-row small {
+        display: block;
+    }
+
+    .select-all-row strong {
+        color: #334155;
+        font-size: 9px;
+    }
+
+    .select-all-row small {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 8px;
+    }
+
+    .select-all-row > button {
+        border: 0;
+        background: transparent;
+        color: #dc2626;
+        font-size: 8px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .selection-progress {
+        margin: 12px 0;
+    }
+
+        .selection-progress > div:first-child {
+            display: flex;
+            justify-content: space-between;
+            color: #64748b;
+            font-size: 8px;
+        }
+
+    .progress-track {
+        height: 6px;
+        overflow: hidden;
+        margin-top: 6px;
+        border-radius: 20px;
+        background: #e2e8f0;
+    }
+
+    .progress-value {
+        height: 100%;
+        border-radius: 20px;
+        background: linear-gradient(90deg, #fb923c, #ea580c);
+        transition: width .25s;
+    }
+
+    .customer-list {
+        max-height: 340px;
+        overflow-y: auto;
+        padding-right: 3px;
+    }
+
+    .customer-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 7px;
+        padding: 9px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        cursor: pointer;
+        transition: .15s;
+    }
+
+        .customer-item > input {
+            display: none;
+        }
+
+        .customer-item.selected {
+            border-color: #fdba74;
+            background: var(--primary-light);
+        }
+
+        .customer-item.disabled {
+            cursor: not-allowed;
+            opacity: .55;
+        }
+
+    .customer-checkbox {
+        width: 18px;
+        height: 18px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border: 1px solid #cbd5e1;
+        border-radius: 5px;
+        background: white;
+        color: white;
+        font-size: 9px;
+        font-weight: 800;
+    }
+
+    .customer-item.selected .customer-checkbox {
+        border-color: var(--primary);
+        background: var(--primary);
+    }
+
+    .customer-avatar {
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border-radius: 9px;
+        background: #eff6ff;
+        color: #2563eb;
+        font-size: 9px;
+        font-weight: 800;
+    }
+
+    .customer-details {
+        flex: 1;
+        min-width: 0;
+    }
+
+        .customer-details strong,
+        .customer-details small {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .customer-details strong {
+            color: #334155;
+            font-size: 9px;
+        }
+
+        .customer-details small {
+            margin-top: 2px;
+            color: #94a3b8;
+            font-size: 7px;
+        }
+
+    .inactive-label {
+        color: #dc2626;
+        font-size: 7px;
+        font-weight: 800;
+    }
+
+    .empty-customer {
+        min-height: 150px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        color: #94a3b8;
+    }
+
+        .empty-customer span {
+            font-size: 25px;
+        }
+
+        .empty-customer strong {
+            font-size: 9px;
+        }
+
+    .preview-title {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 13px;
+        color: #64748b;
+        font-size: 9px;
+        font-weight: 800;
+    }
+
+    .voucher-preview {
+        position: relative;
+        display: grid;
+        grid-template-columns: 115px 1fr;
+        min-height: 105px;
+        overflow: hidden;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #fb923c, #ea580c);
+        color: white;
+    }
+
+        .voucher-preview::after {
+            position: absolute;
+            top: -30px;
+            right: -20px;
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, .08);
+            content: "";
+        }
+
+    .voucher-preview-left,
+    .voucher-preview-right {
+        position: relative;
+        z-index: 1;
+        padding: 13px;
+    }
+
+    .voucher-preview-left {
+        border-right: 1px dashed rgba(255, 255, 255, .5);
+    }
+
+        .voucher-preview-left span,
+        .voucher-preview-left strong,
+        .voucher-preview-left small,
+        .voucher-preview-right strong,
+        .voucher-preview-right small,
+        .voucher-preview-right span {
+            display: block;
+        }
+
+        .voucher-preview-left span {
+            font-size: 7px;
+            font-weight: 800;
+            letter-spacing: .7px;
+        }
+
+        .voucher-preview-left strong {
+            margin: 7px 0;
+            font-size: 18px;
+        }
+
+        .voucher-preview-left small,
+        .voucher-preview-right small {
+            font-size: 6px;
+            opacity: .85;
+        }
+
+    .voucher-preview-right strong {
+        max-width: 160px;
+        overflow: hidden;
+        font-size: 10px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .voucher-preview-right small {
+        margin-top: 7px;
+    }
+
+    .voucher-preview-right span {
+        margin-top: 7px;
+        font-size: 7px;
+        font-weight: 800;
+    }
+
+    .preview-information {
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+        margin-top: 13px;
+    }
+
+        .preview-information > div {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .preview-information span {
+            color: var(--muted);
+            font-size: 8px;
+        }
+
+        .preview-information strong {
+            color: #334155;
+            font-size: 8px;
+            text-align: right;
+        }
+
+    .bottom-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+        max-width: 1250px;
+        margin: 18px auto 0;
+        padding: 15px 19px;
+    }
+
+        .bottom-actions > div strong,
+        .bottom-actions > div span {
+            display: block;
+        }
+
+        .bottom-actions > div strong {
+            color: #334155;
+            font-size: 11px;
+        }
+
+        .bottom-actions > div span {
+            margin-top: 2px;
+            color: var(--muted);
+            font-size: 9px;
+        }
+
+        .bottom-actions section {
+            display: flex;
+            gap: 8px;
+        }
+
+    .cancel-button,
+    .save-button {
+        min-height: 40px;
+        padding: 0 15px;
+        border-radius: 9px;
+        font-size: 10px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .cancel-button {
+        border: 1px solid #dce3ec;
+        background: white;
+        color: #64748b;
+    }
+
+    .save-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        border: 0;
+        background: linear-gradient(135deg, #fb923c, #ea580c);
+        color: white;
+    }
+
+        .cancel-button:disabled,
+        .save-button:disabled {
+            cursor: not-allowed;
+            opacity: .65;
+        }
+
+    .global-error {
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        max-width: 1250px;
+        margin: 0 auto 17px;
+        padding: 12px;
+        border: 1px solid #fecaca;
+        border-radius: 10px;
+        background: #fff1f2;
+        color: #b91c1c;
+    }
+
+        .global-error > span {
+            width: 22px;
+            height: 22px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border-radius: 50%;
+            background: #dc2626;
+            color: white;
+            font-size: 10px;
+            font-weight: 800;
+        }
+
+        .global-error div {
+            flex: 1;
+        }
+
+        .global-error strong,
+        .global-error small {
+            display: block;
+        }
+
+        .global-error strong {
+            font-size: 10px;
+        }
+
+        .global-error small {
+            margin-top: 3px;
+            font-size: 9px;
+        }
+
+        .global-error button {
+            border: 0;
+            background: transparent;
+            color: #b91c1c;
+            font-size: 18px;
+        }
+
+    .loading-card {
+        max-width: 1250px;
+        min-height: 400px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        margin: auto;
+        color: #64748b;
+    }
+
+    .loading-spinner,
+    .button-spinner {
+        display: inline-block;
+        border-style: solid;
+        border-radius: 50%;
+        animation: voucher-form-spin .7s linear infinite;
+    }
+
+    .loading-spinner {
+        width: 35px;
+        height: 35px;
+        border-width: 3px;
+        border-color: #fed7aa;
+        border-top-color: var(--primary);
+    }
+
+    .button-spinner {
+        width: 13px;
+        height: 13px;
+        border-width: 2px;
+        border-color: rgba(255, 255, 255, .55);
+        border-top-color: white;
+    }
+
+    .success-toast {
+        position: fixed;
+        right: 25px;
+        bottom: 25px;
+        z-index: 4000;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 310px;
+        padding: 14px;
+        border-radius: 12px;
+        background: #059669;
+        color: white;
+        box-shadow: 0 14px 35px rgba(15, 23, 42, .22);
+    }
+
+        .success-toast > span {
+            width: 29px;
+            height: 29px;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, .18);
+            font-weight: 800;
+        }
+
+        .success-toast strong,
+        .success-toast small {
+            display: block;
+        }
+
+        .success-toast small {
+            margin-top: 2px;
+            opacity: .9;
+        }
+
+    @@keyframes voucher-form-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @@media (max-width: 1050px) {
+        .form-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .side-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+
+    @@media (max-width: 720px) {
+        .voucher-form-page {
+            padding: 16px;
+        }
+
+        .step-item small {
+            display: none;
+        }
+
+        .step-line {
+            margin: 0 8px;
+        }
+
+        .form-grid,
+        .discount-type,
+        .side-content {
+            grid-template-columns: 1fr;
+        }
+
+        .form-group.full-width {
+            grid-column: auto;
+        }
+
+        .bottom-actions {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+            .bottom-actions section {
+                width: 100%;
+            }
+
+        .cancel-button,
+        .save-button {
+            flex: 1;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .header-icon {
+            display: none;
+        }
+
+        .step-item div {
+            display: none;
+        }
+
+        .customer-list {
+            max-height: 300px;
+        }
+
+        .bottom-actions section {
+            flex-direction: column-reverse;
+        }
+
+        .success-toast {
+            right: 15px;
+            bottom: 15px;
+            left: 15px;
+            min-width: 0;
+        }
+    }
+</style>

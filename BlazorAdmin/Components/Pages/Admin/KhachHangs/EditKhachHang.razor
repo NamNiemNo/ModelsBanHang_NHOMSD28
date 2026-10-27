@@ -1,0 +1,1259 @@
+﻿@page "/AddKhachHang"
+@page "/EditKhachHang/{Id:guid}"
+
+@rendermode InteractiveServer
+
+@using Data.Models
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Forms
+@using BlazorAdmin.Service.IService
+@attribute [Authorize(Roles = "Admin")]
+@layout AdminLayout
+
+@inject IKhachHangService khachHangService
+@inject ITaiKhoanService taiKhoanService
+@inject NavigationManager manager
+
+<PageTitle>
+    @(IsEdit ? "Chỉnh sửa khách hàng" : "Thêm khách hàng")
+</PageTitle>
+
+<div class="customer-form-page">
+
+    <header class="customer-form-header">
+        <div>
+            <button type="button"
+                    class="back-button"
+                    @onclick="NavigateToCustomers">
+                <svg viewBox="0 0 24 24">
+                    <path d="m15 18-6-6 6-6" />
+                </svg>
+                Quay lại danh sách
+            </button>
+
+            <span class="form-eyebrow">
+                @(IsEdit ? "CẬP NHẬT KHÁCH HÀNG" : "TẠO KHÁCH HÀNG")
+            </span>
+
+            <h1>
+                @(IsEdit ? "Chỉnh sửa khách hàng" : "Thêm khách hàng")
+            </h1>
+
+            <p>
+                Nhập thông tin cá nhân và tài khoản đăng nhập.
+            </p>
+        </div>
+
+        <span class="form-mode">
+            <span></span>
+            @(IsEdit ? "Đang chỉnh sửa" : "Đang tạo mới")
+        </span>
+    </header>
+
+    @if (IsLoading)
+    {
+        <div class="form-loading">
+            <span class="form-spinner"></span>
+            <strong>Đang tải thông tin...</strong>
+        </div>
+    }
+    else if (_editContext != null)
+    {
+        <EditForm EditContext="_editContext"
+                  OnSubmit="SubmitForm">
+
+            <DataAnnotationsValidator />
+
+            @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+            {
+                <div class="form-error">
+                    <div>!</div>
+
+                    <span>@ErrorMessage</span>
+
+                    <button type="button"
+                            @onclick="ClearError">
+                        ×
+                    </button>
+                </div>
+            }
+
+            <div class="customer-form-grid">
+
+                <!-- Thông tin cá nhân -->
+                <section class="form-section">
+                    <div class="section-header">
+                        <span class="section-icon personal-icon">
+                            <svg viewBox="0 0 24 24">
+                                <circle cx="12" cy="8" r="4" />
+                                <path d="M4 21a8 8 0 0 1 16 0" />
+                            </svg>
+                        </span>
+
+                        <div>
+                            <h2>Thông tin cá nhân</h2>
+                            <p>Thông tin liên hệ của khách hàng.</p>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="full-name">
+                            Họ và tên <span>*</span>
+                        </label>
+
+                        <InputText id="full-name"
+                                   class="@InputClass(nameof(Input.HoTen))"
+                                   placeholder="Nhập họ và tên"
+                                   maxlength="50"
+                                   @bind-Value="Input.HoTen" />
+
+                        <ValidationMessage For="@(() => Input.HoTen)"
+                                           class="validation-message" />
+                    </div>
+
+                    <div class="two-column-fields">
+                        <div class="form-group">
+                            <label for="phone">
+                                Số điện thoại <span>*</span>
+                            </label>
+
+                            <InputText id="phone"
+                                       class="@InputClass(nameof(Input.SoDienThoai))"
+                                       placeholder="Ví dụ: 0912345678"
+                                       maxlength="10"
+                                       @bind-Value="Input.SoDienThoai" />
+
+                            <ValidationMessage For="@(() => Input.SoDienThoai)"
+                                               class="validation-message" />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="birthday">
+                                Ngày sinh <span>*</span>
+                            </label>
+
+                            <InputDate id="birthday"
+                                       class="@InputClass(nameof(Input.NgaySinh))"
+                                       max="@MaxBirthDate"
+                                       @bind-Value="Input.NgaySinh" />
+
+                            <ValidationMessage For="@(() => Input.NgaySinh)"
+                                               class="validation-message" />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email">
+                            Email <span>*</span>
+                        </label>
+
+                        <InputText id="email"
+                                   class="@InputClass(nameof(Input.Email))"
+                                   placeholder="Ví dụ: customer@gmail.com"
+                                   maxlength="100"
+                                   @bind-Value="Input.Email" />
+
+                        <ValidationMessage For="@(() => Input.Email)"
+                                           class="validation-message" />
+                    </div>
+
+                    @if (IsEdit)
+                    {
+                        <div class="status-card">
+                            <div>
+                                <strong>Trạng thái khách hàng</strong>
+                                <small>
+                                    @(Input.TrangThai
+                                        ? "Khách hàng đang hoạt động"
+                                        : "Khách hàng đã ngừng hoạt động")
+                                </small>
+                            </div>
+
+                            <label class="customer-switch">
+                                <InputCheckbox @bind-Value="Input.TrangThai" />
+                                <span></span>
+                            </label>
+                        </div>
+                    }
+                </section>
+
+                <!-- Tài khoản -->
+                <section class="form-section">
+                    <div class="section-header">
+                        <span class="section-icon account-icon">
+                            <svg viewBox="0 0 24 24">
+                                <rect x="4" y="10" width="16" height="11" rx="2" />
+                                <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+                            </svg>
+                        </span>
+
+                        <div>
+                            <h2>Thông tin tài khoản</h2>
+                            <p>Tài khoản dùng để đăng nhập hệ thống.</p>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="username">
+                            Tên tài khoản <span>*</span>
+                        </label>
+
+                        <InputText id="username"
+                                   class="@InputClass(nameof(Input.UserName))"
+                                   placeholder="Nhập tên tài khoản"
+                                   maxlength="30"
+                                   @bind-Value="Input.UserName" />
+
+                        <ValidationMessage For="@(() => Input.UserName)"
+                                           class="validation-message" />
+
+                        <small class="help-text">
+                            Chỉ chứa chữ, số và dấu gạch dưới.
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">
+                            @(IsEdit ? "Mật khẩu mới" : "Mật khẩu")
+                            @if (!IsEdit)
+                            {
+                                <span>*</span>
+                            }
+                        </label>
+
+                        <div class="password-input">
+                            <InputText id="password"
+                                       type="@(ShowPassword ? "text" : "password")"
+                                       class="@InputClass(nameof(Input.Password))"
+                                       placeholder="@(IsEdit ? "Để trống nếu không đổi" : "Nhập mật khẩu")"
+                                       @bind-Value="Input.Password" />
+
+                            <button type="button"
+                                    title="Hiện hoặc ẩn mật khẩu"
+                                    @onclick="TogglePassword">
+                                @if (ShowPassword)
+                                {
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M3 12s3-5 9-5 9 5 9 5-3 5-9 5-9-5-9-5Z" />
+                                        <circle cx="12" cy="12" r="2" />
+                                        <path d="m4 4 16 16" />
+                                    </svg>
+                                }
+                                else
+                                {
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M3 12s3-5 9-5 9 5 9 5-3 5-9 5-9-5-9-5Z" />
+                                        <circle cx="12" cy="12" r="2" />
+                                    </svg>
+                                }
+                            </button>
+                        </div>
+
+                        <ValidationMessage For="@(() => Input.Password)"
+                                           class="validation-message" />
+
+                        <small class="help-text">
+                            Tối thiểu 6 ký tự, bao gồm chữ và số.
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="confirm-password">
+                            Xác nhận mật khẩu
+                            @if (!IsEdit)
+                            {
+                                <span>*</span>
+                            }
+                        </label>
+
+                        <div class="password-input">
+                            <InputText id="confirm-password"
+                                       type="@(ShowPassword ? "text" : "password")"
+                                       class="@InputClass(nameof(Input.ConfirmPassword))"
+                                       placeholder="Nhập lại mật khẩu"
+                                       @bind-Value="Input.ConfirmPassword" />
+
+                            <button type="button"
+                                    @onclick="TogglePassword">
+                                <svg viewBox="0 0 24 24">
+                                    <path d="M3 12s3-5 9-5 9 5 9 5-3 5-9 5-9-5-9-5Z" />
+                                    <circle cx="12" cy="12" r="2" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <ValidationMessage For="@(() => Input.ConfirmPassword)"
+                                           class="validation-message" />
+                    </div>
+
+                    <div class="account-note">
+                        <svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="9" />
+                            <path d="M12 11v5M12 8h.01" />
+                        </svg>
+
+                        <span>
+                            Mật khẩu nên được mã hóa tại API trước khi lưu vào cơ sở dữ liệu.
+                        </span>
+                    </div>
+                </section>
+            </div>
+
+            <footer class="form-actions">
+                <div>
+                    <span>
+                        @(IsEdit ? "Cập nhật khách hàng" : "Tạo khách hàng mới")
+                    </span>
+
+                    <strong>
+                        Kiểm tra kỹ thông tin trước khi lưu
+                    </strong>
+                </div>
+
+                <section>
+                    <button type="button"
+                            class="cancel-button"
+                            disabled="@IsSaving"
+                            @onclick="NavigateToCustomers">
+                        Hủy thay đổi
+                    </button>
+
+                    <button type="submit"
+                            class="save-button"
+                            disabled="@IsSaving">
+                        @if (IsSaving)
+                        {
+                            <span class="button-spinner"></span>
+                            <span>Đang lưu...</span>
+                        }
+                        else
+                        {
+                            <svg viewBox="0 0 24 24">
+                                <path d="M5 4h12l2 2v14H5z" />
+                                <path d="M8 4v6h8V4M8 20v-6h8v6" />
+                            </svg>
+
+                            <span>
+                                @(IsEdit ? "Lưu thay đổi" : "Tạo khách hàng")
+                            </span>
+                        }
+                    </button>
+                </section>
+            </footer>
+        </EditForm>
+    }
+</div>
+
+<style>
+    .customer-form-page,
+    .customer-form-page * {
+        box-sizing: border-box;
+    }
+
+    .customer-form-page {
+        --primary: #f97316;
+        --primary-dark: #ea580c;
+        --text-dark: #0f172a;
+        --muted: #64748b;
+        --border: #e8edf3;
+        min-height: 100vh;
+        padding: 28px;
+        padding-bottom: 100px;
+        background: #f6f8fb;
+        color: var(--text-dark);
+    }
+
+    .customer-form-header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 22px;
+    }
+
+    .back-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin-bottom: 11px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+        .back-button svg {
+            width: 15px;
+            height: 15px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+        }
+
+    .form-eyebrow {
+        display: block;
+        margin-bottom: 5px;
+        color: var(--primary-dark);
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: .14em;
+    }
+
+    .customer-form-header h1 {
+        margin: 0;
+        color: var(--text-dark);
+        font-size: 29px;
+        font-weight: 800;
+        letter-spacing: -.03em;
+    }
+
+    .customer-form-header p {
+        margin: 7px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+    }
+
+    .form-mode {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 8px 12px;
+        border: 1px solid #fed7aa;
+        border-radius: 999px;
+        background: #fff7ed;
+        color: #c2410c;
+        font-size: 9px;
+        font-weight: 800;
+    }
+
+        .form-mode > span {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #f97316;
+        }
+
+    .customer-form-grid {
+        display: grid;
+        grid-template-columns: repeat(2,minmax(0,1fr));
+        gap: 18px;
+    }
+
+    .form-section {
+        padding: 22px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: #fff;
+        box-shadow: 0 6px 25px rgba(15,23,42,.04);
+    }
+
+    .section-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #edf1f5;
+    }
+
+    .section-icon {
+        display: grid;
+        flex: 0 0 42px;
+        width: 42px;
+        height: 42px;
+        place-items: center;
+        border-radius: 12px;
+        color: #fff;
+    }
+
+    .personal-icon {
+        background: #6366f1;
+    }
+
+    .account-icon {
+        background: #f97316;
+    }
+
+    .section-icon svg {
+        width: 20px;
+        height: 20px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+    }
+
+    .section-header h2 {
+        margin: 0;
+        color: #1e293b;
+        font-size: 14px;
+        font-weight: 800;
+    }
+
+    .section-header p {
+        margin: 4px 0 0;
+        color: #94a3b8;
+        font-size: 9px;
+    }
+
+    .form-group {
+        margin-bottom: 17px;
+    }
+
+        .form-group > label {
+            display: block;
+            margin-bottom: 7px;
+            color: #334155;
+            font-size: 10px;
+            font-weight: 800;
+        }
+
+        .form-group label span {
+            color: #ef4444;
+        }
+
+    .form-control-custom {
+        width: 100%;
+        height: 43px;
+        padding: 0 13px;
+        border: 1px solid #dce3ec;
+        border-radius: 10px;
+        outline: none;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 11px;
+    }
+
+        .form-control-custom:focus {
+            border-color: #fb923c;
+            background: #fff;
+            box-shadow: 0 0 0 4px rgba(249,115,22,.1);
+        }
+
+        .form-control-custom.invalid {
+            border-color: #ef4444;
+            background: #fffafa;
+        }
+
+    .two-column-fields {
+        display: grid;
+        grid-template-columns: repeat(2,minmax(0,1fr));
+        gap: 12px;
+    }
+
+    .validation-message {
+        display: block;
+        margin-top: 6px;
+        color: #dc2626;
+        font-size: 9px;
+    }
+
+    .help-text {
+        display: block;
+        margin-top: 6px;
+        color: #94a3b8;
+        font-size: 8px;
+    }
+
+    .password-input {
+        position: relative;
+    }
+
+        .password-input .form-control-custom {
+            padding-right: 43px;
+        }
+
+        .password-input button {
+            position: absolute;
+            top: 50%;
+            right: 8px;
+            display: grid;
+            width: 29px;
+            height: 29px;
+            padding: 0;
+            transform: translateY(-50%);
+            place-items: center;
+            border: 0;
+            border-radius: 7px;
+            background: transparent;
+            color: #94a3b8;
+            cursor: pointer;
+        }
+
+            .password-input button:hover {
+                background: #eef2f7;
+                color: #475569;
+            }
+
+        .password-input svg {
+            width: 16px;
+            height: 16px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+        }
+
+    .status-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-radius: 11px;
+        background: #f8fafc;
+    }
+
+        .status-card strong,
+        .status-card small {
+            display: block;
+        }
+
+        .status-card strong {
+            color: #334155;
+            font-size: 10px;
+        }
+
+        .status-card small {
+            margin-top: 4px;
+            color: #94a3b8;
+            font-size: 8px;
+        }
+
+    .customer-switch {
+        position: relative;
+        width: 46px;
+        height: 25px;
+    }
+
+        .customer-switch input {
+            width: 0;
+            height: 0;
+            opacity: 0;
+        }
+
+        .customer-switch > span {
+            position: absolute;
+            inset: 0;
+            border-radius: 999px;
+            background: #cbd5e1;
+            cursor: pointer;
+        }
+
+            .customer-switch > span::before {
+                position: absolute;
+                bottom: 3px;
+                left: 3px;
+                width: 19px;
+                height: 19px;
+                border-radius: 50%;
+                background: #fff;
+                content: "";
+                transition: .2s;
+            }
+
+        .customer-switch input:checked + span {
+            background: #22c55e;
+        }
+
+            .customer-switch input:checked + span::before {
+                transform: translateX(21px);
+            }
+
+    .account-note {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 11px;
+        border: 1px solid #bae6fd;
+        border-radius: 9px;
+        background: #f0f9ff;
+        color: #0369a1;
+        font-size: 8px;
+        line-height: 1.5;
+    }
+
+        .account-note svg {
+            flex: 0 0 16px;
+            width: 16px;
+            height: 16px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+        }
+
+    .form-error {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 17px;
+        padding: 12px;
+        border: 1px solid #fecaca;
+        border-radius: 10px;
+        background: #fef2f2;
+        color: #b91c1c;
+        font-size: 9px;
+    }
+
+        .form-error > div {
+            display: grid;
+            width: 30px;
+            height: 30px;
+            place-items: center;
+            border-radius: 8px;
+            background: #fee2e2;
+            font-weight: 900;
+        }
+
+        .form-error > span {
+            flex: 1;
+        }
+
+        .form-error > button {
+            border: 0;
+            background: transparent;
+            color: #b91c1c;
+            font-size: 18px;
+            cursor: pointer;
+        }
+
+    .form-actions {
+        position: sticky;
+        bottom: 14px;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        margin-top: 18px;
+        padding: 13px 16px;
+        border: 1px solid #e2e8f0;
+        border-radius: 13px;
+        background: rgba(255,255,255,.96);
+        box-shadow: 0 12px 35px rgba(15,23,42,.14);
+        backdrop-filter: blur(8px);
+    }
+
+        .form-actions > div span,
+        .form-actions > div strong {
+            display: block;
+        }
+
+        .form-actions > div span {
+            color: #94a3b8;
+            font-size: 8px;
+        }
+
+        .form-actions > div strong {
+            margin-top: 4px;
+            color: #334155;
+            font-size: 10px;
+        }
+
+        .form-actions > section {
+            display: flex;
+            gap: 8px;
+        }
+
+    .cancel-button,
+    .save-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        min-height: 40px;
+        padding: 0 16px;
+        border-radius: 9px;
+        font-size: 9px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .cancel-button {
+        border: 1px solid #dce3ec;
+        background: #fff;
+        color: #64748b;
+    }
+
+    .save-button {
+        border: 0;
+        background: #f97316;
+        color: #fff;
+        box-shadow: 0 5px 13px rgba(249,115,22,.22);
+    }
+
+        .save-button svg {
+            width: 15px;
+            height: 15px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+        }
+
+        .cancel-button:disabled,
+        .save-button:disabled {
+            opacity: .6;
+            cursor: wait;
+        }
+
+    .button-spinner,
+    .form-spinner {
+        border: 3px solid #ffedd5;
+        border-top-color: #f97316;
+        border-radius: 50%;
+        animation: formSpin .8s linear infinite;
+    }
+
+    .button-spinner {
+        width: 14px;
+        height: 14px;
+        border-width: 2px;
+        border-color: rgba(255,255,255,.45);
+        border-top-color: #fff;
+    }
+
+    .form-loading {
+        display: flex;
+        min-height: 420px;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: #fff;
+    }
+
+    .form-spinner {
+        width: 40px;
+        height: 40px;
+        margin-bottom: 12px;
+    }
+
+    @@keyframes formSpin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @@media (max-width: 900px) {
+        .customer-form-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @@media (max-width: 600px) {
+        .customer-form-page {
+            padding: 16px 12px 100px;
+        }
+
+        .customer-form-header,
+        .form-actions {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .two-column-fields {
+            grid-template-columns: 1fr;
+        }
+
+        .form-actions > section {
+            width: 100%;
+        }
+
+        .cancel-button,
+        .save-button {
+            flex: 1;
+        }
+    }
+</style>
+
+@code {
+    [Parameter]
+    public Guid? Id { get; set; }
+
+    private InputModel Input { get; set; } = new();
+
+    private EditContext? _editContext;
+    private ValidationMessageStore? _messageStore;
+
+    private KhachHang? CurrentCustomer;
+
+    private bool IsLoading = true;
+    private bool IsSaving;
+    private bool ShowPassword;
+
+    private string ErrorMessage = string.Empty;
+
+    private bool IsEdit => Id.HasValue;
+
+    private string MaxBirthDate =>
+        DateTime.Today.AddYears(-18).ToString("yyyy-MM-dd");
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadFormAsync();
+    }
+
+    private async Task LoadFormAsync()
+    {
+        IsLoading = true;
+        ErrorMessage = string.Empty;
+
+        try
+        {
+            if (IsEdit)
+            {
+                CurrentCustomer =
+                    await khachHangService.GetById(Id!.Value);
+
+                if (CurrentCustomer == null)
+                {
+                    ErrorMessage = "Không tìm thấy khách hàng.";
+                    return;
+                }
+
+                Input = new InputModel
+                    {
+                        HoTen = CurrentCustomer.HoTen ?? string.Empty,
+                        Email = CurrentCustomer.Email ?? string.Empty,
+                        SoDienThoai = CurrentCustomer.SoDienThoai ?? string.Empty,
+                        NgaySinh = CurrentCustomer.NgaySinh,
+                        UserName = CurrentCustomer.TaiKhoan?.Username ?? string.Empty,
+                        TrangThai = CurrentCustomer.TrangThai
+                    };
+            }
+            else
+            {
+                Input = new InputModel
+                    {
+                        TrangThai = true
+                    };
+            }
+
+            _editContext = new EditContext(Input);
+            _messageStore = new ValidationMessageStore(_editContext);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Không thể tải dữ liệu: " + ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task SubmitForm()
+    {
+        if (_editContext == null || _messageStore == null || IsSaving)
+        {
+            return;
+        }
+
+        _messageStore.Clear();
+        _editContext.NotifyValidationStateChanged();
+
+        var annotationsValid = _editContext.Validate();
+
+        Input.HoTen = Input.HoTen.Trim();
+        Input.Email = Input.Email.Trim();
+        Input.SoDienThoai = Input.SoDienThoai.Trim();
+        Input.UserName = Input.UserName.Trim();
+
+        var hasCustomError = ValidateCustomFields();
+
+        if (!annotationsValid || hasCustomError)
+        {
+            _editContext.NotifyValidationStateChanged();
+            return;
+        }
+
+        IsSaving = true;
+        ErrorMessage = string.Empty;
+
+        try
+        {
+            var allCustomers =
+                await khachHangService.GetAll()
+                ?? new List<KhachHang>();
+
+            var currentId =
+                CurrentCustomer?.KhachHangId
+                ?? Guid.Empty;
+
+            if (allCustomers.Any(x =>
+                x.KhachHangId != currentId &&
+                string.Equals(
+                    x.Email?.Trim(),
+                    Input.Email,
+                    StringComparison.OrdinalIgnoreCase)))
+            {
+                AddError(nameof(Input.Email), "Email đã tồn tại.");
+                return;
+            }
+
+            if (allCustomers.Any(x =>
+                x.KhachHangId != currentId &&
+                x.SoDienThoai == Input.SoDienThoai))
+            {
+                AddError(
+                    nameof(Input.SoDienThoai),
+                    "Số điện thoại đã tồn tại.");
+
+                return;
+            }
+
+            var existingAccount =
+                await taiKhoanService.GetByUsernameAsync(Input.UserName);
+
+            var currentAccountId =
+                CurrentCustomer?.TaiKhoanId;
+
+            if (existingAccount != null &&
+                existingAccount.TaikhoanId != currentAccountId)
+            {
+                AddError(
+                    nameof(Input.UserName),
+                    "Tên đăng nhập đã tồn tại.");
+
+                return;
+            }
+
+            if (IsEdit)
+            {
+                await UpdateCustomerAsync();
+            }
+            else
+            {
+                await CreateCustomerAsync();
+            }
+
+            manager.NavigateTo("/KhachHang");
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Đã xảy ra lỗi: " + ex.Message;
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+    private bool ValidateCustomFields()
+    {
+        var hasError = false;
+
+        if (!Input.NgaySinh.HasValue ||
+            Input.NgaySinh.Value > DateTime.Today.AddYears(-18))
+        {
+            AddError(
+                nameof(Input.NgaySinh),
+                "Khách hàng phải đủ 18 tuổi.");
+
+            hasError = true;
+        }
+
+        if (!IsEdit && string.IsNullOrWhiteSpace(Input.Password))
+        {
+            AddError(
+                nameof(Input.Password),
+                "Mật khẩu không được để trống.");
+
+            hasError = true;
+        }
+
+        if (!IsEdit && string.IsNullOrWhiteSpace(Input.ConfirmPassword))
+        {
+            AddError(
+                nameof(Input.ConfirmPassword),
+                "Chưa nhập xác nhận mật khẩu.");
+
+            hasError = true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(Input.Password))
+        {
+            if (Input.Password.Length < 6 ||
+                !Input.Password.Any(char.IsLetter) ||
+                !Input.Password.Any(char.IsDigit))
+            {
+                AddError(
+                    nameof(Input.Password),
+                    "Mật khẩu tối thiểu 6 ký tự, gồm chữ và số.");
+
+                hasError = true;
+            }
+
+            if (Input.Password != Input.ConfirmPassword)
+            {
+                AddError(
+                    nameof(Input.ConfirmPassword),
+                    "Mật khẩu xác nhận không khớp.");
+
+                hasError = true;
+            }
+        }
+
+        return hasError;
+    }
+
+    private async Task CreateCustomerAsync()
+    {
+        var account = new TaiKhoan
+            {
+                TaikhoanId = Guid.NewGuid(),
+                Username = Input.UserName,
+                Password = Input.Password,
+                Ngaytaotaikhoan = DateTime.Now
+            };
+
+        await taiKhoanService.CreateTaiKhoanAsync(account);
+
+        var customer = new KhachHang
+            {
+                HoTen = Input.HoTen,
+                Email = Input.Email,
+                SoDienThoai = Input.SoDienThoai,
+                NgaySinh = Input.NgaySinh,
+                TaiKhoanId = account.TaikhoanId,
+                TrangThai = true,
+                NgayTao = DateTime.Now,
+                NgayCapNhatCuoiCung = DateTime.Now
+            };
+
+        await khachHangService.Create(customer);
+    }
+
+    private async Task UpdateCustomerAsync()
+    {
+        if (CurrentCustomer == null)
+        {
+            throw new InvalidOperationException(
+                "Không tìm thấy khách hàng cần cập nhật.");
+        }
+
+        CurrentCustomer.HoTen = Input.HoTen;
+        CurrentCustomer.Email = Input.Email;
+        CurrentCustomer.SoDienThoai = Input.SoDienThoai;
+        CurrentCustomer.NgaySinh = Input.NgaySinh;
+        CurrentCustomer.TrangThai = Input.TrangThai;
+        CurrentCustomer.NgayCapNhatCuoiCung = DateTime.Now;
+
+        if (CurrentCustomer.TaiKhoan == null)
+        {
+            var account = new TaiKhoan
+                {
+                    TaikhoanId = Guid.NewGuid(),
+                    Username = Input.UserName,
+                    Password = Input.Password,
+                    Ngaytaotaikhoan = DateTime.Now
+                };
+
+            await taiKhoanService.CreateTaiKhoanAsync(account);
+
+            CurrentCustomer.TaiKhoan = account;
+            CurrentCustomer.TaiKhoanId = account.TaikhoanId;
+        }
+        else
+        {
+            CurrentCustomer.TaiKhoan.Username = Input.UserName;
+
+            if (!string.IsNullOrWhiteSpace(Input.Password))
+            {
+                CurrentCustomer.TaiKhoan.Password = Input.Password;
+            }
+
+            await taiKhoanService.UpdateTaiKhoanAsync(
+                CurrentCustomer.TaiKhoan);
+        }
+
+        await khachHangService.Update(CurrentCustomer);
+    }
+
+    private void AddError(string fieldName, string message)
+    {
+        if (_messageStore == null)
+        {
+            return;
+        }
+
+        _messageStore.Add(
+            new FieldIdentifier(Input, fieldName),
+            message);
+
+        _editContext?.NotifyValidationStateChanged();
+    }
+
+    private string InputClass(string fieldName)
+    {
+        if (_editContext == null)
+        {
+            return "form-control-custom";
+        }
+
+        var hasError = _editContext
+            .GetValidationMessages(
+                new FieldIdentifier(Input, fieldName))
+            .Any();
+
+        return hasError
+            ? "form-control-custom invalid"
+            : "form-control-custom";
+    }
+
+    private void TogglePassword()
+    {
+        ShowPassword = !ShowPassword;
+    }
+
+    private void ClearError()
+    {
+        ErrorMessage = string.Empty;
+    }
+
+    private void NavigateToCustomers()
+    {
+        manager.NavigateTo("/KhachHang");
+    }
+
+    private sealed class InputModel
+    {
+        [Required(ErrorMessage = "Chưa nhập họ tên.")]
+        [StringLength(50, ErrorMessage = "Họ tên tối đa 50 ký tự.")]
+        [RegularExpression(
+            @"^[a-zA-ZÀ-ỹ\s]+$",
+            ErrorMessage = "Họ tên chỉ chứa chữ cái và khoảng trắng.")]
+        public string HoTen { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Chưa nhập email.")]
+        [EmailAddress(ErrorMessage = "Email không đúng định dạng.")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Chưa nhập số điện thoại.")]
+        [RegularExpression(
+            @"^(09|03)\d{8}$",
+            ErrorMessage = "Số điện thoại phải bắt đầu bằng 09 hoặc 03 và đủ 10 số.")]
+        public string SoDienThoai { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Chưa chọn ngày sinh.")]
+        public DateTime? NgaySinh { get; set; }
+
+        [Required(ErrorMessage = "Tên đăng nhập không được để trống.")]
+        [MinLength(5, ErrorMessage = "Tên đăng nhập tối thiểu 5 ký tự.")]
+        [MaxLength(30, ErrorMessage = "Tên đăng nhập tối đa 30 ký tự.")]
+        [RegularExpression(
+            @"^[a-zA-Z0-9_]+$",
+            ErrorMessage = "Tên đăng nhập chỉ chứa chữ, số và dấu gạch dưới.")]
+        public string UserName { get; set; } = string.Empty;
+
+        public string Password { get; set; } = string.Empty;
+
+        public string ConfirmPassword { get; set; } = string.Empty;
+
+        public bool TrangThai { get; set; } = true;
+    }
+}

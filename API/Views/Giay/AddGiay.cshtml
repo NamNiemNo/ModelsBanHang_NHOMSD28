@@ -1,0 +1,142 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Danh sách sản phẩm</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .status-badge {
+          background-color: #d4f5ec;
+          color: #1aa179;
+          padding: 4px 12px;
+          border-radius: 20px;
+          font-size: 13px;
+        }
+        .icon-btn {
+          color: #f26522;
+          font-size: 18px;
+          cursor: pointer;
+        }
+        .table > tbody > tr > td {
+          vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h4>Sản phẩm</h4>
+
+        <!-- Thanh tìm kiếm và bộ lọc -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <input type="text" class="form-control" placeholder="Nhập tên sản phẩm để tìm..." style="width: 300px;">
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="statusFilter" id="all" checked>
+                    <label class="form-check-label" for="all">Tất cả</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="statusFilter" id="selling">
+                    <label class="form-check-label" for="selling">Đang bán</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="statusFilter" id="stopped">
+                    <label class="form-check-label" for="stopped">Ngừng bán</label>
+                </div>
+                <button class="btn btn-outline-warning ms-2">Export Excel</button>
+            </div>
+
+            <a href="#" class="btn btn-outline-danger">+ Thêm mới</a>
+        </div>
+
+        <!-- Bảng sản phẩm -->
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th>STT</th>
+                        <th>Tên sản phẩm</th>
+                        <th>Ngày thêm</th>
+                        <th>Số lượng</th>
+                        <th>Trạng thái</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td>Puma 2023</td>
+                        <td>20-12-2023</td>
+                        <td>6</td>
+                        <td><span class="status-badge">Đang bán</span></td>
+                        <td><span class="icon-btn">👁️</span></td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td>Converse Venom</td>
+                        <td>20-12-2023</td>
+                        <td>8</td>
+                        <td><span class="status-badge">Đang bán</span></td>
+                        <td><span class="icon-btn">👁️</span></td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td>Rebound Puma V6</td>
+                        <td>20-12-2023</td>
+                        <td>4</td>
+                        <td><span class="status-badge">Đang bán</span></td>
+                        <td><span class="icon-btn">👁️</span></td>
+                    </tr>
+                    <tr>
+                        <td>4</td>
+                        <td>Nike Dunk 2022</td>
+                        <td>20-12-2023</td>
+                        <td>9</td>
+                        <td><span class="status-badge">Đang bán</span></td>
+                        <td><span class="icon-btn">👁️</span></td>
+                    </tr>
+                    <tr>
+                        <td>5</td>
+                        <td>Balenciaga Grey 2023</td>
+                        <td>20-12-2023</td>
+                        <td>9</td>
+                        <td><span class="status-badge">Đang bán</span></td>
+                        <td><span class="icon-btn">👁️</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Phân trang -->
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <div>
+                <label for="perPage">Xem</label>
+                <select id="perPage" class="form-select d-inline-block" style="width: auto;">
+                    <option>5</option>
+                    <option>10</option>
+                    <option>20</option>
+                </select>
+                sản phẩm
+            </div>
+            <nav>
+                <ul class="pagination mb-0">
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#">‹</a>
+                    </li>
+                    <li class="page-item active">
+                        <a class="page-link" href="#">1</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="#">2</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="#">›</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,243 @@
+﻿/* Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Background image from user */
+body {
+    font-family: Arial, sans-serif;
+    background: url('../img/bg.png') no-repeat center center fixed;
+    background-size: cover;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.signup-container {
+    background-color: rgba(255, 255, 255, 0.95);
+    padding: 40px;
+    border-radius: 8px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.text-box{
+    margin-bottom:10px;
+}
+.signup-form h2 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #005c73;
+}
+
+.name-fields {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+    .name-fields input {
+        width: 50%;
+    }
+
+.signup-form input[type="text"],
+.signup-form input[type="email"],
+.signup-form input[type="password"] {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #aaa;
+    border-radius: 4px;
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+
+    .checkbox-container input {
+        margin-right: 10px;
+    }
+
+    .checkbox-container a {
+        color: #005c73;
+        text-decoration: none;
+    }
+
+button[type="submit"] {
+    width: 100%;
+    padding: 12px;
+    background-color: #005c73;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+    button[type="submit"]:hover {
+        background-color: #00485d;
+    }
+
+@keyframes shake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-5px);
+    }
+
+    50% {
+        transform: translateX(5px);
+    }
+
+    75% {
+        transform: translateX(-5px);
+    }
+}
+
+.shake {
+    animation: shake 0.3s ease;
+}
+/* Fade-in animation on load */
+.signup-container {
+    animation: fadeInUp 0.8s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Smooth input focus animation */
+.signup-form input:focus {
+    border-color: #005c73;
+    box-shadow: 0 0 5px rgba(0, 92, 115, 0.5);
+    transition: all 0.3s ease;
+}
+
+/* Pulse effect on submit button hover */
+button[type="submit"]:hover {
+    animation: pulse 0.6s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Success animation */
+.success-message {
+    text-align: center;
+    font-size: 18px;
+    color: green;
+    animation: popFade 0.5s ease-out forwards;
+    margin-top: 20px;
+}
+
+@keyframes popFade {
+    from {
+        opacity: 0;
+        transform: scale(0.5);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.switch-link {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 14px;
+    color: #333;
+    font-family: Arial, sans-serif;
+}
+
+    .switch-link a {
+        color: #005c73;
+        text-decoration: none;
+        font-weight: bold;
+    }
+
+        .switch-link a:hover {
+            text-decoration: underline;
+        }
+
+.login-redirect {
+    text-align: center;
+    margin-top: 15px;
+    font-size: 14px;
+}
+
+    .login-redirect a {
+        color: #007BFF;
+        text-decoration: none;
+    }
+
+        .login-redirect a:hover {
+            text-decoration: underline;
+        }
+
+.login-text {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 12px 20px;
+    border: 1px solid #ccc;
+    border-radius: 999px;
+    background-color: white;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    font-size: 16px;
+    font-family: sans-serif;
+}
+
+
+.password-wrapper {
+    position: relative;
+}
+
+.password-input {
+    padding-right: 40px;
+}
+
+.toggle-password {
+    position: absolute;
+    top: 50%;
+    right: 15px;
+    transform: translateY(-50%);
+    cursor: pointer;
+    font-size: 18px;
+    z-index: 2;
+    color: #555;
+    user-select: none;
+}
+
+    .toggle-password:hover {
+        color: #000;
+    }
+

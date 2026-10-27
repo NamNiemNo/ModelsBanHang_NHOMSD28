@@ -1,0 +1,818 @@
+﻿@using API.Models.DTO.ChatAI
+@using BlazorClient.Services
+@using BlazorKhachHang.Service.IService
+
+@inject IChatAIClientService ChatClient
+@inject IJSRuntime JS
+@inject HttpClient Http
+
+<link href="/css/AIChatBox.css" rel="stylesheet" />
+
+<div class="ai-chat-root">
+    @if (isOpen)
+    {
+        <section class="ai-chat-panel"
+                 role="dialog"
+                 aria-label="Trợ lý tư vấn FSHOES">
+
+            <header class="ai-chat-header">
+                <div class="ai-avatar">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                </div>
+
+                <div class="ai-header-content">
+                    <strong>Trợ lý FSHOES</strong>
+
+                    <small>
+                        <span class="ai-status-dot"></span>
+                        Tư vấn từ dữ liệu cửa hàng
+                    </small>
+                </div>
+
+                <button type="button"
+                        class="ai-header-button @(isHistoryOpen ? "active" : string.Empty)"
+                        title="Lịch sử trò chuyện"
+                        aria-label="Lịch sử trò chuyện"
+                        disabled="@isSending"
+                        @onclick="DongMoLichSu">
+
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                </button>
+
+                <button type="button"
+                        class="ai-header-button"
+                        title="Cuộc trò chuyện mới"
+                        aria-label="Tạo cuộc trò chuyện mới"
+                        disabled="@isSending"
+                        @onclick="TaoCuocTroChuyenMoi">
+
+                    <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+
+                <button type="button"
+                        class="ai-header-button"
+                        title="Đóng"
+                        aria-label="Đóng trợ lý"
+                        @onclick="DongMoChat">
+
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </header>
+
+            @if (isHistoryOpen)
+            {
+                <div class="ai-history-view">
+                    <div class="ai-history-heading">
+                        <div>
+                            <strong>Lịch sử trò chuyện</strong>
+                            <small>Tối đa 20 cuộc trò chuyện gần nhất</small>
+                        </div>
+
+                        <button type="button"
+                                @onclick="TaoCuocTroChuyenMoi">
+
+                            <i class="fa-solid fa-plus"></i>
+                            Tạo mới
+                        </button>
+                    </div>
+
+                    @if (isLoadingHistory)
+                    {
+                        <div class="ai-state-box">
+                            <span class="ai-loader"></span>
+                            <span>Đang tải lịch sử...</span>
+                        </div>
+                    }
+                    else if (conversations.Count == 0)
+                    {
+                        <div class="ai-state-box empty">
+                            <i class="fa-regular fa-comments"></i>
+
+                            <strong>Chưa có cuộc trò chuyện</strong>
+
+                            <span>
+                                Hãy bắt đầu bằng một câu hỏi về sản phẩm.
+                            </span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="ai-history-list">
+                            @foreach (var conversation in conversations)
+                            {
+                                <article class="ai-history-item @(conversation.CuocTroChuyenId == cuocTroChuyenId ? "selected" : string.Empty)">
+
+                                    <button type="button"
+                                            class="ai-history-open"
+                                            @onclick="@(() => MoCuocTroChuyen(conversation))">
+
+                                        <span class="ai-history-icon">
+                                            <i class="fa-regular fa-message"></i>
+                                        </span>
+
+                                        <span class="ai-history-copy">
+                                            <strong>@conversation.TieuDe</strong>
+
+                                            <small>
+                                                @(conversation.NgayCapNhat
+                                                    .ToLocalTime()
+                                                    .ToString("dd/MM/yyyy HH:mm"))
+                                            </small>
+                                        </span>
+                                    </button>
+
+                                    <button type="button"
+                                            class="ai-history-delete"
+                                            title="Xóa cuộc trò chuyện"
+                                            aria-label="Xóa cuộc trò chuyện"
+                                            disabled="@(dangXoaId == conversation.CuocTroChuyenId)"
+                                            @onclick="@(() => XoaCuocTroChuyen(conversation))">
+
+                                        @if (dangXoaId ==
+                                       conversation.CuocTroChuyenId)
+                                        {
+                                            <span class="ai-mini-loader"></span>
+                                        }
+                                        else
+                                        {
+                                            <i class="fa-regular fa-trash-can"></i>
+                                        }
+                                    </button>
+                                </article>
+                            }
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(errorMessage))
+                    {
+                        <div class="ai-error history-error">
+                            <i class="fa-solid fa-circle-exclamation"></i>
+                            <span>@errorMessage</span>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="ai-chat-body">
+                    @if (messages.Count == 0)
+                    {
+                        <div class="ai-welcome">
+                            <span class="ai-welcome-icon">
+                                <i class="fa-solid fa-shoe-prints"></i>
+                            </span>
+
+                            <strong>
+                                Xin chào! Mình có thể giúp gì?
+                            </strong>
+
+                            <span>
+                                Hỏi về sản phẩm, giá, màu, size,
+                                tồn kho hoặc cách chọn giày phù hợp.
+                            </span>
+
+                            <div class="ai-suggestions">
+                                @foreach (var goiY in DanhSachGoiY)
+                                {
+                                    <button type="button"
+                                            @onclick="@(() => ChonGoiY(goiY.NoiDung))">
+
+                                        <i class="@goiY.Icon"></i>
+                                        @goiY.Nhan
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    @foreach (var message in messages)
+                    {
+                        <div class="ai-message @message.VaiTro">
+                            @if (message.VaiTro == "assistant")
+                            {
+                                <span class="ai-message-avatar">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                </span>
+                            }
+
+                            <div class="ai-message-group">
+                                <div class="ai-message-content">
+                                    @message.NoiDung
+                                </div>
+
+                                <time>
+                                    @(message.ThoiGian
+                                        .ToLocalTime()
+                                        .ToString("HH:mm"))
+                                </time>
+                            </div>
+                        </div>
+                    }
+
+                    @if (products.Count > 0)
+                    {
+                        <section class="ai-products">
+                            <div class="ai-products-heading">
+                                <i class="fa-solid fa-bag-shopping"></i>
+                                Sản phẩm phù hợp trong cửa hàng
+                            </div>
+
+                            @foreach (var product in products)
+                            {
+                                <a href="@product.DuongDan"
+                                   class="ai-product-card">
+
+                                    <img src="@LayDuongDanAnh(product.AnhGiay)"
+                                         alt="@product.TenGiay"
+                                         loading="lazy"
+                                         onerror="this.onerror=null;this.src='/images/no-image.png';" />
+
+                                    <span class="ai-product-info">
+                                        <strong>@product.TenGiay</strong>
+
+                                        <small>
+                                            @(string.IsNullOrWhiteSpace(
+                                                product.ThuongHieu)
+                                                ? product.TheLoai
+                                                : product.ThuongHieu)
+                                        </small>
+
+                                        <b>@HienThiGia(product)</b>
+
+                                        <span class="ai-product-meta">
+                                            @if (product.KichCos.Count > 0)
+                                            {
+                                                <span>
+                                                    Size
+                                                    @(string.Join(
+                                                        ", ",
+                                                        product.KichCos.Take(5)))
+                                                </span>
+                                            }
+
+                                            <span>
+                                                Còn @product.SoLuongCon
+                                            </span>
+                                        </span>
+                                    </span>
+
+                                    <i class="fa-solid fa-chevron-right"></i>
+                                </a>
+                            }
+                        </section>
+                    }
+
+                    @if (isSending)
+                    {
+                        <div class="ai-message assistant ai-pending-message">
+                            <span class="ai-message-avatar">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            </span>
+
+                            <div class="ai-typing"
+                                 aria-label="Trợ lý đang trả lời">
+
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(errorMessage))
+                    {
+                        <div class="ai-error">
+                            <i class="fa-solid fa-circle-exclamation"></i>
+
+                            <span>@errorMessage</span>
+
+                            <button type="button"
+                                    title="Đóng thông báo"
+                                    @onclick="XoaLoi">
+
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    }
+
+                    <div class="ai-scroll-anchor"
+                         @ref="scrollAnchor">
+                    </div>
+                </div>
+
+                <form class="ai-chat-form"
+                      @onsubmit="GuiTinNhan"
+                      @onsubmit:preventDefault="true">
+
+                    <div class="ai-input-wrap">
+                        <textarea rows="1"
+                                  maxlength="2000"
+                                  placeholder="Nhập câu hỏi về sản phẩm..."
+                                  aria-label="Nội dung tin nhắn"
+                                  disabled="@isSending"
+                                  value="@draft"
+                                  @ref="messageInput"
+                                  @oninput="CapNhatBanNhap">
+                                </textarea>
+
+                        <small>@draft.Length/2000</small>
+                    </div>
+
+                    <button type="submit"
+                            title="Gửi tin nhắn"
+                            aria-label="Gửi tin nhắn"
+                            disabled="@KhongTheGui">
+
+                        @if (isSending)
+                        {
+                            <span class="ai-mini-loader light"></span>
+                        }
+                        else
+                        {
+                            <i class="fa-solid fa-paper-plane"></i>
+                        }
+                    </button>
+                </form>
+
+                <div class="ai-chat-note">
+                    AI có thể trả lời chưa chính xác.
+                    Hãy kiểm tra lại thông tin sản phẩm.
+                </div>
+            }
+        </section>
+    }
+
+    <button type="button"
+            class="ai-chat-toggle"
+            aria-label="@(isOpen ? "Đóng trợ lý AI" : "Mở trợ lý AI")"
+            @onclick="DongMoChat">
+
+        <i class="fa-solid @(isOpen
+                                ? "fa-xmark"
+                                : "fa-comment-dots")">
+        </i>
+
+        @if (!isOpen)
+        {
+            <span>AI</span>
+        }
+    </button>
+</div>
+
+@code {
+    private bool isOpen;
+    private bool isSending;
+    private bool daKhoiTao;
+    private bool isHistoryOpen;
+    private bool isLoadingHistory;
+    private bool shouldScroll;
+
+    private string draft = string.Empty;
+    private string errorMessage = string.Empty;
+
+    private Guid phienKhachId;
+    private Guid cuocTroChuyenId;
+    private Guid? dangXoaId;
+
+    private ElementReference scrollAnchor;
+    private ElementReference messageInput;
+
+    private List<ChatMessageDTO> messages = new();
+    private List<ChatProductDTO> products = new();
+    private List<ChatConversationDTO> conversations = new();
+
+    private static readonly (
+        string NoiDung,
+        string Nhan,
+        string Icon)[] DanhSachGoiY =
+    {
+        (
+            "Tư vấn giày phù hợp với tôi",
+            "Tư vấn chọn giày",
+            "fa-solid fa-wand-magic-sparkles"
+        ),
+        (
+            "Có sản phẩm nào phù hợp để đi học?",
+            "Giày đi học",
+            "fa-solid fa-graduation-cap"
+        ),
+        (
+            "Gợi ý giày dưới 1 triệu đồng",
+            "Dưới 1 triệu",
+            "fa-solid fa-tags"
+        ),
+        (
+            "Hướng dẫn tôi chọn size giày",
+            "Hướng dẫn chọn size",
+            "fa-solid fa-ruler-horizontal"
+        )
+    };
+
+    private bool KhongTheGui =>
+        isSending ||
+        phienKhachId == Guid.Empty ||
+        string.IsNullOrWhiteSpace(draft);
+
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
+    {
+        if (!shouldScroll ||
+            !isOpen ||
+            isHistoryOpen)
+        {
+            return;
+        }
+
+        shouldScroll = false;
+
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "AIChatBox.scrollToElement",
+                scrollAnchor);
+        }
+        catch (JSException)
+        {
+            // Không làm gián đoạn chat nếu JS chưa tải xong.
+        }
+    }
+
+    private async Task DongMoChat()
+    {
+        isOpen = !isOpen;
+
+        if (isOpen && !daKhoiTao)
+        {
+            await KhoiTaoChat();
+        }
+
+        if (isOpen && !isHistoryOpen)
+        {
+            shouldScroll = true;
+        }
+    }
+
+    private async Task KhoiTaoChat()
+    {
+        errorMessage = string.Empty;
+
+        try
+        {
+            var phienDaLuu =
+                await JS.InvokeAsync<string?>(
+                    "localStorage.getItem",
+                    "aiChatSessionId");
+
+            if (!Guid.TryParse(
+                    phienDaLuu,
+                    out phienKhachId))
+            {
+                phienKhachId = Guid.NewGuid();
+
+                await JS.InvokeVoidAsync(
+                    "localStorage.setItem",
+                    "aiChatSessionId",
+                    phienKhachId.ToString());
+            }
+
+            await TaiLichSu(
+                chonCuocMoiNhat: true);
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                "Không thể khởi tạo trợ lý: " +
+                ex.Message;
+        }
+        finally
+        {
+            daKhoiTao = true;
+            shouldScroll = true;
+        }
+    }
+
+    private async Task TaiLichSu(
+        bool chonCuocMoiNhat = false)
+    {
+        if (phienKhachId == Guid.Empty)
+        {
+            return;
+        }
+
+        isLoadingHistory = true;
+
+        try
+        {
+            conversations =
+                await ChatClient.LayLichSuAsync(
+                    phienKhachId);
+
+            if (chonCuocMoiNhat)
+            {
+                var moiNhat =
+                    conversations.FirstOrDefault();
+
+                if (moiNhat != null)
+                {
+                    GanCuocTroChuyen(moiNhat);
+                }
+            }
+        }
+        finally
+        {
+            isLoadingHistory = false;
+        }
+    }
+
+    private async Task DongMoLichSu()
+    {
+        isHistoryOpen = !isHistoryOpen;
+        errorMessage = string.Empty;
+
+        if (isHistoryOpen)
+        {
+            try
+            {
+                await TaiLichSu();
+            }
+            catch (Exception ex)
+            {
+                errorMessage =
+                    "Không thể tải lịch sử: " +
+                    ex.Message;
+            }
+        }
+        else
+        {
+            shouldScroll = true;
+        }
+    }
+
+    private void TaoCuocTroChuyenMoi()
+    {
+        cuocTroChuyenId = Guid.Empty;
+
+        messages =
+            new List<ChatMessageDTO>();
+
+        products =
+            new List<ChatProductDTO>();
+
+        draft = string.Empty;
+        errorMessage = string.Empty;
+        isHistoryOpen = false;
+        shouldScroll = true;
+
+        _ = DatLaiChieuCaoOThongTin();
+    }
+
+    private void MoCuocTroChuyen(
+        ChatConversationDTO conversation)
+    {
+        GanCuocTroChuyen(conversation);
+
+        products =
+            new List<ChatProductDTO>();
+
+        errorMessage = string.Empty;
+        isHistoryOpen = false;
+        shouldScroll = true;
+    }
+
+    private void GanCuocTroChuyen(
+        ChatConversationDTO conversation)
+    {
+        cuocTroChuyenId =
+            conversation.CuocTroChuyenId;
+
+        messages =
+            conversation.TinNhans
+                .OrderBy(x => x.ThoiGian)
+                .ToList();
+    }
+
+    private async Task XoaCuocTroChuyen(
+        ChatConversationDTO conversation)
+    {
+        var dongY =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                "Bạn có chắc muốn xóa cuộc trò chuyện này?");
+
+        if (!dongY)
+        {
+            return;
+        }
+
+        dangXoaId =
+            conversation.CuocTroChuyenId;
+
+        errorMessage = string.Empty;
+
+        try
+        {
+            await ChatClient.XoaCuocTroChuyenAsync(
+                conversation.CuocTroChuyenId,
+                phienKhachId);
+
+            conversations.RemoveAll(x =>
+                x.CuocTroChuyenId ==
+                conversation.CuocTroChuyenId);
+
+            if (cuocTroChuyenId ==
+                conversation.CuocTroChuyenId)
+            {
+                cuocTroChuyenId = Guid.Empty;
+                messages.Clear();
+                products.Clear();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                "Không thể xóa cuộc trò chuyện: " +
+                ex.Message;
+        }
+        finally
+        {
+            dangXoaId = null;
+        }
+    }
+
+    private void ChonGoiY(
+        string noiDung)
+    {
+        draft = noiDung;
+
+        _ = DieuChinhChieuCaoOThongTin();
+    }
+
+    private async Task CapNhatBanNhap(
+        ChangeEventArgs args)
+    {
+        draft =
+            args.Value?.ToString()
+            ?? string.Empty;
+
+        await DieuChinhChieuCaoOThongTin();
+    }
+
+    private async Task GuiTinNhan()
+    {
+        var noiDung = draft.Trim();
+
+        if (string.IsNullOrWhiteSpace(noiDung) ||
+            isSending ||
+            phienKhachId == Guid.Empty)
+        {
+            return;
+        }
+
+        draft = string.Empty;
+        errorMessage = string.Empty;
+
+        products =
+            new List<ChatProductDTO>();
+
+        isSending = true;
+
+        messages.Add(
+            new ChatMessageDTO
+                {
+                    TinNhanId = Guid.NewGuid(),
+                    VaiTro = "user",
+                    NoiDung = noiDung,
+                    ThoiGian = DateTime.UtcNow
+                });
+
+        shouldScroll = true;
+
+        await DatLaiChieuCaoOThongTin();
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            var request =
+                new ChatRequestDTO
+                    {
+                        CuocTroChuyenId =
+                            cuocTroChuyenId == Guid.Empty
+                                ? null
+                                : cuocTroChuyenId,
+
+                        PhienKhachId =
+                            phienKhachId,
+
+                        NoiDung =
+                            noiDung
+                    };
+
+            var response =
+                await ChatClient.GuiTinNhanAsync(
+                    request);
+
+            if (response == null)
+            {
+                throw new InvalidOperationException(
+                    "API không trả về nội dung phản hồi.");
+            }
+
+            cuocTroChuyenId =
+                response.CuocTroChuyenId;
+
+            messages.Add(
+                response.TinNhan);
+
+            products =
+                response.SanPhams ??
+                new List<ChatProductDTO>();
+
+            await TaiLichSu();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSending = false;
+            shouldScroll = true;
+        }
+    }
+
+    private async Task DieuChinhChieuCaoOThongTin()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "AIChatBox.autoResize",
+                messageInput);
+        }
+        catch (JSException)
+        {
+            // Không ảnh hưởng chức năng gửi tin nhắn.
+        }
+    }
+
+    private async Task DatLaiChieuCaoOThongTin()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "AIChatBox.resetTextarea",
+                messageInput);
+        }
+        catch (JSException)
+        {
+            // Không ảnh hưởng chức năng gửi tin nhắn.
+        }
+    }
+
+    private void XoaLoi()
+    {
+        errorMessage = string.Empty;
+    }
+
+    private string LayDuongDanAnh(
+        string? duongDan)
+    {
+        if (string.IsNullOrWhiteSpace(duongDan))
+        {
+            return "/images/no-image.png";
+        }
+
+        if (Uri.TryCreate(
+                duongDan,
+                UriKind.Absolute,
+                out var absoluteUri))
+        {
+            return absoluteUri.ToString();
+        }
+
+        if (Http.BaseAddress == null)
+        {
+            return duongDan.StartsWith('/')
+                ? duongDan
+                : "/" + duongDan;
+        }
+
+        return new Uri(
+                Http.BaseAddress,
+                duongDan.TrimStart('/'))
+            .ToString();
+    }
+
+    private static string HienThiGia(
+        ChatProductDTO product)
+    {
+        if (product.GiaCaoNhat >
+            product.Gia)
+        {
+            return
+                $"{product.Gia:N0} - " +
+                $"{product.GiaCaoNhat:N0} đ";
+        }
+
+        return $"{product.Gia:N0} đ";
+    }
+}
