@@ -20,15 +20,14 @@ namespace API.Services.Momo
             var orderId = Guid.NewGuid().ToString("N");
             var requestId = Guid.NewGuid().ToString("N");
 
-            var amount = Convert.ToInt64(model.TongTienSauKhiGiam).ToString();
+            // 1. Giữ amount ở dạng kiểu số nguyên (long) để dùng chung cho cả rawData và JSON payload
+            long amount = Convert.ToInt64(model.TongTienSauKhiGiam);
 
             // ❌ KHÔNG dùng ký tự đặc biệt để tránh lỗi signature
-            var orderInfo =
-                $"Khach hang {model.TenNguoiNhan} Noi dung {model.GhiChu}";
-
+            var orderInfo = $"Khach hang {model.TenNguoiNhan} Noi dung {model.GhiChu}";
             var extraData = model.HoaDonId.ToString();
 
-            // ================= RAW DATA (PHẢI KHỚP 100%) =================
+            // ================= RAW DATA (PHẢI KHỚP 100% THỨ TỰ) =================
             var rawData =
                 $"accessKey={_options.Value.AccessKey}" +
                 $"&amount={amount}" +
@@ -43,35 +42,25 @@ namespace API.Services.Momo
 
             var signature = ComputeHmacSha256(rawData, _options.Value.SecretKey);
 
-
             var requestData = new
             {
                 partnerCode = _options.Value.PartnerCode,
                 partnerName = "Test",
                 storeId = "MomoTestStore",
-
                 requestId = requestId,
 
+                // ✅ SỬA QUAN TRỌNG: Truyền amount là kiểu số (long), không dùng .ToString() ở đây
                 amount = amount,
 
                 orderId = orderId,
-
                 orderInfo = orderInfo,
-
                 redirectUrl = _options.Value.ReturnUrl,
-
                 ipnUrl = _options.Value.NotifyUrl,
-
                 lang = "vi",
-
                 requestType = _options.Value.RequestType,
-
                 autoCapture = true,
-
                 extraData = extraData,
-
                 orderGroupId = "",
-
                 signature = signature
             };
 
@@ -79,8 +68,6 @@ namespace API.Services.Momo
             var request = new RestRequest() { Method = Method.Post };
 
             request.AddHeader("Content-Type", "application/json; charset=UTF-8");
-
-            // ✅ FIX QUAN TRỌNG: dùng JsonBody thay vì StringBody
             request.AddJsonBody(requestData);
 
             var response = await client.ExecuteAsync(request);
@@ -88,8 +75,6 @@ namespace API.Services.Momo
             Console.WriteLine("Status: " + response.StatusCode);
             Console.WriteLine("Content:");
             Console.WriteLine(response.Content);
-            Console.WriteLine("Error:");
-            Console.WriteLine(response.ErrorMessage);
 
             if (!response.IsSuccessful)
             {
@@ -103,7 +88,10 @@ namespace API.Services.Momo
             var result = JsonConvert.DeserializeObject<MomoCreatePaymentResponseModel>(response.Content);
 
             if (result == null || string.IsNullOrEmpty(result.PayUrl))
-                throw new Exception("MoMo không trả PayUrl");
+            {
+                // In ra nội dung phản hồi cụ thể từ MoMo để dễ debug nếu vẫn lỗi
+                throw new Exception($"MoMo không trả PayUrl. Phản hồi từ MoMo: {response.Content}");
+            }
 
             return result;
         }

@@ -1,0 +1,268 @@
+﻿from pathlib import Path
+
+css = r'''/* =========================================================
+NIVO POS - KHU VUC THANH TOAN TAI QUAY
+File: BanHang-Payment.css
+
+Tuong thich voi markup hien tai:
+.payment-row > .payment-label + .payment-entry
+.payment-entry > .pay-input + .quick-money-grid
+========================================================= */
+
+.payment-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    width: 100%;
+    margin: 16px 0 12px;
+    padding: 0;
+    color: #f8fafc;
+    box-sizing: border-box;
+}
+
+.payment-row *,
+.payment-row *::before,
+.payment-row *::after {
+    box-sizing: border-box;
+}
+
+.payment-label {
+    display: block;
+    margin: 0;
+    color: #f1f5f9;
+    font-size: 14px;
+    line-height: 1.4;
+    font-weight: 700;
+}
+
+/* Hang chua o nhap tien va cac nut chuc nang */
+.payment-entry {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    width: 100%;
+}
+
+/* O nhap tien */
+.pay-input {
+    display: block;
+    width: 100%;
+    height: 54px;
+    margin: 0;
+    padding: 0 18px;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    outline: none;
+    background: #0f172a;
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 21px;
+    font-weight: 750;
+    line-height: normal;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, .18);
+    transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+    .pay-input:hover {
+        border-color: #64748b;
+    }
+
+    .pay-input:focus {
+        border-color: #fb923c;
+        background: #111c30;
+        box-shadow: 0 0 0 3px rgba(249, 115, 22, .16);
+    }
+
+    /* An mui ten tang/giam cua input number */
+    .pay-input::-webkit-inner-spin-button,
+    .pay-input::-webkit-outer-spin-button {
+        margin: 0;
+        -webkit-appearance: none;
+    }
+
+    .pay-input[type="number"] {
+        -moz-appearance: textfield;
+    }
+
+/* Luoi 3 cot - 3 hang */
+.quick-money-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 9px;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+    /* Nut menh gia */
+    .quick-money-grid button,
+    .quick-money-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 0;
+        min-height: 46px;
+        margin: 0;
+        padding: 8px 5px;
+        border: 1px solid #34445c;
+        border-radius: 10px;
+        background: linear-gradient(180deg, #202d42 0%, #172338 100%);
+        color: #e2e8f0;
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 750;
+        line-height: 1.2;
+        letter-spacing: .15px;
+        white-space: nowrap;
+        cursor: pointer;
+        user-select: none;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, .16);
+        transition: transform .16s ease, border-color .16s ease, background .16s ease, color .16s ease, box-shadow .16s ease;
+    }
+
+        .quick-money-grid button:hover,
+        .quick-money-btn:hover {
+            border-color: #fb923c;
+            background: #29384f;
+            color: #fdba74;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, .22);
+            transform: translateY(-1px);
+        }
+
+        .quick-money-grid button:active,
+        .quick-money-btn:active {
+            transform: scale(.97);
+        }
+
+        /* Them class selected vao nut dang duoc chon neu muon highlight */
+        .quick-money-grid button.selected,
+        .quick-money-grid button.active,
+        .quick-money-btn.selected,
+        .quick-money-btn.active {
+            border-color: #fb923c;
+            background: linear-gradient(135deg, #ff963f 0%, #ed5b0b 100%);
+            color: #ffffff;
+            box-shadow: 0 4px 13px rgba(249, 115, 22, .24);
+        }
+
+/* Nut nhap lai - dung neu them vao markup */
+.payment-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.payment-reset-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 34px;
+    padding: 6px 12px;
+    border: 1px solid #475569;
+    border-radius: 8px;
+    background: #1e293b;
+    color: #cbd5e1;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .18s ease;
+}
+
+    .payment-reset-btn:hover {
+        border-color: #fb923c;
+        background: #29384f;
+        color: #fdba74;
+    }
+
+    .payment-reset-btn:active {
+        transform: scale(.97);
+    }
+
+/* So tien con thieu / tien thua */
+.order-row.deficit,
+.order-row.change {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 2px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.order-row.deficit {
+    color: #fb7185;
+}
+
+.order-row.change {
+    color: #4ade80;
+}
+
+/* Nut xac nhan giu dong bo voi giao dien NIVO */
+.order-summary .confirm-btn {
+    width: 100%;
+    min-height: 48px;
+    margin-top: 16px;
+    border: 0;
+    border-radius: 11px;
+    background: linear-gradient(135deg, #ff8b32 0%, #ed5b0b 100%);
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: .35px;
+    cursor: pointer;
+    box-shadow: 0 5px 15px rgba(237, 91, 11, .2);
+    transition: filter .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+
+    .order-summary .confirm-btn:hover:not(:disabled) {
+        filter: brightness(1.08);
+        box-shadow: 0 7px 18px rgba(237, 91, 11, .3);
+        transform: translateY(-1px);
+    }
+
+    .order-summary .confirm-btn:active:not(:disabled) {
+        transform: scale(.99);
+    }
+
+    .order-summary .confirm-btn:disabled {
+        opacity: .6;
+        cursor: not-allowed;
+        box-shadow: none;
+    }
+
+/* Man hinh nho */
+@media (max-width: 576px) {
+    .payment-row {
+        gap: 10px;
+    }
+
+    .quick-money-grid {
+        gap: 7px;
+    }
+
+        .quick-money-grid button,
+        .quick-money-btn {
+            min-height: 43px;
+            padding: 7px 3px;
+            border-radius: 8px;
+            font-size: 12px;
+        }
+
+    .pay-input {
+        height: 50px;
+        font-size: 19px;
+    }
+}
+
+'''
+path = Path("/mnt/data/BanHang-Payment.css")
+path.write_text(css, encoding="utf-8")
+print(f"Đã tạo: {path} ({path.stat().st_size} bytes)")

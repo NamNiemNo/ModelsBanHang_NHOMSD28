@@ -23,6 +23,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
+using API.Models.VNPay;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -145,15 +146,18 @@ builder.Services.AddRateLimiter(options =>
 // DATABASE
 // =====================================================
 
-builder.Services.AddDbContext<DbContextApp>(
-    options =>
-    {
-        options.UseSqlServer(
-            builder.Configuration
-                .GetConnectionString(
-                    "DefaultConnection"));
-    });
 
+builder.Services.AddDbContext<DbContextApp>(options =>
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sqlOptions =>
+        {
+            sqlOptions.UseQuerySplittingBehavior(
+                QuerySplittingBehavior.SplitQuery
+            );
+        }
+    )
+);
 // =====================================================
 // SWAGGER
 // =====================================================
@@ -272,7 +276,8 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IMomoService,
     MomoService>();
-
+builder.Services.Configure<VnPaySettings>(builder.Configuration.GetSection("VnPay"));
+builder.Services.AddScoped<IVnPayService, VnPayService>();
 // =====================================================
 // MOMO
 // =====================================================

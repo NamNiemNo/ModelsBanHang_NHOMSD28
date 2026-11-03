@@ -23,13 +23,21 @@
 
         <div class="menu-section-title">Tổng quan</div>
 
-        <NavLink class="menu-entry"
+        @*<NavLink class="menu-entry"
                  href="/thongke"
                  @onclick="NotifyNavigation">
             <span class="menu-icon">
                 <i class="bi bi-grid-1x2-fill"></i>
             </span>
             <span>Thống kê</span>
+        </NavLink>*@ 
+         <NavLink class="menu-entry"
+                 href="/admin/hoadon"
+                 @onclick="NotifyNavigation">
+            <span class="menu-icon">
+                <i class="bi bi-receipt-cutoff"></i>
+            </span>
+            <span>Quản lý đơn hàng</span>
         </NavLink>
 
         <NavLink class="menu-entry"
@@ -41,14 +49,7 @@
             <span>Bán hàng tại quầy</span>
         </NavLink>
 
-        <NavLink class="menu-entry"
-                 href="/admin/hoadon"
-                 @onclick="NotifyNavigation">
-            <span class="menu-icon">
-                <i class="bi bi-receipt-cutoff"></i>
-            </span>
-            <span>Quản lý đơn hàng</span>
-        </NavLink>
+       
 
         <div class="menu-section-title">Quản lý</div>
 
@@ -118,15 +119,15 @@
                 </NavLink>
             </div>
         }
-
-        <NavLink class="menu-entry"
+        @* <NavLink class="menu-entry"
                  href="/TraHang"
                  @onclick="NotifyNavigation">
             <span class="menu-icon">
                 <i class="bi bi-arrow-return-left"></i>
             </span>
             <span>Trả hàng</span>
-        </NavLink>
+        </NavLink>*@
+       
 
         <!-- GIẢM GIÁ -->
         <button type="button"

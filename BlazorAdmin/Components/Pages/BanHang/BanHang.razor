@@ -17,7 +17,7 @@
 @inject NavigationManager Nav
 
 <link href="css/BanHang.css" rel="stylesheet" />
-
+<link href="css/BanHang-Payment.css" rel="stylesheet" />
 <div class="sell-container">
     <header class="sell-hero">
     </header>
@@ -490,15 +490,83 @@
                     }
                     else
                     {
-                        <div class="order-row">
-                            <span>Khách thanh toán</span>
+                        <div class="payment-row">
+                            <div class="payment-heading">
+                                <span class="payment-label">Khách thanh toán</span>
 
-                            <input class="pay-input"
-                                   type="number"
-                                   min="0"
-                                   step="1000"
-                                   inputmode="numeric"
-                                   @bind="CustomerPay" />
+                                <button type="button"
+                                        class="payment-reset-btn"
+                                        @onclick="ResetCustomerPay">
+                                    <span>↻</span> Nhập lại
+                                </button>
+                            </div>
+
+                            <div class="payment-input-wrapper">
+                                <input class="pay-input"
+                                       type="number"
+                                       min="0"
+                                       step="1000"
+                                       inputmode="numeric"
+                                       @bind="CustomerPay" />
+
+                                <span class="payment-currency">VND</span>
+                            </div>
+
+                            <div class="quick-money-grid">
+                                <button type="button"
+                                        class="quick-money-btn @(CustomerPay == 100_000 ? "selected" : "")"
+                                        @onclick="() => SetQuickPayment(100_000)">
+                                    100K
+                                </button>
+
+                                <button type="button"
+                                        class="quick-money-btn @(CustomerPay == 200_000 ? "selected" : "")"
+                                        @onclick="() => SetQuickPayment(200_000)">
+                                    200K
+                                </button>
+
+                                <button type="button"
+                                        class="quick-money-btn @(CustomerPay == 500_000 ? "selected" : "")"
+                                        @onclick="() => SetQuickPayment(500_000)">
+                                    500K
+                                </button>
+
+                                <button type="button"
+                                        class="quick-money-btn @(CustomerPay == 1_000_000 ? "selected" : "")"
+                                        @onclick="() => SetQuickPayment(1_000_000)">
+                                    1.000K
+                                </button>
+
+                                <button type="button"
+                                        class="quick-money-btn @(CustomerPay == 2_000_000 ? "selected" : "")"
+                                        @onclick="() => SetQuickPayment(2_000_000)">
+                                    2.000K
+                                </button>
+
+                                <button type="button"
+                                        class="quick-money-btn @(CustomerPay == 3_000_000 ? "selected" : "")"
+                                        @onclick="() => SetQuickPayment(3_000_000)">
+                                    3.000K
+                                </button>
+
+                                <button type="button"
+                                        class="quick-money-btn @(CustomerPay == 5_000_000 ? "selected" : "")"
+                                        @onclick="() => SetQuickPayment(5_000_000)">
+                                    5.000K
+                                </button>
+
+                                <button type="button"
+                                        class="quick-money-btn @(CustomerPay == 7_000_000 ? "selected" : "")"
+                                        @onclick="() => SetQuickPayment(7_000_000)">
+                                    7.000K
+                                </button>
+
+                                <button type="button"
+                                        class="quick-money-btn @(CustomerPay == 10_000_000 ? "selected" : "")"
+                                        @onclick="() => SetQuickPayment(10_000_000)">
+                                    10.000K
+                                </button>
+                            </div>
                         </div>
 
                         <div class="order-row deficit">
@@ -550,7 +618,17 @@
 
     private string voucherCode = "";
     private string voucherError = "";
+    // Chọn nhanh: thay thế số tiền hiện tại
+    private void SetQuickPayment(float amount)
+    {
+        CustomerPay = amount;
+    }
 
+    // Nhập lại: đưa số tiền về 0
+    private void ResetCustomerPay()
+    {
+        CustomerPay = 0;
+    }
     private void OnVoucherCodeChange(ChangeEventArgs e)
     {
         voucherError = "";

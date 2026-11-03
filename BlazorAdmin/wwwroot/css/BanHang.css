@@ -2769,6 +2769,151 @@ body {
     background: linear-gradient(135deg, #4f46e5, #312e81);
 }
 
+/* =========================================
+   PAYMENT - QUICK MONEY
+========================================= */
+
+.payment-row {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 12px;
+    width: 100%;
+}
+
+.payment-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.payment-label {
+    color: #f1f5f9;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* Nút nhập lại */
+.payment-reset-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 13px;
+    border: 1px solid #475569;
+    border-radius: 8px;
+    background: #1e293b;
+    color: #cbd5e1;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s ease;
+}
+
+    .payment-reset-btn span {
+        font-size: 17px;
+    }
+
+    .payment-reset-btn:hover {
+        background: #334155;
+        border-color: #64748b;
+        color: #fff;
+    }
+
+/* Ô nhập tiền */
+.payment-input-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.pay-input {
+    width: 100%;
+    height: 52px;
+    padding: 0 65px 0 16px;
+    border: 1px solid #475569;
+    border-radius: 10px;
+    outline: none;
+    background: #1e293b;
+    color: #fff;
+    font-size: 20px;
+    font-weight: 700;
+    text-align: right;
+    box-sizing: border-box;
+    transition: all .2s ease;
+}
+
+    .pay-input:focus {
+        border-color: #ff781f;
+        box-shadow: 0 0 0 3px rgba(255, 120, 31, .15);
+    }
+
+.payment-currency {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 12px;
+    font-weight: 700;
+    pointer-events: none;
+}
+
+/* Lưới 3 cột x 3 hàng */
+.quick-money-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 9px;
+    width: 100%;
+}
+
+/* Nút tiền */
+.quick-money-btn {
+    height: 43px;
+    border: 1px solid #334155;
+    border-radius: 9px;
+    background: #1e293b;
+    color: #e2e8f0;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .2s ease;
+}
+
+    .quick-money-btn:hover {
+        background: #334155;
+        border-color: #ff781f;
+        color: #ff914d;
+        transform: translateY(-2px);
+    }
+
+    /* Nút đang được chọn */
+    .quick-money-btn.selected {
+        background: linear-gradient(135deg, #ff8a32, #ed5b0b);
+        border-color: #ff8a32;
+        color: #fff;
+        box-shadow: 0 3px 12px rgba(255, 111, 24, .25);
+    }
+
+    .quick-money-btn:active {
+        transform: scale(.96);
+    }
+
+/* Responsive */
+@media (max-width: 480px) {
+    .quick-money-grid {
+        gap: 7px;
+    }
+
+    .quick-money-btn {
+        height: 40px;
+        font-size: 12px;
+    }
+
+    .pay-input {
+        height: 48px;
+        font-size: 18px;
+    }
+}
+
 @keyframes bh-fade-in {
     from {
         opacity: 0;
@@ -2819,9 +2964,9 @@ body {
         padding: 18px 16px;
     }
 
-    .bh-modal-header p {
-        display: none;
-    }
+        .bh-modal-header p {
+            display: none;
+        }
 
     .bh-customer-toolbar {
         align-items: stretch;
@@ -2834,10 +2979,7 @@ body {
 
     .bh-address-card,
     .bh-customer-card {
-        grid-template-columns:
-            40px
-            minmax(0, 1fr)
-            15px;
+        grid-template-columns: 40px minmax(0, 1fr) 15px;
     }
 
     .bh-default-badge,
@@ -2851,4 +2993,5 @@ body {
 
     .bh-secondary-button {
         width: 100%;
-   
+    }
+}

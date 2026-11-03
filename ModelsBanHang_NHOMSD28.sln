@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "API", "API\API.csproj", "{B
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlazorAdmin", "BlazorAdmin\BlazorAdmin.csproj", "{99FFC304-B06E-4E1A-94E0-2366361CAE49}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlazorKhachHang", "BlazorKhachHang\BlazorKhachHang.csproj", "{DCB15173-DBCD-4EE2-A9CE-3549A2B60DB7}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlazorKhachHang", "BlazorKhachHang\BlazorKhachHang.csproj", "{5FBEC16C-F5A8-5E4B-C678-CEC76EE8F465}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -23,10 +23,10 @@ Global
 		{99FFC304-B06E-4E1A-94E0-2366361CAE49}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{99FFC304-B06E-4E1A-94E0-2366361CAE49}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{99FFC304-B06E-4E1A-94E0-2366361CAE49}.Release|Any CPU.Build.0 = Release|Any CPU
-		{DCB15173-DBCD-4EE2-A9CE-3549A2B60DB7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{DCB15173-DBCD-4EE2-A9CE-3549A2B60DB7}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{DCB15173-DBCD-4EE2-A9CE-3549A2B60DB7}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{DCB15173-DBCD-4EE2-A9CE-3549A2B60DB7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5FBEC16C-F5A8-5E4B-C678-CEC76EE8F465}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5FBEC16C-F5A8-5E4B-C678-CEC76EE8F465}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5FBEC16C-F5A8-5E4B-C678-CEC76EE8F465}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5FBEC16C-F5A8-5E4B-C678-CEC76EE8F465}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

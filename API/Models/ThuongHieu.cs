@@ -18,13 +18,13 @@ namespace Data.Models
         public string TenThuongHieu { get; set; }
 
         [EmailAddress]
-        public string Email { get; set; }
+        public string? Email { get; set; }
 
-        public string SDT { get; set; }
+        public string? SDT { get; set; }
 
-        public string DiaChi { get; set; }
+        public string? DiaChi { get; set; }
 
-        public string MoTa { get; set; }
+        public string? MoTa { get; set; }
 
         public bool TrangThai { get; set; }
         public virtual ICollection<Giay> Giays { get; set; } = new List<Giay>();

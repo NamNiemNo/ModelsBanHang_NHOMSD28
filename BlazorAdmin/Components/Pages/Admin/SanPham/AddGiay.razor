@@ -155,127 +155,97 @@
 
                             <!-- THƯƠNG HIỆU -->
                             <div class="form-group">
-                                <label>
-                                    Thương hiệu
-                                    <span>*</span>
-                                </label>
-
-                                <InputSelect class="form-control-custom"
-                                             @bind-Value="_giayModel.ThuongHieuId">
-
-                                    <option value="">
-                                        -- Chọn thương hiệu --
-                                    </option>
-
-                                    @foreach (var item in _thuongHieuOptions
-                                .OrderBy(x => x.TenThuongHieu))
-                                    {
-                                        <option value="@item.ThuongHieuId">
-                                            @item.TenThuongHieu
-                                        </option>
-                                    }
-
-                                </InputSelect>
+                                <label>Thương hiệu <span>*</span></label>
+                                <div class="quick-select-row">
+                                    <InputSelect class="form-control-custom"
+                                                 @bind-Value="_giayModel.ThuongHieuId">
+                                        <option value="">-- Chọn thương hiệu --</option>
+                                        @foreach (var item in _thuongHieuOptions.OrderBy(x => x.TenThuongHieu))
+                                        {
+                                            <option value="@item.ThuongHieuId">@item.TenThuongHieu</option>
+                                        }
+                                    </InputSelect>
+                                    <button type="button" class="quick-add-btn" title="Thêm thương hiệu"
+                                            @onclick='() => OpenQuickAdd("ThuongHieu")'>
+                                        +
+                                    </button>
+                                </div>
                             </div>
 
                             <!-- CHẤT LIỆU -->
                             <div class="form-group">
-                                <label>
-                                    Chất liệu
-                                    <span>*</span>
-                                </label>
-
-                                <InputSelect class="form-control-custom"
-                                             @bind-Value="_giayModel.ChatLieuId">
-
-                                    <option value="">
-                                        -- Chọn chất liệu --
-                                    </option>
-
-                                    @foreach (var item in _chatLieuOptions
-                                .OrderBy(x => x.TenChatLieu))
-                                    {
-                                        <option value="@item.ChatLieuId">
-                                            @item.TenChatLieu
-                                        </option>
-                                    }
-
-                                </InputSelect>
+                                <label>Chất liệu <span>*</span></label>
+                                <div class="quick-select-row">
+                                    <InputSelect class="form-control-custom"
+                                                 @bind-Value="_giayModel.ChatLieuId">
+                                        <option value="">-- Chọn chất liệu --</option>
+                                        @foreach (var item in _chatLieuOptions.OrderBy(x => x.TenChatLieu))
+                                        {
+                                            <option value="@item.ChatLieuId">@item.TenChatLieu</option>
+                                        }
+                                    </InputSelect>
+                                    <button type="button" class="quick-add-btn" title="Thêm chất liệu"
+                                            @onclick='() => OpenQuickAdd("ChatLieu")'>
+                                        +
+                                    </button>
+                                </div>
                             </div>
 
                             <!-- KIỂU DÁNG -->
                             <div class="form-group">
-                                <label>
-                                    Kiểu dáng
-                                    <span>*</span>
-                                </label>
-
-                                <InputSelect class="form-control-custom"
-                                             @bind-Value="_giayModel.KieuDangId">
-
-                                    <option value="">
-                                        -- Chọn kiểu dáng --
-                                    </option>
-
-                                    @foreach (var item in _kieuDangOptions
-                                .OrderBy(x => x.TenKieuDang))
-                                    {
-                                        <option value="@item.KieuDangId">
-                                            @item.TenKieuDang
-                                        </option>
-                                    }
-
-                                </InputSelect>
+                                <label>Kiểu dáng <span>*</span></label>
+                                <div class="quick-select-row">
+                                    <InputSelect class="form-control-custom"
+                                                 @bind-Value="_giayModel.KieuDangId">
+                                        <option value="">-- Chọn kiểu dáng --</option>
+                                        @foreach (var item in _kieuDangOptions.OrderBy(x => x.TenKieuDang))
+                                        {
+                                            <option value="@item.KieuDangId">@item.TenKieuDang</option>
+                                        }
+                                    </InputSelect>
+                                    <button type="button" class="quick-add-btn" title="Thêm kiểu dáng"
+                                            @onclick='() => OpenQuickAdd("KieuDang")'>
+                                        +
+                                    </button>
+                                </div>
                             </div>
 
                             <!-- ĐẾ GIÀY -->
                             <div class="form-group">
-                                <label>
-                                    Đế giày
-                                    <span>*</span>
-                                </label>
-
-                                <InputSelect class="form-control-custom"
-                                             @bind-Value="_giayModel.DeGiayId">
-
-                                    <option value="">
-                                        -- Chọn đế giày --
-                                    </option>
-
-                                    @foreach (var item in _deGiayOptions
-                                .OrderBy(x => x.TenDeGiay))
-                                    {
-                                        <option value="@item.DeGiayId">
-                                            @item.TenDeGiay
-                                        </option>
-                                    }
-
-                                </InputSelect>
+                                <label>Đế giày <span>*</span></label>
+                                <div class="quick-select-row">
+                                    <InputSelect class="form-control-custom"
+                                                 @bind-Value="_giayModel.DeGiayId">
+                                        <option value="">-- Chọn đế giày --</option>
+                                        @foreach (var item in _deGiayOptions.OrderBy(x => x.TenDeGiay))
+                                        {
+                                            <option value="@item.DeGiayId">@item.TenDeGiay</option>
+                                        }
+                                    </InputSelect>
+                                    <button type="button" class="quick-add-btn" title="Thêm đế giày"
+                                            @onclick='() => OpenQuickAdd("DeGiay")'>
+                                        +
+                                    </button>
+                                </div>
                             </div>
 
                             <!-- THỂ LOẠI -->
                             <div class="form-group">
-                                <label>
-                                    Thể loại
-                                    <span>*</span>
-                                </label>
-
-                                <InputSelect class="form-control-custom"
-                                             @bind-Value="_giayModel.TheLoaiGiayId">
-
-                                    <option value="">
-                                        -- Chọn thể loại --
-                                    </option>
-
-                                    @foreach (var item in _theLoaiOptions
-                                .OrderBy(x => x.TenTheLoai))
-                                    {
-                                        <option value="@item.TheLoaiGiayId">
-                                            @item.TenTheLoai
-                                        </option>
-                                    }
-
-                                </InputSelect>
+                                <label>Thể loại <span>*</span></label>
+                                <div class="quick-select-row">
+                                    <InputSelect class="form-control-custom"
+                                                 @bind-Value="_giayModel.TheLoaiGiayId">
+                                        <option value="">-- Chọn thể loại --</option>
+                                        @foreach (var item in _theLoaiOptions.OrderBy(x => x.TenTheLoai))
+                                        {
+                                            <option value="@item.TheLoaiGiayId">@item.TenTheLoai</option>
+                                        }
+                                    </InputSelect>
+                                    <button type="button" class="quick-add-btn" title="Thêm thể loại"
+                                            @onclick='() => OpenQuickAdd("TheLoai")'>
+                                        +
+                                    </button>
+                                </div>
                             </div>
 
                             <!-- TRẠNG THÁI -->
@@ -348,6 +318,12 @@
                                                @bind="_colorSearch"
                                                @bind:event="oninput" />
                                     </div>
+
+                                    <button type="button" class="quick-add-btn quick-add-text"
+                                            title="Thêm màu sắc mới"
+                                            @onclick='() => OpenQuickAdd("MauSac")'>
+                                        + Thêm màu
+                                    </button>
 
                                     @if (_danhSachChiTiet.Any())
                                     {
@@ -547,11 +523,18 @@
                                                             </p>
                                                         </div>
 
-                                                        <button type="button"
-                                                                class="add-size-button"
-                                                                @onclick="() => AddSize(colorDetail)">
-                                                            ＋ Thêm size
-                                                        </button>
+                                                        <div class="size-action-group">
+                                                            <button type="button" class="quick-add-btn quick-add-text"
+                                                                    title="Tạo kích cỡ mới"
+                                                                    @onclick='() => OpenQuickAdd("KichCo", colorDetail)'>
+                                                                + Tạo size
+                                                            </button>
+                                                            <button type="button"
+                                                                    class="add-size-button"
+                                                                    @onclick="() => AddSize(colorDetail)">
+                                                                ＋ Thêm size
+                                                            </button>
+                                                        </div>
                                                     </div>
 
                                                     @if (!colorDetail.ChiTietSizes.Any())
@@ -802,6 +785,76 @@
         </EditForm>
     }
 
+    @if (_showQuickAdd)
+    {
+        <div class="quick-modal-overlay" @onclick="CloseQuickAdd">
+            <div class="quick-modal" @onclick:stopPropagation="true">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3>@QuickAddTitle</h3>
+                        <p>Thêm dữ liệu mới ngay trong trang tạo sản phẩm</p>
+                    </div>
+                    <button type="button" class="quick-close" @onclick="CloseQuickAdd">×</button>
+                </div>
+
+                <div class="quick-modal-body">
+                    @if (_quickAddType == "ThuongHieu")
+                    {
+                        <label>Tên thương hiệu *</label>
+                        <input class="form-control-custom"
+                               @bind="_quickAddName"
+                               placeholder="Ví dụ: Nike" />
+
+                        <label>Mô tả</label>
+                        <textarea class="form-control-custom"
+                                  @bind="_quickAddDescription"
+                                  placeholder="Giới thiệu về thương hiệu..."></textarea>
+                    }
+                    else if (_quickAddType == "ChatLieu" || _quickAddType == "KieuDang" || _quickAddType == "DeGiay" || _quickAddType == "TheLoai")
+                    {
+                        <label>Tên @QuickAddTypeDisplay *</label>
+                        <input class="form-control-custom" @bind="_quickAddName" maxlength="50" placeholder="Nhập tên..." />
+                        <label>Mô tả</label>
+                        <textarea class="form-control-custom" @bind="_quickAddDescription"></textarea>
+                    }
+                    else if (_quickAddType == "MauSac")
+                    {
+                        <label>Tên màu *</label>
+                        <input class="form-control-custom" @bind="_quickAddName" maxlength="50" placeholder="Ví dụ: Đỏ, Xanh, Đen..." />
+                        <label>Mã màu *</label>
+                        <div class="quick-color-input">
+                            <input type="color" @bind="_quickAddColor" />
+                            <span>@_quickAddColor</span>
+                        </div>
+                        <label>Mô tả</label>
+                        <textarea class="form-control-custom" @bind="_quickAddDescription"></textarea>
+                    }
+                    else if (_quickAddType == "KichCo")
+                    {
+                        <label>Tên kích cỡ *</label>
+                        <input class="form-control-custom" @bind="_quickAddName" maxlength="50" placeholder="Ví dụ: Size 39" />
+                        <label>Giá trị size *</label>
+                        <input type="number" class="form-control-custom" @bind="_quickAddSize" min="1" />
+                        <label>Cân nặng</label>
+                        <input type="number" class="form-control-custom" @bind="_quickAddWeight" min="0" step="0.1" />
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(_quickAddError))
+                    {
+                        <div class="quick-error">@_quickAddError</div>
+                    }
+                </div>
+
+                <div class="quick-modal-footer">
+                    <button type="button" class="cancel-button" disabled="@_quickAddSaving" @onclick="CloseQuickAdd">Hủy</button>
+                    <button type="button" class="save-button" disabled="@_quickAddSaving" @onclick="SaveQuickAdd">
+                        @(_quickAddSaving ? "Đang lưu..." : "Lưu và chọn")
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
     @if (!string.IsNullOrWhiteSpace(_successMessage))
     {
         <div class="success-toast">
@@ -840,7 +893,251 @@
     private string _errorMessage = string.Empty;
     private string _successMessage = string.Empty;
 
+    // Thêm nhanh thuộc tính ngay trong trang AddGiay
+    private bool _showQuickAdd;
+    private bool _quickAddSaving;
+    private string _quickAddType = string.Empty;
+    private string _quickAddName = string.Empty;
+    private string _quickAddEmail = string.Empty;
+    private string _quickAddPhone = string.Empty;
+    private string _quickAddAddress = string.Empty;
+    private string _quickAddDescription = string.Empty;
+    private string _quickAddColor = "#000000";
+    private string _quickAddError = string.Empty;
+    private int _quickAddSize = 39;
+    private float _quickAddWeight;
+    private GiayChiTietTheoMauDTO? _quickAddColorTarget;
+
+    private string QuickAddTitle => _quickAddType switch
+    {
+        "ThuongHieu" => "Thêm thương hiệu",
+        "ChatLieu" => "Thêm chất liệu",
+        "KieuDang" => "Thêm kiểu dáng",
+        "DeGiay" => "Thêm đế giày",
+        "TheLoai" => "Thêm thể loại giày",
+        "MauSac" => "Thêm màu sắc",
+        "KichCo" => "Thêm kích cỡ",
+        _ => "Thêm dữ liệu"
+    };
+
+    private string QuickAddTypeDisplay => _quickAddType switch
+    {
+        "ChatLieu" => "chất liệu",
+        "KieuDang" => "kiểu dáng",
+        "DeGiay" => "đế giày",
+        "TheLoai" => "thể loại giày",
+        _ => "thuộc tính"
+    };
+
     private Guid? _expandedColorId;
+
+    private void OpenQuickAdd(string type, GiayChiTietTheoMauDTO? colorTarget = null)
+    {
+        _quickAddType = type;
+        _quickAddColorTarget = colorTarget;
+        _quickAddName = string.Empty;
+        _quickAddEmail = string.Empty;
+        _quickAddPhone = string.Empty;
+        _quickAddAddress = string.Empty;
+        _quickAddDescription = string.Empty;
+        _quickAddColor = "#000000";
+        _quickAddSize = 39;
+        _quickAddWeight = 0;
+        _quickAddError = string.Empty;
+        _showQuickAdd = true;
+    }
+
+    private void CloseQuickAdd()
+    {
+        if (_quickAddSaving)
+            return;
+
+        _showQuickAdd = false;
+        _quickAddError = string.Empty;
+    }
+
+    private async Task ReloadQuickOptions()
+    {
+        _thuongHieuOptions = (await _thuongHieuService.GetAllAsync()).ToList();
+        _chatLieuOptions = (await _chatLieuService.GetAllAsync()).ToList();
+        _kieuDangOptions = (await _kieuDangService.GetAllAsync()).ToList();
+        _theLoaiOptions = (await _theLoaiGiayService.GetAllAsync()).ToList();
+        _deGiayOptions = (await _deGiayService.GetAllAsync()).ToList();
+        _danhSachMauCoBan = (await _mauSacService.GetAllAsync()).ToList();
+        _danhSachKichCo = (await _kichCoService.GetAllAsync()).ToList();
+    }
+
+    private async Task SaveQuickAdd()
+    {
+        if (_quickAddSaving)
+            return;
+
+        _quickAddName = (_quickAddName ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(_quickAddName))
+        {
+            _quickAddError = "Vui lòng nhập tên.";
+            return;
+        }
+
+        try
+        {
+            _quickAddSaving = true;
+            _quickAddError = string.Empty;
+            var savedTitle = QuickAddTitle;
+
+            switch (_quickAddType)
+            {
+                case "ThuongHieu":
+                    {
+                        if (_thuongHieuOptions.Any(x => string.Equals(x.TenThuongHieu?.Trim(), _quickAddName, StringComparison.OrdinalIgnoreCase)))
+                            throw new InvalidOperationException("Thương hiệu này đã tồn tại.");
+
+                        await _thuongHieuService.CreateAsync(new ThuongHieu
+                            {
+                                ThuongHieuId = Guid.NewGuid(),
+                                TenThuongHieu = _quickAddName,
+                                MoTa = _quickAddDescription,
+                                TrangThai = true
+                            });
+                        await ReloadQuickOptions();
+                        var brand = _thuongHieuOptions.FirstOrDefault(x => string.Equals(x.TenThuongHieu, _quickAddName, StringComparison.OrdinalIgnoreCase));
+                        if (brand != null) _giayModel.ThuongHieuId = brand.ThuongHieuId;
+                        break;
+                    }
+                case "ChatLieu":
+                    {
+                        if (_chatLieuOptions.Any(x => string.Equals(x.TenChatLieu?.Trim(), _quickAddName, StringComparison.OrdinalIgnoreCase)))
+                            throw new InvalidOperationException("Chất liệu này đã tồn tại.");
+
+                        await _chatLieuService.CreateAsync(new ChatLieu
+                            {
+                                ChatLieuId = Guid.NewGuid(),
+                                TenChatLieu = _quickAddName,
+                                MoTa = _quickAddDescription?.Trim(),
+                                TrangThai = true
+                            });
+                        await ReloadQuickOptions();
+                        var material = _chatLieuOptions.FirstOrDefault(x => string.Equals(x.TenChatLieu, _quickAddName, StringComparison.OrdinalIgnoreCase));
+                        if (material != null) _giayModel.ChatLieuId = material.ChatLieuId;
+                        break;
+                    }
+                case "KieuDang":
+                    {
+                        if (_kieuDangOptions.Any(x => string.Equals(x.TenKieuDang?.Trim(), _quickAddName, StringComparison.OrdinalIgnoreCase)))
+                            throw new InvalidOperationException("Kiểu dáng này đã tồn tại.");
+
+                        await _kieuDangService.CreateAsync(new KieuDangDTO
+                            {
+                                KieuDangId = Guid.NewGuid(),
+                                TenKieuDang = _quickAddName,
+                                MoTa = _quickAddDescription?.Trim(),
+                                TrangThai = true
+                            });
+                        await ReloadQuickOptions();
+                        var style = _kieuDangOptions.FirstOrDefault(x => string.Equals(x.TenKieuDang, _quickAddName, StringComparison.OrdinalIgnoreCase));
+                        if (style != null) _giayModel.KieuDangId = style.KieuDangId;
+                        break;
+                    }
+                case "DeGiay":
+                    {
+                        if (_deGiayOptions.Any(x => string.Equals(x.TenDeGiay?.Trim(), _quickAddName, StringComparison.OrdinalIgnoreCase)))
+                            throw new InvalidOperationException("Đế giày này đã tồn tại.");
+
+                        var created = await _deGiayService.CreateAsync(new DeGiayDTO
+                            {
+                                DeGiayId = Guid.NewGuid(),
+                                TenDeGiay = _quickAddName,
+                                MoTa = _quickAddDescription?.Trim(),
+                                TrangThai = true,
+                                GiaBan = 0
+                            });
+                        if (!created) throw new InvalidOperationException("API không tạo được đế giày.");
+                        await ReloadQuickOptions();
+                        var sole = _deGiayOptions.FirstOrDefault(x => string.Equals(x.TenDeGiay, _quickAddName, StringComparison.OrdinalIgnoreCase));
+                        if (sole != null) _giayModel.DeGiayId = sole.DeGiayId;
+                        break;
+                    }
+                case "TheLoai":
+                    {
+                        if (_theLoaiOptions.Any(x => string.Equals(x.TenTheLoai?.Trim(), _quickAddName, StringComparison.OrdinalIgnoreCase)))
+                            throw new InvalidOperationException("Thể loại này đã tồn tại.");
+
+                        await _theLoaiGiayService.AddAsync(new TheLoaiGiayDTO
+                            {
+                                TheLoaiGiayId = Guid.NewGuid(),
+                                TenTheLoai = _quickAddName,
+                                MoTa = _quickAddDescription?.Trim(),
+                                TrangThai = true
+                            });
+                        await ReloadQuickOptions();
+                        var category = _theLoaiOptions.FirstOrDefault(x => string.Equals(x.TenTheLoai, _quickAddName, StringComparison.OrdinalIgnoreCase));
+                        if (category != null) _giayModel.TheLoaiGiayId = category.TheLoaiGiayId;
+                        break;
+                    }
+                case "MauSac":
+                    {
+                        if (_danhSachMauCoBan.Any(x => string.Equals(x.TenMau?.Trim(), _quickAddName, StringComparison.OrdinalIgnoreCase)))
+                            throw new InvalidOperationException("Màu sắc này đã tồn tại.");
+
+                        await _mauSacService.CreateAsync(new MauSacDTO
+                            {
+                                MauSacId = Guid.NewGuid(),
+                                TenMau = _quickAddName,
+                                Color = _quickAddColor,
+                                MoTa = _quickAddDescription?.Trim(),
+                                TrangThai = true
+                            });
+                        await ReloadQuickOptions();
+                        var color = _danhSachMauCoBan.FirstOrDefault(x => string.Equals(x.TenMau, _quickAddName, StringComparison.OrdinalIgnoreCase));
+                        if (color != null && !IsColorSelected(color.MauSacId))
+                            await ToggleMauSac(color);
+                        break;
+                    }
+                case "KichCo":
+                    {
+                        if (_quickAddSize <= 0)
+                            throw new InvalidOperationException("Giá trị size phải lớn hơn 0.");
+                        if (_danhSachKichCo.Any(x => x.size == _quickAddSize))
+                            throw new InvalidOperationException("Giá trị size này đã tồn tại.");
+
+                        await _kichCoService.CreateAsync(new KichCoDTO
+                            {
+                                KichCoId = Guid.NewGuid(),
+                                TenKichCo = _quickAddName,
+                                size = _quickAddSize,
+                                CanNang = _quickAddWeight
+                            });
+                        await ReloadQuickOptions();
+                        var newSize = _danhSachKichCo.FirstOrDefault(x => x.size == _quickAddSize);
+                        if (newSize != null && _quickAddColorTarget != null &&
+                            !_quickAddColorTarget.ChiTietSizes.Any(x => x.KichCoId == newSize.KichCoId))
+                        {
+                            _quickAddColorTarget.ChiTietSizes.Add(new GiayChiTietSizeDTO
+                                {
+                                    KichCoId = newSize.KichCoId,
+                                    Gia = 100000,
+                                    SoLuong = 1
+                                });
+                            _expandedColorId = _quickAddColorTarget.MauSacId;
+                        }
+                        break;
+                    }
+                default:
+                    throw new InvalidOperationException("Loại thuộc tính không hợp lệ.");
+            }
+
+            _successMessage = $"{savedTitle} thành công.";
+            _showQuickAdd = false;
+        }
+        catch (Exception ex)
+        {
+            _quickAddError = ex.Message;
+        }
+        finally
+        {
+            _quickAddSaving = false;
+        }
+    }
 
     private List<MauSacDTO> FilteredColors =>
         _danhSachMauCoBan
@@ -2919,5 +3216,173 @@
             left: 15px;
             min-width: 0;
         }
+    }
+
+
+    /* Quick add modal */
+    .quick-select-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+        .quick-select-row .form-control-custom {
+            flex: 1;
+            min-width: 0;
+        }
+
+    .quick-add-btn {
+        min-width: 38px;
+        height: 38px;
+        padding: 0 10px;
+        border: 1px solid #f97316;
+        border-radius: 9px;
+        background: #fff7ed;
+        color: #ea580c;
+        font-size: 21px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: .2s ease;
+        white-space: nowrap;
+    }
+
+        .quick-add-btn:hover {
+            background: #f97316;
+            color: #fff;
+        }
+
+    .quick-add-text {
+        min-width: auto;
+        font-size: 13px;
+        height: 36px;
+    }
+
+    .quick-modal-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(15, 23, 42, .62);
+    }
+
+    .quick-modal {
+        width: 100%;
+        max-width: 480px;
+        max-height: 90vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        background: #fff;
+        border-radius: 18px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, .25);
+        animation: quickModalShow .18s ease-out;
+    }
+
+    @@keyframes quickModalShow {
+        from {
+            opacity: 0;
+            transform: translateY(12px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .quick-modal-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 15px;
+        padding: 21px 24px;
+        border-bottom: 1px solid #e7ebf1;
+    }
+
+        .quick-modal-header h3 {
+            margin: 0;
+            color: #172033;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .quick-modal-header p {
+            margin: 5px 0 0;
+            color: #718096;
+            font-size: 13px;
+        }
+
+    .quick-close {
+        width: 32px;
+        height: 32px;
+        border: 0;
+        border-radius: 8px;
+        background: #f1f5f9;
+        color: #334155;
+        font-size: 22px;
+        cursor: pointer;
+    }
+
+    .quick-modal-body {
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+        padding: 22px 24px;
+        overflow-y: auto;
+    }
+
+        .quick-modal-body label {
+            margin-top: 5px;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .quick-modal-body textarea {
+            min-height: 75px;
+            resize: vertical;
+        }
+
+    .quick-color-input {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: #475569;
+        font-size: 13px;
+    }
+
+        .quick-color-input input {
+            width: 55px;
+            height: 38px;
+            padding: 2px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+    .quick-error {
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: #fef2f2;
+        color: #b91c1c;
+        font-size: 13px;
+    }
+
+    .quick-modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 16px 24px;
+        border-top: 1px solid #e7ebf1;
+    }
+
+    .size-action-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
     }
 </style>
