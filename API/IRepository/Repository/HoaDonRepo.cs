@@ -56,8 +56,32 @@ namespace API.IRepository.Repository
 
         public async Task Create(HoaDon hoaDon)
         {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            if (hoaDon.VoucherId.HasValue)
+            {
+                var assigned = await _context.KhachHangVouchers.AnyAsync(x =>
+                    x.VoucherId == hoaDon.VoucherId.Value && x.KhachHangId == hoaDon.KhachHangId);
+                if (assigned)
+                {
+                    var markedUsed = await _context.KhachHangVouchers
+                        .Where(x => x.VoucherId == hoaDon.VoucherId.Value
+                            && x.KhachHangId == hoaDon.KhachHangId && !x.DaSuDung)
+                        .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.DaSuDung, true));
+                    if (markedUsed != 1)
+                        throw new InvalidOperationException("Khách hàng đã sử dụng voucher này.");
+                }
+
+                var affected = await _context.Vouchers
+                    .Where(v => v.VoucherId == hoaDon.VoucherId.Value && v.SoLuong > 0)
+                    .ExecuteUpdateAsync(setters => setters
+                        .SetProperty(v => v.SoLuong, v => v.SoLuong - 1));
+                if (affected != 1)
+                    throw new InvalidOperationException("Voucher đã hết lượt sử dụng.");
+            }
+
             _context.HoaDons.Add(hoaDon);
             await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
         }
 
         public async Task Update(HoaDon hoaDon)
@@ -69,12 +93,26 @@ namespace API.IRepository.Repository
 
         public async Task<bool> Delete(Guid id)
         {
+            using var transaction = await _context.Database.BeginTransactionAsync();
             var hoaDon = await _context.HoaDons.FindAsync(id);
-            if (hoaDon == null)
-                return false;
+            if (hoaDon == null) return false;
+
+            if (hoaDon.VoucherId.HasValue)
+            {
+                await _context.Vouchers
+                    .Where(v => v.VoucherId == hoaDon.VoucherId.Value)
+                    .ExecuteUpdateAsync(setters => setters
+                        .SetProperty(v => v.SoLuong, v => v.SoLuong + 1));
+
+                var customerVoucher = await _context.KhachHangVouchers
+                    .FirstOrDefaultAsync(x => x.VoucherId == hoaDon.VoucherId.Value
+                        && x.KhachHangId == hoaDon.KhachHangId);
+                if (customerVoucher != null) customerVoucher.DaSuDung = false;
+            }
 
             _context.HoaDons.Remove(hoaDon);
             await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
             return true;
         }
         // thêm 
@@ -110,6 +148,34 @@ namespace API.IRepository.Repository
 
             try
             {
+                // Trừ lượt sử dụng nguyên tử trong cùng transaction với việc tạo hóa đơn.
+                // Điều kiện SoLuong > 0 ngăn hai đơn đồng thời dùng vượt hạn mức.
+                if (hoaDon.VoucherId.HasValue)
+                {
+                    // Online checkout chỉ dùng voucher đã cấp cho đúng khách hàng.
+                    var markedUsed = await _context.KhachHangVouchers
+                        .Where(x => x.VoucherId == hoaDon.VoucherId.Value
+                            && x.KhachHangId == hoaDon.KhachHangId && !x.DaSuDung)
+                        .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.DaSuDung, true));
+
+                    if (markedUsed != 1)
+                    {
+                        await transaction.RollbackAsync();
+                        return false;
+                    }
+
+                    var affected = await _context.Vouchers
+                        .Where(v => v.VoucherId == hoaDon.VoucherId.Value && v.SoLuong > 0)
+                        .ExecuteUpdateAsync(setters => setters
+                            .SetProperty(v => v.SoLuong, v => v.SoLuong - 1));
+
+                    if (affected != 1)
+                    {
+                        await transaction.RollbackAsync();
+                        return false;
+                    }
+                }
+
                 var giayChiTietIds = chiTiets.Select(x => x.GiayChiTietId).ToList();
 
                 var giayChiTiets = await _context.GiayChiTiets
@@ -152,6 +218,7 @@ namespace API.IRepository.Repository
         // thêm hủy đơn
         public async Task<bool> HuyDonHangAsync(Guid hoaDonId, string? lyDo)
         {
+            using var transaction = await _context.Database.BeginTransactionAsync();
             var hoaDon = await _context.HoaDons
                 .Include(h => h.HoaDonChiTiets)
                 .FirstOrDefaultAsync(h => h.HoaDonId == hoaDonId);
@@ -181,7 +248,21 @@ namespace API.IRepository.Repository
                 throw new Exception($"Không thể hủy đơn ở trạng thái: {hoaDon.TrangThai}");
             }
 
+            if (hoaDon.VoucherId.HasValue)
+            {
+                await _context.Vouchers
+                    .Where(v => v.VoucherId == hoaDon.VoucherId.Value)
+                    .ExecuteUpdateAsync(setters => setters
+                        .SetProperty(v => v.SoLuong, v => v.SoLuong + 1));
+
+                var customerVoucher = await _context.KhachHangVouchers
+                    .FirstOrDefaultAsync(x => x.VoucherId == hoaDon.VoucherId.Value
+                        && x.KhachHangId == hoaDon.KhachHangId);
+                if (customerVoucher != null) customerVoucher.DaSuDung = false;
+            }
+
             await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
             return true;
         }
 

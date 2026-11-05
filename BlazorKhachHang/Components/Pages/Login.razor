@@ -1,12 +1,15 @@
-﻿@page "/login"
+﻿```razor
+@page "/login"
 @layout Layout.EmptyLayout
+
+@using API.Models.DTO
 @using BlazorKhachHang.Service.IService
-@using Data.Models
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.JSInterop
+@using System.Text.Json
+
 @inject NavigationManager Nav
 @inject ITaiKhoanService TaiKhoanService
-@inject IKhachHangService KhachHangService
 @inject IJSRuntime JS
 
 <style>
@@ -14,24 +17,15 @@
         margin: 0;
         padding: 0;
         background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%);
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
-        background-attachment: fixed;
-        height: 100vh;
-        overflow: hidden;
     }
 
     .login-wrapper {
         display: flex;
         justify-content: center;
         align-items: center;
-        height: 100vh;
+        min-height: 100vh;
         width: 100%;
-        position: fixed;
-        top: 0;
-        left: 0;
-        z-index: 9999;
+        padding: 20px;
         background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%);
     }
 
@@ -56,8 +50,9 @@
         border-radius: 8px;
         padding: 12px 15px;
         border: 1px solid #dee2e6;
-        margin-bottom: 1.2rem !important;
+        margin-bottom: 1rem;
         font-size: 1rem;
+        width: 100%;
     }
 
     .btn-submit {
@@ -68,13 +63,13 @@
         border-radius: 8px;
         color: white;
         font-size: 1.1rem;
-        transition: all 0.3s ease;
         margin-top: 1rem;
+        width: 100%;
     }
 
-        .btn-submit:hover {
-            background-color: #157347;
-            transform: translateY(-2px);
+        .btn-submit:disabled {
+            background-color: #999;
+            cursor: not-allowed;
         }
 
     .switch-link {
@@ -83,121 +78,394 @@
         color: #6c757d;
         text-decoration: none;
         font-size: 0.95rem;
+        cursor: pointer;
     }
 
         .switch-link:hover {
             color: #a18cd1;
             text-decoration: underline;
         }
+
+    .error-message {
+        color: #dc3545;
+        background: #fce8e8;
+        padding: 10px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        text-align: left;
+        font-size: 14px;
+    }
+
+    .success-message {
+        color: #198754;
+        background: #e8f5e9;
+        padding: 10px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+    }
+
+    .validation-message {
+        display: block;
+        color: #dc3545;
+        text-align: left;
+        font-size: 13px;
+        margin-top: -10px;
+        margin-bottom: 10px;
+    }
 </style>
 
 <div class="login-wrapper">
     <div class="login-card">
-        <h3>@(!IsLoginFormVisible ? "Đăng Ký" : "Đăng Nhập")</h3>
 
-        <EditForm Model="Input" OnValidSubmit="@(IsLoginFormVisible? OnLogin : OnSignup)">
-            @if (!IsLoginFormVisible)
-            {
-                <InputText class="form-control" placeholder="Họ tên" @bind-Value="Input.Ten" />
-                <InputText class="form-control" placeholder="Số điện thoại" @bind-Value="Input.SoDienThoai" />
-                <InputText class="form-control" placeholder="Email" @bind-Value="Input.Email" />
-            }
+        <h3>@(IsLoginFormVisible ? "Đăng Nhập" : "Đăng Ký")</h3>
 
-            <InputText class="form-control" placeholder="Tên đăng nhập" @bind-Value="Input.UserName" />
-            <input type="password" class="form-control" placeholder="Mật khẩu" @bind="Input.Password" />
+        @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+        {
+            <div class="error-message">
+                @ErrorMessage
+            </div>
+        }
 
-            @if (!IsLoginFormVisible)
-            {
-                <input type="password" class="form-control" placeholder="Xác nhận mật khẩu" @bind="Input.RePassword" />
-            }
+        @if (!IsLoginFormVisible)
+        {
+            <EditForm Model="@RegisterInput"
+                      OnValidSubmit="@OnSignup">
 
-            <button type="submit" class="btn-submit w-100">
-                @(IsLoginFormVisible ? "Đăng Nhập" : "Đăng Ký")
-            </button>
-        </EditForm>
+                <DataAnnotationsValidator />
 
-        <a class="switch-link" style="cursor:pointer" @onclick="@(() => IsLoginFormVisible = !IsLoginFormVisible)">
-            @(IsLoginFormVisible ? "Chưa có tài khoản? Đăng ký ngay" : "Đã có tài khoản? Đăng nhập")
+                <InputText class="form-control"
+                           placeholder="Họ và tên"
+                           @bind-Value="RegisterInput.HoTen" />
+
+                <ValidationMessage For="@(() => RegisterInput.HoTen)"
+                                   class="validation-message" />
+
+                <InputText class="form-control"
+                           placeholder="Số điện thoại"
+                           @bind-Value="RegisterInput.SoDienThoai" />
+
+                <ValidationMessage For="@(() => RegisterInput.SoDienThoai)"
+                                   class="validation-message" />
+
+                <InputText class="form-control"
+                           placeholder="Email"
+                           @bind-Value="RegisterInput.Email" />
+
+                <ValidationMessage For="@(() => RegisterInput.Email)"
+                                   class="validation-message" />
+
+                <InputText class="form-control"
+                           placeholder="Tên đăng nhập"
+                           @bind-Value="RegisterInput.Username" />
+
+                <ValidationMessage For="@(() => RegisterInput.Username)"
+                                   class="validation-message" />
+
+                <InputText type="password"
+                           class="form-control"
+                           placeholder="Mật khẩu"
+                           @bind-Value="RegisterInput.Password" />
+
+                <ValidationMessage For="@(() => RegisterInput.Password)"
+                                   class="validation-message" />
+
+                <InputText type="password"
+                           class="form-control"
+                           placeholder="Xác nhận mật khẩu"
+                           @bind-Value="RegisterInput.ConfirmPassword" />
+
+                <ValidationMessage For="@(() => RegisterInput.ConfirmPassword)"
+                                   class="validation-message" />
+
+                <button type="submit"
+                        class="btn-submit"
+                        disabled="@IsSubmitting">
+
+                    @(IsSubmitting ? "Đang đăng ký..." : "Đăng Ký")
+                </button>
+
+            </EditForm>
+        }
+        else
+        {
+            <EditForm Model="@LoginInput"
+                      OnValidSubmit="@OnLogin">
+
+                <DataAnnotationsValidator />
+
+                <InputText class="form-control"
+                           placeholder="Tên đăng nhập"
+                           @bind-Value="LoginInput.Username" />
+
+                <ValidationMessage For="@(() => LoginInput.Username)"
+                                   class="validation-message" />
+
+                <InputText type="password"
+                           class="form-control"
+                           placeholder="Mật khẩu"
+                           @bind-Value="LoginInput.Password" />
+
+                <ValidationMessage For="@(() => LoginInput.Password)"
+                                   class="validation-message" />
+
+                <button type="submit"
+                        class="btn-submit"
+                        disabled="@IsSubmitting">
+
+                    @(IsSubmitting ? "Đang đăng nhập..." : "Đăng Nhập")
+                </button>
+
+            </EditForm>
+        }
+
+        <a class="switch-link"
+           @onclick="SwitchForm">
+
+            @(IsLoginFormVisible
+                        ? "Chưa có tài khoản? Đăng ký ngay"
+                        : "Đã có tài khoản? Đăng nhập")
         </a>
+
     </div>
 </div>
 
 @code {
-    bool IsLoginFormVisible = true;
-    LoginRegist Input = new();
+    private bool IsLoginFormVisible = true;
+    private bool IsSubmitting = false;
 
-    async Task OnLogin()
+    private string ErrorMessage = "";
+
+    private LoginInputModel LoginInput = new();
+
+    private RegisterCustomerDTO RegisterInput = new();
+
+    // =========================
+    // CHUYỂN ĐỔI ĐĂNG NHẬP / ĐĂNG KÝ
+    // =========================
+
+    private void SwitchForm()
     {
-        var result = await TaiKhoanService.GetKhachHang(Input.UserName, Input.Password);
+        IsLoginFormVisible = !IsLoginFormVisible;
 
-        if (result != null && result.IsSuccess)
+        ErrorMessage = "";
+
+        LoginInput = new LoginInputModel();
+        RegisterInput = new RegisterCustomerDTO();
+    }
+
+    // =========================
+    // ĐĂNG NHẬP
+    // =========================
+
+    private async Task OnLogin()
+    {
+        if (IsSubmitting) return;
+
+        try
         {
-            await JS.InvokeVoidAsync("localStorage.setItem", "khachHangId", result.Id.ToString());
-            await JS.InvokeVoidAsync("localStorage.setItem", "username", result.Username);
+            IsSubmitting = true;
+            ErrorMessage = "";
 
-            await Alert("Chào mừng " + result.Username + " đã quay trở lại!");
+            var result = await TaiKhoanService.GetKhachHang(
+                LoginInput.Username.Trim(),
+                LoginInput.Password);
+
+            if (result == null || !result.IsSuccess)
+            {
+                ErrorMessage = result?.Message
+                    ?? "Tên đăng nhập hoặc mật khẩu không chính xác.";
+
+                return;
+            }
+
+            await SaveCustomerInfo(
+                result.Id,
+                result.Username,
+                result.HoTen,
+                result.Email,
+                result.SoDienThoai);
+
             Nav.NavigateTo("/", true);
         }
-        else
+        catch (Exception ex)
         {
-            await Alert(result?.Message ?? "Sai thông tin đăng nhập!");
+            ErrorMessage = "Lỗi đăng nhập: " + ex.Message;
+        }
+        finally
+        {
+            IsSubmitting = false;
         }
     }
 
-    async Task OnSignup()
-    {
-        if (Input.Password != Input.RePassword)
-        {
-            await Alert("Mật khẩu không khớp!");
-            return;
-        }
+    // =========================
+    // ĐĂNG KÝ
+    // =========================
 
-        var kh = new Data.Models.KhachHang
+    private async Task OnSignup()
+    {
+        if (IsSubmitting) return;
+
+        try
         {
-            HoTen = Input.Ten,
-            Email = Input.Email,
-            SoDienThoai = Input.SoDienThoai,
-            TrangThai = true,
-            TaiKhoan = new Data.Models.TaiKhoan
+            IsSubmitting = true;
+            ErrorMessage = "";
+
+            RegisterInput.HoTen = RegisterInput.HoTen.Trim();
+            RegisterInput.Username = RegisterInput.Username.Trim();
+            RegisterInput.Email = RegisterInput.Email.Trim();
+            RegisterInput.SoDienThoai = RegisterInput.SoDienThoai.Trim();
+
+            // Gọi API đăng ký
+            var response = await TaiKhoanService.RegisterCustomerAsync(
+                RegisterInput);
+
+            if (!response.IsSuccessStatusCode)
             {
-                Username = Input.UserName,
-                Password = Input.Password,
-                TaikhoanId = Guid.NewGuid(),
-                Ngaytaotaikhoan = DateTime.UtcNow
+                var content = await response.Content.ReadAsStringAsync();
+
+                ErrorMessage = ExtractApiError(content);
+
+                return;
             }
-        };
 
-        await KhachHangService.Create(kh);
+            // Đăng ký thành công, tiến hành đăng nhập
+            var loginResult = await TaiKhoanService.GetKhachHang(
+                RegisterInput.Username,
+                RegisterInput.Password);
 
-        var result = await TaiKhoanService.GetKhachHang(Input.UserName, Input.Password);
+            if (loginResult == null || !loginResult.IsSuccess)
+            {
+                ErrorMessage =
+                    "Đăng ký thành công nhưng đăng nhập tự động thất bại. " +
+                    "Vui lòng chuyển sang đăng nhập bằng tài khoản vừa tạo.";
 
-        if (result != null && result.IsSuccess)
-        {
-            await JS.InvokeVoidAsync("localStorage.setItem", "khachHangId", result.Id.ToString());
-            await JS.InvokeVoidAsync("localStorage.setItem", "username", result.Username);
+                return;
+            }
 
-            await JS.InvokeVoidAsync("localStorage.setItem", "name", Input.Ten);
-            await JS.InvokeVoidAsync("localStorage.setItem", "email", Input.Email);
-            await JS.InvokeVoidAsync("localStorage.setItem", "phone", Input.SoDienThoai);
+            await SaveCustomerInfo(
+                loginResult.Id,
+                loginResult.Username,
+                loginResult.HoTen,
+                loginResult.Email,
+                loginResult.SoDienThoai);
 
-            await Alert("Đăng ký thành công!");
-            Nav.NavigateTo("/khachhang", true);
+            await JS.InvokeVoidAsync(
+                "alert",
+                "Đăng ký tài khoản thành công!");
+
+            Nav.NavigateTo("/", true);
         }
-        else
+        catch (Exception ex)
         {
-            await Alert("Đăng ký lỗi hoặc không thể tự động đăng nhập!");
+            ErrorMessage = "Không thể đăng ký tài khoản: " + ex.Message;
+        }
+        finally
+        {
+            IsSubmitting = false;
         }
     }
 
-    async Task Alert(string msg) => await JS.InvokeVoidAsync("alert", msg);
+    // =========================
+    // LƯU THÔNG TIN KHÁCH HÀNG
+    // =========================
 
-    public class LoginRegist
+    private async Task SaveCustomerInfo(
+        Guid id,
+        string username,
+        string name,
+        string email,
+        string phone)
     {
-        public string Ten { get; set; } = "";
-        public string SoDienThoai { get; set; } = "";
-        public string Email { get; set; } = "";
-        public string UserName { get; set; } = "";
+        await JS.InvokeVoidAsync(
+            "localStorage.setItem",
+            "khachHangId",
+            id.ToString());
+
+        await JS.InvokeVoidAsync(
+            "localStorage.setItem",
+            "username",
+            username);
+
+        await JS.InvokeVoidAsync(
+            "localStorage.setItem",
+            "name",
+            name ?? "");
+
+        await JS.InvokeVoidAsync(
+            "localStorage.setItem",
+            "email",
+            email ?? "");
+
+        await JS.InvokeVoidAsync(
+            "localStorage.setItem",
+            "phone",
+            phone ?? "");
+    }
+
+    // =========================
+    // HIỂN THỊ LỖI API
+    // =========================
+
+    private string ExtractApiError(string content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+            return "Đăng ký thất bại. Vui lòng thử lại.";
+
+        try
+        {
+            using var document = JsonDocument.Parse(content);
+
+            var root = document.RootElement;
+
+            if (root.TryGetProperty("message", out var message))
+            {
+                return message.GetString()
+                    ?? "Đăng ký thất bại.";
+            }
+
+            if (root.TryGetProperty("errors", out var errors))
+            {
+                var messages = new List<string>();
+
+                foreach (var item in errors.EnumerateObject())
+                {
+                    foreach (var error in item.Value.EnumerateArray())
+                    {
+                        messages.Add(error.GetString() ?? "");
+                    }
+                }
+
+                if (messages.Count > 0)
+                    return string.Join(" ", messages);
+            }
+
+            if (root.TryGetProperty("title", out var title))
+            {
+                return title.GetString()
+                    ?? "Dữ liệu đăng ký không hợp lệ.";
+            }
+        }
+        catch
+        {
+            return content;
+        }
+
+        return content;
+    }
+
+    // =========================
+    // MODEL ĐĂNG NHẬP
+    // =========================
+
+    public class LoginInputModel
+    {
+        [System.ComponentModel.DataAnnotations.Required(
+            ErrorMessage = "Vui lòng nhập tên đăng nhập.")]
+        public string Username { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Required(
+            ErrorMessage = "Vui lòng nhập mật khẩu.")]
         public string Password { get; set; } = "";
-        public string RePassword { get; set; } = "";
     }
 }
+```

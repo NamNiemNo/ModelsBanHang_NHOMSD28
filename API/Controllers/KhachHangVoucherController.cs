@@ -48,12 +48,8 @@ namespace API.Controllers
         [HttpPost("assign-one")]
         public async Task<IActionResult> AssignOne(KhachHangVoucher model)
         {
-            var currentAssigned = await _repo.GetByVoucherIdAsync(model.VoucherId);
             var voucher = await _repo.GetVoucherByIdAsync(model.VoucherId);
-
             if (voucher == null) return NotFound("Voucher không tồn tại.");
-            if (currentAssigned.Count >= voucher.SoLuong)
-                return BadRequest("Số lượng voucher đã được sử dụng hết.");
 
             var success = await _repo.AddAsync(model);
             if (!success) return Conflict("Khách hàng đã có voucher này.");
@@ -66,28 +62,18 @@ namespace API.Controllers
         [HttpPost("assign-multiple")]
         public async Task<IActionResult> AssignMultiple(Guid voucherId, List<Guid> khachHangIds)
         {
-            var currentAssigned = await _repo.GetByVoucherIdAsync(voucherId);
             var voucher = await _repo.GetVoucherByIdAsync(voucherId);
-
             if (voucher == null) return NotFound("Voucher không tồn tại.");
 
-            int remaining = voucher.SoLuong - currentAssigned.Count;
-            if (remaining <= 0) return BadRequest("Số lượng voucher đã hết.");
-
-            // Lọc khách hàng chưa được gán
-            var khachHangChuaCoVoucher = khachHangIds
-                .Where(khId => !currentAssigned.Any(x => x.KhachHangId == khId))
-                .Take(remaining)
-                .ToList();
-
+            var khachHangChuaCoVoucher = (khachHangIds ?? new List<Guid>()).Distinct().ToList();
             await _repo.AddMultipleAsync(voucherId, khachHangChuaCoVoucher);
 
-            await _thongBaoRepo.ThemThongBaoAsync($"🎁 Gán voucher {voucher.TenVoucher} cho {khachHangChuaCoVoucher.Count} khách hàng.");
+            await _thongBaoRepo.ThemThongBaoAsync($"🎁 Cấp voucher {voucher.TenVoucher} cho {khachHangChuaCoVoucher.Count} khách hàng.");
             return Ok(new
             {
-                Message = $"Đã gán {khachHangChuaCoVoucher.Count}/{khachHangIds.Count} khách hàng.",
+                Message = $"Đã xử lý danh sách {khachHangChuaCoVoucher.Count} khách hàng. Số lượt sử dụng không bị thay đổi khi cấp voucher.",
                 AssignedCount = khachHangChuaCoVoucher.Count,
-                RemainingQuota = remaining - khachHangChuaCoVoucher.Count
+                RemainingQuota = voucher.SoLuong
             });
         }
 

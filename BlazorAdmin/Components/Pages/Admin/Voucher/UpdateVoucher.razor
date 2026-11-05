@@ -138,7 +138,7 @@
                                 </label>
 
                                 <div class="input-wrapper">
-                                    <InputDate class="custom-input"
+                                    <InputDate class="custom-input" Type="InputDateType.DateTimeLocal"
                                                @bind-Value="voucher.NgayBatDau" />
                                 </div>
                             </div>
@@ -150,7 +150,7 @@
                                 </label>
 
                                 <div class="input-wrapper">
-                                    <InputDate class="custom-input"
+                                    <InputDate class="custom-input" Type="InputDateType.DateTimeLocal"
                                                @bind-Value="voucher.NgayKetThuc" />
                                 </div>
 
@@ -342,9 +342,9 @@
                                 <div>
                                     <small>Hiệu lực</small>
                                     <strong>
-                                        @voucher.NgayBatDau.ToString("dd/MM/yyyy")
+                                        @voucher.NgayBatDau.ToString("dd/MM/yyyy HH:mm")
                                         -
-                                        @voucher.NgayKetThuc.ToString("dd/MM/yyyy")
+                                        @voucher.NgayKetThuc.ToString("dd/MM/yyyy HH:mm")
                                     </strong>
                                 </div>
 
@@ -491,11 +491,11 @@
             isInvalid = true;
         }
 
-        if (voucher.NgayKetThuc < voucher.NgayBatDau)
+        if (voucher.NgayKetThuc <= voucher.NgayBatDau)
         {
             AddValidationError(
                 nameof(Voucher.NgayKetThuc),
-                "Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu.");
+                "Thời điểm kết thúc phải sau thời điểm bắt đầu.");
 
             isInvalid = true;
         }

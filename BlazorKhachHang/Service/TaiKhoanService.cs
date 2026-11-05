@@ -169,11 +169,20 @@ namespace BlazorKhachHang.Service
                 return null;
             }
         }
-        public async Task<HttpResponseMessage> RegisterCustomerAsync(RegisterCustomerDTO request)
+        public async Task<HttpResponseMessage> RegisterCustomerAsync(
+    RegisterCustomerDTO request)
         {
-            return await _httpClient.PostAsJsonAsync(
-                "api/TaiKhoan/register-customer",
-                request);
+            try
+            {
+                return await _httpClient.PostAsJsonAsync(
+                    "api/TaiKhoans/register-customer",
+                    request);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(
+                    "Không thể kết nối API đăng ký: " + ex.Message);
+            }
         }
     }
 }

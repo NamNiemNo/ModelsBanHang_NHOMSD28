@@ -196,6 +196,8 @@ namespace API.Controllers
                 string.IsNullOrWhiteSpace(
                     momoResponse.PayUrl))
             {
+                // Đơn chưa thể thanh toán: xóa hóa đơn tạm và hoàn lại lượt voucher đã giữ.
+                await _hoaDonRepo.Delete(hoaDon.HoaDonId);
                 return BadRequest(
                     "Không tạo được đường dẫn thanh toán MoMo.");
             }

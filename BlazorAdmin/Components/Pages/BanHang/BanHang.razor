@@ -608,18 +608,16 @@
         if (!voucher.TrangThai)
             return "Voucher đang bị khóa hoặc đã ngừng hoạt động.";
 
-        var today = DateTime.Today;
+        var now = DateTime.Now;
 
-        if (today < voucher.NgayBatDau.Date)
+        if (now < voucher.NgayBatDau)
         {
-            return
-                $"Voucher có hiệu lực từ ngày {voucher.NgayBatDau:dd/MM/yyyy}.";
+            return $"Voucher có hiệu lực từ {voucher.NgayBatDau:dd/MM/yyyy HH:mm}.";
         }
 
-        if (today > voucher.NgayKetThuc.Date)
+        if (now > voucher.NgayKetThuc)
         {
-            return
-                $"Voucher đã hết hạn ngày {voucher.NgayKetThuc:dd/MM/yyyy}.";
+            return $"Voucher đã hết hạn lúc {voucher.NgayKetThuc:dd/MM/yyyy HH:mm}.";
         }
 
         if (voucher.SoLuong <= 0)

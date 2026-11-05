@@ -1,13 +1,15 @@
-﻿using API.IRepository;
+﻿using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using API.IRepository;
 using API.Models.DTO;
 using Data.Models;
 using Data.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
+using Data.Models;
 
 namespace API.Controllers
 {
@@ -22,6 +24,7 @@ namespace API.Controllers
         private readonly IChucVuRepository _chucVuRepository;
         private readonly IThongBaoRepository _thongBaoRepository;
         private readonly IConfiguration _configuration;
+        private readonly DbContextApp _db;
 
         public TaiKhoansController(
             ITaiKhoanRepository context,
@@ -29,7 +32,8 @@ namespace API.Controllers
             IChucVuRepository chucVuRepository,
             IThongBaoRepository thongBaoRepository,
             IKhachHangRepository khachHangRepository,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            DbContextApp db)
         {
             _context = context;
             _nhanVienRepository = nhanVienRepository;
@@ -37,6 +41,7 @@ namespace API.Controllers
             _thongBaoRepository = thongBaoRepository;
             _khachHangRepository = khachHangRepository;
             _configuration = configuration;
+            _db = db;
         }
 
         [HttpGet]
@@ -301,6 +306,106 @@ namespace API.Controllers
                         khachHang.SoDienThoai,
                     Message = "Đăng nhập thành công!"
                 });
+        }
+        // POST: api/TaiKhoans/register-customer
+        [HttpPost("register-customer")]
+        [AllowAnonymous]
+        public async Task<IActionResult> RegisterCustomer(
+            [FromBody] RegisterCustomerDTO request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var username = request.Username.Trim();
+            var email = request.Email.Trim();
+            var phone = request.SoDienThoai.Trim();
+
+            // Kiểm tra tên đăng nhập đã tồn tại
+            var usernameExists = await _db.TaiKhoans
+                .AnyAsync(x => x.Username.ToLower() == username.ToLower());
+
+            if (usernameExists)
+            {
+                return BadRequest(new
+                {
+                    message = "Tên đăng nhập đã tồn tại!"
+                });
+            }
+
+            // Kiểm tra email đã tồn tại
+            var emailExists = await _db.KhachHangs
+                .AnyAsync(x => x.Email.ToLower() == email.ToLower());
+
+            if (emailExists)
+            {
+                return BadRequest(new
+                {
+                    message = "Email này đã được đăng ký!"
+                });
+            }
+
+            // Kiểm tra số điện thoại
+            var phoneExists = await _db.KhachHangs
+                .AnyAsync(x => x.SoDienThoai == phone);
+
+            if (phoneExists)
+            {
+                return BadRequest(new
+                {
+                    message = "Số điện thoại đã được sử dụng!"
+                });
+            }
+
+            try
+            {
+                var taiKhoanId = Guid.NewGuid();
+
+                var taiKhoan = new TaiKhoan
+                {
+                    TaikhoanId = taiKhoanId,
+                    Username = username,
+                    Password = request.Password,
+                    Ngaytaotaikhoan = DateTime.UtcNow
+                };
+
+                var khachHang = new KhachHang
+                {
+                    KhachHangId = Guid.NewGuid(),
+                    HoTen = request.HoTen.Trim(),
+                    Email = email,
+                    SoDienThoai = phone,
+                    NgaySinh = request.NgaySinh,
+                    GioiTinh = request.GioiTinh,
+                    TrangThai = true,
+                    NgayTao = DateTime.UtcNow,
+                    NgayCapNhatCuoiCung = DateTime.UtcNow,
+                    TaiKhoanId = taiKhoanId,
+                    TaiKhoan = taiKhoan
+                };
+
+                _db.TaiKhoans.Add(taiKhoan);
+                _db.KhachHangs.Add(khachHang);
+
+                await _db.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Đăng ký tài khoản thành công!",
+                    khachHangId = khachHang.KhachHangId,
+                    username = taiKhoan.Username
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = "Không thể tạo tài khoản.",
+                    detail = ex.Message
+                });
+            }
         }
 
         /*

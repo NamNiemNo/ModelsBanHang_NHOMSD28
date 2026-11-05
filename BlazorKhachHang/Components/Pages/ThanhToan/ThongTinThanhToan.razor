@@ -848,13 +848,23 @@
         {
             _loaded = true;
 
-            vouchers = (await VoucherService.GetAll())
-                .Where(v =>
-                    v.TrangThai &&
-                    v.NgayBatDau <= DateTime.Now &&
-                    v.NgayKetThuc >= DateTime.Now &&
-                    v.SoLuong > 0)
-                .ToList();
+            var customerIdText = await JS.InvokeAsync<string>("localStorage.getItem", "khachHangId");
+            if (Guid.TryParse(customerIdText, out var customerId))
+            {
+                var assignedVouchers = await Http.GetFromJsonAsync<List<KhachHangVoucher>>(
+                    $"api/KhachHangVoucher/by-khachhang/{customerId}") ?? new();
+
+                vouchers = assignedVouchers
+                    .Where(x => !x.DaSuDung && x.Voucher != null)
+                    .Select(x => x.Voucher!)
+                    .Where(v => v.TrangThai && v.NgayBatDau <= DateTime.Now
+                        && v.NgayKetThuc >= DateTime.Now && v.SoLuong > 0)
+                    .ToList();
+            }
+            else
+            {
+                vouchers = new List<Voucher>();
+            }
 
             var buyNowJson = await JS.InvokeAsync<string>("localStorage.getItem", "buyNowItem");
             var checkoutJson = await JS.InvokeAsync<string>("localStorage.getItem", "checkoutItems");
@@ -979,9 +989,18 @@
                 return;
             }
 
+            if (!vouchers.Any(x => x.VoucherId == voucher.VoucherId))
+            {
+                discountAmount = 0;
+                appliedVoucherId = null;
+                selectedVoucherId = null;
+                infoMessage = "❌ Voucher chưa được cấp cho tài khoản của bạn hoặc đã sử dụng.";
+                return;
+            }
+
             var tongTien = SubTotal;
 
-            if (DateTime.Now < voucher.NgayBatDau || DateTime.Now > voucher.NgayKetThuc)
+            if (DateTime.Now < voucher.NgayBatDau || DateTime.Now > voucher.NgayKetThuc || !voucher.TrangThai || voucher.SoLuong <= 0)
             {
                 discountAmount = 0;
                 appliedVoucherId = null;

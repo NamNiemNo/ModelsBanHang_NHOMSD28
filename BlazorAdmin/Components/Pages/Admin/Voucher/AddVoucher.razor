@@ -6,8 +6,6 @@
 @using System.ComponentModel.DataAnnotations
 
 @inject IVoucherService service
-@inject IKhachHangService khachHangService
-@inject IKhachHangVoucherService khachHangVoucherService
 @inject NavigationManager manager
 
 <div class="voucher-form-page">
@@ -26,7 +24,7 @@
 
             <div>
                 <h2>Thêm Voucher mới</h2>
-                <p>Tạo mã giảm giá và phân phối cho khách hàng</p>
+                <p>Tạo mã giảm giá, sau đó chủ động gửi email cho khách hàng</p>
             </div>
         </div>
 
@@ -45,11 +43,11 @@
 
         <div class="step-line"></div>
 
-        <div class="step-item @(Input.KhachHangIds.Any() ? "active" : "")">
+        <div class="step-item">
             <span>2</span>
             <div>
-                <strong>Chọn khách hàng</strong>
-                <small>Phân phối Voucher</small>
+                <strong>Gửi email</strong>
+                <small>Thực hiện sau khi tạo</small>
             </div>
         </div>
 
@@ -82,16 +80,7 @@
         </div>
     }
 
-    @if (IsLoading)
-    {
-        <div class="loading-card">
-            <div class="loading-spinner"></div>
-            <strong>Đang tải danh sách khách hàng...</strong>
-        </div>
-    }
-    else
-    {
-        <EditForm Model="@Input"
+    <EditForm Model="@Input"
                   OnValidSubmit="@SubmitFormCreate"
                   FormName="AddVoucherForm">
 
@@ -140,7 +129,7 @@
                                     <span>*</span>
                                 </label>
 
-                                <InputDate class="form-control-custom"
+                                <InputDate class="form-control-custom" Type="InputDateType.DateTimeLocal"
                                            @bind-Value="Input.NgayBatDau" />
 
                                 <ValidationMessage For="@(() => Input.NgayBatDau)" />
@@ -153,7 +142,7 @@
                                     <span>*</span>
                                 </label>
 
-                                <InputDate class="form-control-custom"
+                                <InputDate class="form-control-custom" Type="InputDateType.DateTimeLocal"
                                            @bind-Value="Input.NgayKetThuc" />
 
                                 <ValidationMessage For="@(() => Input.NgayKetThuc)" />
@@ -174,7 +163,7 @@
                                 <ValidationMessage For="@(() => Input.SoLuong)" />
 
                                 <small class="field-note">
-                                    Số khách được gán không được vượt quá số lượng Voucher.
+                                    Đây là tổng lượt sử dụng tối đa trên toàn hệ thống, không giới hạn số khách được nhận email.
                                 </small>
                             </div>
 
@@ -306,224 +295,27 @@
 
                 </div>
 
-                <!-- CỘT KHÁCH HÀNG -->
                 <div class="side-content">
-
                     <div class="customer-card">
-
                         <div class="customer-heading">
                             <div>
-                                <h4>Gán cho khách hàng</h4>
-                                <p>Chọn khách hàng nhận Voucher</p>
+                                <h4>Phân phối Voucher</h4>
+                                <p>Voucher được tạo trước. Sau khi lưu, nhân viên có thể chủ động gửi email cho toàn bộ hoặc từng khách hàng.</p>
                             </div>
-
-                            <span class="selected-count">
-                                @Input.KhachHangIds.Count/@Input.SoLuong
-                            </span>
                         </div>
-
-                        <div class="customer-search">
-                            <span>⌕</span>
-
-                            <input placeholder="Tìm tên, email, số điện thoại..."
-                                   @bind="CustomerSearch"
-                                   @bind:event="oninput" />
-
-                            @if (!string.IsNullOrWhiteSpace(CustomerSearch))
-                            {
-                                <button type="button"
-                                        @onclick="() => CustomerSearch = string.Empty">
-                                    ×
-                                </button>
-                            }
-                        </div>
-
-                        <div class="select-all-row">
-
-                            <label>
-                                <input type="checkbox"
-                                       @bind="IsAllChecked" />
-
-                                <span class="custom-checkbox"></span>
-
-                                <div>
-                                    <strong>Chọn tối đa có thể</strong>
-
-                                    <small>
-                                        Tối đa @MaximumSelectableCustomers khách
-                                    </small>
-                                </div>
-                            </label>
-
-                            @if (Input.KhachHangIds.Any())
-                            {
-                                <button type="button"
-                                        @onclick="ClearSelectedCustomers">
-                                    Bỏ chọn
-                                </button>
-                            }
-
-                        </div>
-
-                        <!-- THANH TIẾN ĐỘ -->
-                        <div class="selection-progress">
-
-                            <div>
-                                <span>Đã phân phối</span>
-
-                                <strong>
-                                    @Input.KhachHangIds.Count /
-                                    @(Input.SoLuong <= 0 ? 0 : Input.SoLuong)
-                                </strong>
-                            </div>
-
-                            <div class="progress-track">
-                                <div class="progress-value"
-                                     style="@($"width:{SelectionPercentage}%")">
-                                </div>
-                            </div>
-
-                        </div>
-
-                        <!-- DANH SÁCH KHÁCH -->
-                        <div class="customer-list">
-
-                            @if (!FilteredCustomers.Any())
-                            {
-                                <div class="empty-customer">
-                                    <span>🔎</span>
-                                    <strong>Không tìm thấy khách hàng</strong>
-                                </div>
-                            }
-                            else
-                            {
-                                @foreach (var customer in FilteredCustomers)
-                                {
-                                    var isSelected =
-                                    Input.KhachHangIds.Contains(
-                                    customer.KhachHangId);
-
-                                    <label class="customer-item @(isSelected ? "selected" : "") @(!customer.TrangThai ? "disabled" : "")">
-
-                                        <input type="checkbox"
-                                               checked="@isSelected"
-                                               disabled="@(!customer.TrangThai)"
-                                               @onchange="e => ToggleKhachHang(
-                                                   customer.KhachHangId,
-                                                   e.Value is bool value && value)" />
-
-                                        <span class="customer-checkbox">
-                                            @(isSelected ? "✓" : "")
-                                        </span>
-
-                                        <span class="customer-avatar">
-                                            @GetInitials(customer.HoTen)
-                                        </span>
-
-                                        <span class="customer-details">
-                                            <strong>
-                                                @(string.IsNullOrWhiteSpace(customer.HoTen)
-                                                    ? "Khách hàng"
-                                                    : customer.HoTen)
-                                            </strong>
-
-                                            <small>
-                                                @(string.IsNullOrWhiteSpace(customer.Email)
-                                                    ? "Chưa có email"
-                                                    : customer.Email)
-                                            </small>
-
-                                            <small>
-                                                @(string.IsNullOrWhiteSpace(customer.SoDienThoai)
-                                                    ? "Chưa có số điện thoại"
-                                                    : customer.SoDienThoai)
-                                            </small>
-                                        </span>
-
-                                        @if (!customer.TrangThai)
-                                        {
-                                            <span class="inactive-label">
-                                                Đã khóa
-                                            </span>
-                                        }
-
-                                    </label>
-                                }
-                            }
-
-                        </div>
-
-                    </div>
-
-                    <!-- XEM TRƯỚC -->
-                    <div class="preview-card">
-
-                        <div class="preview-title">
-                            <span>◉</span>
-                            Xem trước Voucher
-                        </div>
-
-                        <div class="voucher-preview">
-
-                            <div class="voucher-preview-left">
-                                <span>VOUCHER</span>
-                                <strong>@DiscountDisplay</strong>
-                                <small>
-                                    Đơn tối thiểu
-                                    @Input.DieuKienToiThieu.ToString("N0") ₫
-                                </small>
-                            </div>
-
-                            <div class="voucher-preview-right">
-                                <strong>
-                                    @(string.IsNullOrWhiteSpace(Input.TenVoucher)
-                                        ? "TÊN VOUCHER"
-                                        : Input.TenVoucher)
-                                </strong>
-
-                                <small>
-                                    HSD:
-                                    @Input.NgayKetThuc.ToString("dd/MM/yyyy")
-                                </small>
-
-                                <span>
-                                    SL: @Input.SoLuong
-                                </span>
-                            </div>
-
-                        </div>
-
                         <div class="preview-information">
-
-                            <div>
-                                <span>Thời gian</span>
-                                <strong>
-                                    @Input.NgayBatDau.ToString("dd/MM/yyyy")
-                                    -
-                                    @Input.NgayKetThuc.ToString("dd/MM/yyyy")
-                                </strong>
-                            </div>
-
-                            <div>
-                                <span>Giảm tối đa</span>
-                                <strong>
-                                    @Input.GiamToiDa.ToString("N0") ₫
-                                </strong>
-                            </div>
-
-                            <div>
-                                <span>Khách được chọn</span>
-                                <strong>
-                                    @Input.KhachHangIds.Count khách
-                                </strong>
-                            </div>
-
+                            <div><span>Giới hạn sử dụng</span><strong>@Input.SoLuong lượt trên toàn hệ thống</strong></div>
+                            <div><span>Gửi email</span><strong>Thực hiện riêng sau khi tạo</strong></div>
                         </div>
-
                     </div>
-
+                    <div class="preview-card">
+                        <div class="preview-title">◉ Xem trước Voucher</div>
+                        <div class="voucher-preview">
+                            <div class="voucher-preview-left"><span>VOUCHER</span><strong>@DiscountDisplay</strong><small>Đơn tối thiểu @Input.DieuKienToiThieu.ToString("N0") ₫</small></div>
+                            <div class="voucher-preview-right"><strong>@(string.IsNullOrWhiteSpace(Input.TenVoucher) ? "TÊN VOUCHER" : Input.TenVoucher)</strong><small>HSD: @Input.NgayKetThuc.ToString("dd/MM/yyyy HH:mm")</small><span>SL: @Input.SoLuong lượt</span></div>
+                        </div>
+                    </div>
                 </div>
-
             </div>
 
             <!-- BUTTON -->
@@ -534,7 +326,7 @@
 
                     <span>
                         @Input.SoLuong Voucher,
-                        @Input.KhachHangIds.Count khách hàng
+                        chưa gửi email
                     </span>
                 </div>
 
@@ -566,8 +358,7 @@
 
             </div>
 
-        </EditForm>
-    }
+    </EditForm>
 
     @if (!string.IsNullOrWhiteSpace(SuccessMessage))
     {
@@ -587,14 +378,8 @@
     private InputModel Input { get; set; } = new();
 
     private bool IsPhanTram = true;
-    private bool IsLoading = true;
     private bool IsSubmitting;
 
-    private List<KhachHang> DanhSachKhachHang = new();
-
-    private bool _isAllChecked;
-
-    private string CustomerSearch = string.Empty;
     private string ErrorMessage = string.Empty;
     private string SuccessMessage = string.Empty;
 
@@ -626,72 +411,6 @@
         set
         {
             Input.SoLuong = Math.Max(0, value);
-
-            AdjustCustomerSelectionToQuantity();
-        }
-    }
-
-    private List<KhachHang> ActiveCustomers =>
-        DanhSachKhachHang
-            .Where(x => x.TrangThai)
-            .ToList();
-
-    private List<KhachHang> FilteredCustomers =>
-        DanhSachKhachHang
-            .Where(x =>
-                string.IsNullOrWhiteSpace(CustomerSearch)
-                || (x.HoTen ?? string.Empty)
-                    .Contains(
-                        CustomerSearch,
-                        StringComparison.OrdinalIgnoreCase)
-                || (x.Email ?? string.Empty)
-                    .Contains(
-                        CustomerSearch,
-                        StringComparison.OrdinalIgnoreCase)
-                || (x.SoDienThoai ?? string.Empty)
-                    .Contains(
-                        CustomerSearch,
-                        StringComparison.OrdinalIgnoreCase))
-            .OrderByDescending(x => x.TrangThai)
-            .ThenBy(x => x.HoTen)
-            .ToList();
-
-    private int MaximumSelectableCustomers =>
-        Math.Min(
-            Math.Max(Input.SoLuong, 0),
-            ActiveCustomers.Count);
-
-    private bool IsAllChecked
-    {
-        get
-        {
-            var maximum = MaximumSelectableCustomers;
-
-            return maximum > 0
-                   && Input.KhachHangIds.Count == maximum;
-        }
-
-        set
-        {
-            _isAllChecked = value;
-
-            ToggleAllKhachHang(value);
-        }
-    }
-
-    private int SelectionPercentage
-    {
-        get
-        {
-            if (Input.SoLuong <= 0)
-                return 0;
-
-            return Math.Min(
-                100,
-                (int)Math.Round(
-                    (double)Input.KhachHangIds.Count
-                    / Input.SoLuong
-                    * 100));
         }
     }
 
@@ -705,34 +424,6 @@
             ? $"{Input.PhanTram:N0}%"
             : $"{Input.SoTienGiam:N0} ₫";
 
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadCustomers();
-    }
-
-    private async Task LoadCustomers()
-    {
-        try
-        {
-            IsLoading = true;
-            ErrorMessage = string.Empty;
-
-            DanhSachKhachHang =
-                (await khachHangService.GetAll())
-                .OrderBy(x => x.HoTen)
-                .ToList();
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage =
-                "Không thể tải danh sách khách hàng: " + ex.Message;
-        }
-        finally
-        {
-            IsLoading = false;
-        }
-    }
-
     private void DoiKieuGiamGia(bool percentage)
     {
         if (IsPhanTram == percentage)
@@ -744,86 +435,6 @@
         Input.SoTienGiam = 0;
 
         ErrorMessage = string.Empty;
-    }
-
-    private void ToggleKhachHang(
-        Guid customerId,
-        bool isChecked)
-    {
-        ErrorMessage = string.Empty;
-
-        if (isChecked)
-        {
-            if (Input.SoLuong <= 0)
-            {
-                ErrorMessage =
-                    "Vui lòng nhập số lượng Voucher trước.";
-                return;
-            }
-
-            if (Input.KhachHangIds.Count >= Input.SoLuong)
-            {
-                ErrorMessage =
-                    $"Chỉ được chọn tối đa {Input.SoLuong} khách hàng.";
-                return;
-            }
-
-            if (!Input.KhachHangIds.Contains(customerId))
-            {
-                Input.KhachHangIds.Add(customerId);
-            }
-        }
-        else
-        {
-            Input.KhachHangIds.Remove(customerId);
-        }
-
-        _isAllChecked = IsAllChecked;
-    }
-
-    private void ToggleAllKhachHang(bool isChecked)
-    {
-        ErrorMessage = string.Empty;
-
-        if (!isChecked)
-        {
-            Input.KhachHangIds.Clear();
-            return;
-        }
-
-        if (Input.SoLuong <= 0)
-        {
-            _isAllChecked = false;
-
-            ErrorMessage =
-                "Vui lòng nhập số lượng Voucher trước.";
-            return;
-        }
-
-        Input.KhachHangIds = ActiveCustomers
-            .Take(MaximumSelectableCustomers)
-            .Select(x => x.KhachHangId)
-            .ToList();
-    }
-
-    private void ClearSelectedCustomers()
-    {
-        Input.KhachHangIds.Clear();
-        _isAllChecked = false;
-    }
-
-    private void AdjustCustomerSelectionToQuantity()
-    {
-        var validIds = ActiveCustomers
-            .Select(x => x.KhachHangId)
-            .ToHashSet();
-
-        Input.KhachHangIds = Input.KhachHangIds
-            .Where(validIds.Contains)
-            .Take(Math.Max(Input.SoLuong, 0))
-            .ToList();
-
-        _isAllChecked = IsAllChecked;
     }
 
     private async Task SubmitFormCreate()
@@ -876,20 +487,13 @@
             // Chỉ await, không gán kết quả vào bool.
             await service.Add(newVoucher);
 
-            if (Input.KhachHangIds.Any())
-            {
-                await khachHangVoucherService.AssignMultipleAsync(
-                    newVoucher.VoucherId,
-                    Input.KhachHangIds);
-            }
-
             SuccessMessage =
-                "Voucher đã được tạo thành công.";
+                "Voucher đã được tạo thành công. Bạn có thể gửi email tại danh sách Voucher.";
 
             await InvokeAsync(StateHasChanged);
             await Task.Delay(700);
 
-            manager.NavigateTo("/Admin/voucher");
+            manager.NavigateTo($"/Admin/SendVoucher/{newVoucher.VoucherId}");
         }
         catch (Exception ex)
         {
@@ -911,10 +515,10 @@
             return false;
         }
 
-        if (Input.NgayBatDau.Date < DateTime.Today)
+        if (Input.NgayBatDau < DateTime.Now)
         {
             ErrorMessage =
-                "Ngày bắt đầu không được nhỏ hơn hôm nay.";
+                "Thời điểm bắt đầu không được ở trong quá khứ.";
             return false;
         }
 
@@ -928,7 +532,7 @@
         if (Input.SoLuong <= 0)
         {
             ErrorMessage =
-                "Số lượng Voucher phải lớn hơn 0.";
+                "Tổng lượt sử dụng Voucher phải lớn hơn 0.";
             return false;
         }
 
@@ -978,14 +582,6 @@
             Input.PhanTram = 0;
         }
 
-        if (Input.KhachHangIds.Count > Input.SoLuong)
-        {
-            ErrorMessage =
-                $"Có {Input.SoLuong} Voucher nhưng đã chọn " +
-                $"{Input.KhachHangIds.Count} khách hàng.";
-            return false;
-        }
-
         return true;
     }
 
@@ -1030,12 +626,11 @@
             ErrorMessage = "Tên Voucher tối đa 100 ký tự")]
         public string TenVoucher { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Ngày bắt đầu không được để trống")]
-        public DateTime NgayBatDau { get; set; } = DateTime.Today;
+        [Required(ErrorMessage = "Thời điểm bắt đầu không được để trống")]
+        public DateTime NgayBatDau { get; set; } = DateTime.Now.AddMinutes(5);
 
-        [Required(ErrorMessage = "Ngày kết thúc không được để trống")]
-        public DateTime NgayKetThuc { get; set; }
-            = DateTime.Today.AddDays(7);
+        [Required(ErrorMessage = "Thời điểm kết thúc không được để trống")]
+        public DateTime NgayKetThuc { get; set; } = DateTime.Now.AddDays(7);
 
         [Range(
             0,
@@ -1067,7 +662,6 @@
             ErrorMessage = "Số lượng phải lớn hơn 0")]
         public int SoLuong { get; set; } = 1;
 
-        public List<Guid> KhachHangIds { get; set; } = new();
     }
 }
 

@@ -1,0 +1,138 @@
+﻿@page "/Admin/SendVoucher/{VoucherId:guid}"
+@rendermode InteractiveServer
+@using Data.Models
+@using BlazorAdmin.Service.IService
+@inject IVoucherService VoucherService
+@inject IKhachHangService KhachHangService
+@inject IKhachHangVoucherService KhachHangVoucherService
+@inject NavigationManager Navigation
+
+<div class="container py-4" style="max-width:1050px">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold">Gửi voucher qua email</h2>
+            <p class="text-muted mb-0">Tạo voucher xong mới gửi. Việc gửi email không làm giảm số lượt sử dụng.</p>
+        </div>
+        <button class="btn btn-outline-secondary" @onclick="GoBack">Quay lại</button>
+    </div>
+
+    @if (Loading)
+    {
+        <div class="text-center p-5">Đang tải dữ liệu...</div>
+    }
+    else if (Voucher is null)
+    {
+        <div class="alert alert-danger">Không tìm thấy voucher.</div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <h4>@Voucher.TenVoucher</h4>
+                <div class="row g-3 mt-1">
+                    <div class="col-md-3"><small class="text-muted">Lượt sử dụng còn lại</small><div class="fw-bold">@Voucher.SoLuong</div></div>
+                    <div class="col-md-5"><small class="text-muted">Thời gian hiệu lực</small><div class="fw-bold">@Voucher.NgayBatDau.ToString("dd/MM/yyyy HH:mm") – @Voucher.NgayKetThuc.ToString("dd/MM/yyyy HH:mm")</div></div>
+                    <div class="col-md-4"><small class="text-muted">Khách đã được cấp</small><div class="fw-bold">@AssignedCount khách</div></div>
+                </div>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Error)) { <div class="alert alert-danger">@Error</div> }
+        @if (!string.IsNullOrWhiteSpace(Success)) { <div class="alert alert-success">@Success</div> }
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="sendAll" @bind="SendToAll" />
+                    <label class="form-check-label fw-semibold" for="sendAll">Gửi cho tất cả khách hàng có email và đang hoạt động</label>
+                </div>
+                @if (!SendToAll)
+                {
+                    <input class="form-control mb-3" placeholder="Tìm theo tên hoặc email..." @bind="Search" @bind:event="oninput" />
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>Đã chọn <b>@SelectedIds.Count</b> khách hàng</span>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="ToggleVisible">Chọn/bỏ chọn danh sách đang hiển thị</button>
+                    </div>
+                    <div class="border rounded" style="max-height:430px;overflow:auto">
+                        @foreach (var customer in FilteredCustomers)
+                        {
+                            <label class="d-flex align-items-center gap-3 p-3 border-bottom">
+                                <input type="checkbox" checked="@SelectedIds.Contains(customer.KhachHangId)" @onchange="e => ToggleCustomer(customer.KhachHangId, e.Value is bool b && b)" />
+                                <span class="flex-grow-1"><b>@customer.HoTen</b><br /><small class="text-muted">@customer.Email</small></span>
+                                @if (AssignedIds.Contains(customer.KhachHangId)) { <span class="badge bg-success">Đã được cấp</span> }
+                            </label>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-info mb-3">Email sẽ được gửi đến tất cả khách hàng đang hoạt động có địa chỉ email hợp lệ.</div>
+                }
+                <div class="d-flex justify-content-end mt-4">
+                    <button class="btn btn-warning px-4" disabled="@Sending" @onclick="Send">
+                        @(Sending ? "Đang gửi email..." : "Gửi thông tin voucher")
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid VoucherId { get; set; }
+    private Voucher? Voucher;
+    private List<KhachHang> Customers = new();
+    private HashSet<Guid> SelectedIds = new();
+    private HashSet<Guid> AssignedIds = new();
+    private bool Loading = true, Sending, SendToAll;
+    private string Search = "", Error = "", Success = "";
+    private int AssignedCount;
+
+    private IEnumerable<KhachHang> FilteredCustomers => Customers.Where(x => x.TrangThai && !string.IsNullOrWhiteSpace(x.Email))
+        .Where(x => string.IsNullOrWhiteSpace(Search) || (x.HoTen ?? "").Contains(Search, StringComparison.OrdinalIgnoreCase) || (x.Email ?? "").Contains(Search, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            Voucher = await VoucherService.GetById(VoucherId);
+            Customers = await KhachHangService.GetAll();
+            var assigned = await KhachHangVoucherService.GetByVoucherIdAsync(VoucherId);
+            AssignedIds = assigned.Select(x => x.KhachHangId).ToHashSet();
+            AssignedCount = AssignedIds.Count;
+        }
+        catch (Exception ex) { Error = ex.Message; }
+        finally { Loading = false; }
+    }
+
+    private void GoBack() => Navigation.NavigateTo("/Admin/voucher");
+
+    private void ToggleCustomer(Guid id, bool selected)
+    {
+        if (selected) SelectedIds.Add(id); else SelectedIds.Remove(id);
+    }
+
+    private void ToggleVisible()
+    {
+        var ids = FilteredCustomers.Select(x => x.KhachHangId).ToList();
+        if (ids.All(SelectedIds.Contains)) foreach (var id in ids) SelectedIds.Remove(id);
+        else foreach (var id in ids) SelectedIds.Add(id);
+    }
+
+    private async Task Send()
+    {
+        Error = Success = string.Empty;
+        if (!SendToAll && SelectedIds.Count == 0) { Error = "Vui lòng chọn ít nhất một khách hàng."; return; }
+        Sending = true;
+        try
+        {
+            var result = await KhachHangVoucherService.SendVoucherEmailAsync(VoucherId, SendToAll, SelectedIds.ToList());
+            Success = result?.Message ?? "Đã hoàn tất gửi email.";
+            var assigned = await KhachHangVoucherService.GetByVoucherIdAsync(VoucherId);
+            AssignedIds = assigned.Select(x => x.KhachHangId).ToHashSet();
+            AssignedCount = AssignedIds.Count;
+        }
+        catch (Exception ex) { Error = ex.Message; }
+        finally { Sending = false; }
+    }
+}

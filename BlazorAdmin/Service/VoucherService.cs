@@ -15,7 +15,7 @@ namespace BlazorAdmin.Service
 
         public async Task<List<Voucher>> GetAll()
         {
-            return await _httpClient.GetFromJsonAsync<List<Voucher>>("/api/Voucher");
+            return await _httpClient.GetFromJsonAsync<List<Voucher>>("/api/Voucher") ?? new List<Voucher>();
         }
 
         public async Task<Voucher> GetById(Guid id)
@@ -29,7 +29,7 @@ namespace BlazorAdmin.Service
             if (!response.IsSuccessStatusCode)
             {
                 var msg = await response.Content.ReadAsStringAsync();
-                Console.WriteLine("Lỗi Add(): " + msg);
+                throw new InvalidOperationException("Không thể tạo voucher: " + msg);
             }
         }
 
@@ -39,7 +39,7 @@ namespace BlazorAdmin.Service
             if (!response.IsSuccessStatusCode)
             {
                 var msg = await response.Content.ReadAsStringAsync();
-                Console.WriteLine("Lỗi Update(): " + msg);
+                throw new InvalidOperationException("Không thể cập nhật voucher: " + msg);
             }
         }
 

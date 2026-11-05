@@ -5,6 +5,7 @@ using API.Models.Momo;
 using API.Services.Shipping;
 using API.Repository;
 using API.Services.AI;
+using API.Services.Email;
 using API.Services.Momo;
 using Data.IRepository;
 using Data.Models;
@@ -160,6 +161,8 @@ builder.Services.AddDbContext<DbContextApp>(
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 
 // =====================================================
 // ĐĂNG KÝ REPOSITORY

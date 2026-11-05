@@ -21,11 +21,12 @@ namespace Data.Models
             if (!optionsBuilder.IsConfigured)
             {
                 optionsBuilder.UseSqlServer(
-                    @"Data Source=localhost\\SQLEXPRESS;" +
-                    @"Database=TestCSLDs1;" +
-                    @"Trusted_Connection=True;" +
+                    @"Data Source=(localdb)\MSSQLLocalDB;" +
+                    @"Initial Catalog=NIVOtestVou;" +
                     @"Integrated Security=True;" +
-                    @"TrustServerCertificate=True");
+                    @"Connect Timeout=30;" +
+                    @"Encrypt=False;" +
+                    @"Trust Server Certificate=False");
                 ; 
             }
         }

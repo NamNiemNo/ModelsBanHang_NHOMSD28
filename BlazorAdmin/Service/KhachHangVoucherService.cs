@@ -64,5 +64,21 @@ namespace BlazorAdmin.Service
             }
             return response.IsSuccessStatusCode;
         }
+
+        public async Task<SendVoucherEmailResult?> SendVoucherEmailAsync(Guid voucherId, bool sendToAll, List<Guid> customerIds)
+        {
+            var response = await _httpClient.PostAsJsonAsync("api/VoucherEmail/send", new
+            {
+                VoucherId = voucherId,
+                SendToAllCustomers = sendToAll,
+                CustomerIds = customerIds ?? new List<Guid>()
+            });
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                throw new InvalidOperationException(string.IsNullOrWhiteSpace(error) ? "Không gửi được email voucher." : error);
+            }
+            return await response.Content.ReadFromJsonAsync<SendVoucherEmailResult>();
+        }
     }
 }
